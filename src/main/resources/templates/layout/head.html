@@ -15,4 +15,31 @@
 
     <!-- Ton style personnalisé (doit être après les autres pour surcharger) -->
     <link rel="stylesheet" th:href="@{/css/style.css}" />
+
+    <!-- Style personnalisé supplémentaire pour ajuster les détails -->
+    <style>
+        /* Ajustements d'ergonomie mobile */
+        body {
+            overflow-x: hidden; /* Évite les défilements horizontaux indésirables */
+        }
+        
+        /* Rend toutes les tables défilables sur petits écrans */
+        .table-responsive-mobile {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* Adaptation du conteneur principal */
+        @media (max-width: 768px) {
+            .container, .container-fluid {
+                padding-left: 10px;
+                padding-right: 10px;
+            }
+            .btn {
+                width: 100%; /* Boutons en largeur complète sur mobile */
+                margin-bottom: 5px;
+            }
+        }
+    </style>
 </head>
