@@ -2,6 +2,7 @@
 + [X] creera database.sql
 + [X] logique metier tout dans Service meme Page et Views et Controller appel Service structure MVC tu commprends
 + [X] donnée dans la base de donnée plus statique
++ [X] responsive les pages
 
 + ß[ ] utiliser graphe
 

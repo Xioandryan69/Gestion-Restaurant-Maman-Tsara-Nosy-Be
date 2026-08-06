@@ -1,8 +1,185 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html xmlns:th="http://www.thymeleaf.org" lang="fr">
 <body>
 
-<aside th:fragment="sidebar(activeMenu)" class="sidebar">
+<aside th:fragment="sidebar(activeMenu)" class="sidebar" id="globalSidebar">
+  
+  <!-- CSS Intégré pour la Sidebar Responsive -->
+  <style>
+    /* Styles généraux de la sidebar */
+    .sidebar {
+      width: 260px;
+      min-width: 260px;
+      background-color: #1e293b;
+      color: #f8fafc;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      position: sticky;
+      top: 0;
+      z-index: 1040;
+      transition: transform 0.3s ease-in-out;
+      overflow-y: auto;
+    }
+
+    .sidebar-brand {
+      padding: 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 1px solid #334155;
+    }
+
+    .logo-icon {
+      background: #3b82f6;
+      color: white;
+      padding: 8px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .brand-name {
+      font-weight: 700;
+      font-size: 1.1rem;
+      line-height: 1.2;
+    }
+
+    .brand-sub {
+      font-size: 0.75rem;
+      color: #94a3b8;
+    }
+
+    .sidebar-section {
+      padding: 16px 20px 8px;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #64748b;
+      font-weight: 600;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 20px;
+      color: #cbd5e1;
+      text-decoration: none;
+      font-size: 0.9rem;
+      transition: all 0.2s ease;
+    }
+
+    .nav-item:hover, .nav-item.active {
+      background-color: #334155;
+      color: #ffffff;
+      border-left: 4px solid #3b82f6;
+    }
+
+    .nav-item svg {
+      width: 18px;
+      height: 18px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .sidebar-bottom {
+      margin-top: auto;
+      padding: 16px 20px;
+      border-top: 1px solid #334155;
+      background: #0f172a;
+    }
+
+    .user-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: #3b82f6;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 0.85rem;
+    }
+
+    .user-info .name {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #f8fafc;
+    }
+
+    .user-info .role {
+      font-size: 0.75rem;
+      color: #94a3b8;
+    }
+
+    /* Bouton Hamburger pour mobile */
+    .sidebar-toggle-btn {
+      display: none;
+      position: fixed;
+      top: 12px;
+      left: 12px;
+      z-index: 1050;
+      background: #1e293b;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 8px 12px;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+
+    .sidebar-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 1030;
+    }
+
+    /* Adaptation Mobile (écrans < 768px) */
+    @media (max-width: 767.98px) {
+      .sidebar {
+        position: fixed;
+        transform: translateX(-100%);
+      }
+
+      .sidebar.show {
+        transform: translateX(0);
+      }
+
+      .sidebar-toggle-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .sidebar-overlay.show {
+        display: block;
+      }
+    }
+  </style>
+
+  <!-- Bouton Toggle Mobile -->
+  <button type="button" class="sidebar-toggle-btn" id="sidebarToggle" aria-label="Toggle Navigation">
+    <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" fill="none" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+  </button>
+
+  <!-- Overlay d'arrière-plan Mobile -->
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <!-- En-tête de la Sidebar -->
   <div class="sidebar-brand">
     <div class="logo-icon">
       <svg viewBox="0 0 24 24" width="18" height="18"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
@@ -72,6 +249,26 @@
       </div>
     </div>
   </div>
+
+  <!-- Script interactif d'ouverture/fermeture mobile -->
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      const toggleBtn = document.getElementById("sidebarToggle");
+      const sidebar = document.getElementById("globalSidebar");
+      const overlay = document.getElementById("sidebarOverlay");
+
+      function toggleMenu() {
+        sidebar.classList.toggle("show");
+        overlay.classList.toggle("show");
+      }
+
+      if (toggleBtn && sidebar && overlay) {
+        toggleBtn.addEventListener("click", toggleMenu);
+        overlay.addEventListener("click", toggleMenu);
+      }
+    });
+  </script>
+
 </aside>
 
 </body>

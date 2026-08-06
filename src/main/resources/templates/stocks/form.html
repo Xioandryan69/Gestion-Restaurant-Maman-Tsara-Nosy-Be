@@ -1,16 +1,112 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" lang="fr"
       th:with="pageTitle=${stock.id == null ? 'Nouveau Relevé de Stock' : 'Modifier Relevé de Stock'}">
-<head th:replace="~{layout/head :: head(pageTitle=${pageTitle})}"></head>
-<body>
+<head th:replace="~{layout/head :: head(pageTitle=${pageTitle})}">
+    <!-- Viewport nécessaire pour l'affichage mobile -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body class="bg-light">
 
-<div class="app">
+<!-- CSS d'adaptation responsive et styles de formulaires -->
+<style>
+    body, .app {
+        overflow-x: hidden;
+    }
+
+    .app {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+    }
+    
+    @media (min-width: 768px) {
+        .app {
+            flex-direction: row;
+        }
+        .main {
+            flex: 1;
+            min-width: 0;
+        }
+    }
+
+    .content {
+        padding: 15px;
+    }
+    @media (min-width: 768px) {
+        .content {
+            padding: 25px;
+        }
+    }
+
+    /* Carte de formulaire */
+    .form-card {
+        background: #ffffff;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        padding: 20px;
+    }
+    @media (min-width: 768px) {
+        .form-card {
+            padding: 30px;
+        }
+    }
+
+    /* System Grid Responsive du Formulaire */
+    .form-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1.25rem;
+        margin-bottom: 1.25rem;
+    }
+    @media (min-width: 768px) {
+        .form-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    .field-group {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .field-label {
+        font-weight: 600;
+        font-size: 0.875rem;
+        margin-bottom: 0.4rem;
+        color: #334155;
+    }
+
+    .required {
+        color: #dc3545;
+    }
+
+    /* Toolbar d'actions */
+    .toolbar {
+        display: flex;
+        flex-direction: column-reverse;
+        gap: 0.75rem;
+        padding-top: 1.25rem;
+        border-top: 1px solid #e2e8f0;
+        margin-top: 1.5rem;
+    }
+    @media (min-width: 576px) {
+        .toolbar {
+            flex-direction: row;
+            justify-content: flex-end;
+        }
+        .toolbar .btn {
+            width: auto;
+        }
+    }
+</style>
+
+<div class="app container-fluid p-0">
 
   <!-- Sidebar globale -->
   <aside th:replace="~{layout/sidebar :: sidebar(activeMenu='stocks')}"></aside>
 
   <!-- Conteneur principal -->
-  <div class="main">
+  <div class="main w-100">
 
     <!-- Topbar globale -->
     <div th:replace="~{layout/navbar :: topbar(pageTitle=${pageTitle})}"></div>
@@ -18,22 +114,28 @@
     <!-- Contenu de la page -->
     <div class="content">
 
-      <div class="page-header">
+      <!-- En-tête de la page -->
+      <div class="page-header mb-4">
         <div>
-          <h2 th:text="${stock.id == null ? 'Saisir un Relevé de Stock' : 'Modifier le Relevé de Stock'}"></h2>
-          <div class="breadcrumb">Accueil / <a th:href="@{/stocks}">Stocks</a> / <span>Formulaire</span></div>
+          <h2 class="h3 mb-1" th:text="${stock.id == null ? 'Saisir un Relevé de Stock' : 'Modifier le Relevé de Stock'}">
+            Saisir un Relevé de Stock
+          </h2>
+          <div class="breadcrumb mb-0">
+            Accueil / <a th:href="@{/stocks}" class="text-decoration-none">Stocks</a> / <span>Formulaire</span>
+          </div>
         </div>
       </div>
 
-      <div class="form-card">
+      <!-- Card Formulaire -->
+      <div class="form-card shadow-sm">
         <form th:action="@{/stocks/save}" th:object="${stock}" method="post">
           <input type="hidden" th:field="*{id}" />
 
           <div class="form-grid">
+            <!-- Choix de l'ingrédient -->
             <div class="field-group">
-              <label class="field-label">Ingrédient <span class="required">*</span></label>
-              <!-- Ajustez th:field="*{ingredient.id}" si votre DTO utilise idIngredient -->
-              <select th:field="*{ingredient}" class="form-control" required>
+              <label class="field-label" for="ingredient">Ingrédient <span class="required">*</span></label>
+              <select id="ingredient" th:field="*{ingredient}" class="form-select" required>
                 <option value="">-- Sélectionner un ingrédient --</option>
                 <option th:each="ing : ${ingredients}" 
                         th:value="${ing.id}" 
@@ -42,22 +144,29 @@
               </select>
             </div>
             
+            <!-- Date du relevé -->
             <div class="field-group">
-              <label class="field-label">Date Relevé <span class="required">*</span></label>
-              <input type="date" th:field="*{dateEtatStock}" class="form-control" required />
+              <label class="field-label" for="dateEtatStock">Date Relevé <span class="required">*</span></label>
+              <input type="date" id="dateEtatStock" th:field="*{dateEtatStock}" class="form-control" required />
             </div>
           </div>
 
           <div class="form-grid">
+            <!-- Quantité -->
             <div class="field-group">
-              <label class="field-label">Quantité <span class="required">*</span></label>
-              <input type="number" step="0.001" th:field="*{quantite}" class="form-control" placeholder="0.000" required />
+              <label class="field-label" for="quantite">Quantité <span class="required">*</span></label>
+              <input type="number" id="quantite" step="0.001" th:field="*{quantite}" class="form-control" placeholder="0.000" required />
             </div>
           </div>
 
+          <!-- Boutons d'action -->
           <div class="toolbar">
-            <button type="submit" class="btn btn-primary">Enregistrer</button>
-            <a th:href="@{/stocks}" class="btn btn-secondary">Annuler</a>
+            <a th:href="@{/stocks}" class="btn btn-secondary w-100 w-sm-auto">
+              <i class="bi bi-x-circle me-1"></i> Annuler
+            </a>
+            <button type="submit" class="btn btn-primary w-100 w-sm-auto">
+              <i class="bi bi-check-circle me-1"></i> Enregistrer
+            </button>
           </div>
 
         </form>

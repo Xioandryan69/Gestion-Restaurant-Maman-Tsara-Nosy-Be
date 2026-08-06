@@ -1,16 +1,121 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" lang="fr"
       th:with="pageTitle='Créer / Modifier une Recette'">
-<head th:replace="~{layout/head :: head(pageTitle=${pageTitle})}"></head>
-<body>
+<head th:replace="~{layout/head :: head(pageTitle=${pageTitle})}">
+    <!-- Viewport pour l'adaptation mobile -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body class="bg-light">
 
-<div class="app">
+<!-- CSS d'adaptation responsive -->
+<style>
+    body, .app {
+        overflow-x: hidden;
+    }
+
+    .app {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+    }
+    
+    @media (min-width: 768px) {
+        .app {
+            flex-direction: row;
+        }
+        .main {
+            flex: 1;
+            min-width: 0;
+        }
+    }
+
+    .content {
+        padding: 15px;
+    }
+    @media (min-width: 768px) {
+        .content {
+            padding: 25px;
+        }
+    }
+
+    /* Styles des cartes et tableaux */
+    .form-card, .table-card {
+        background: #ffffff;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .form-card {
+        padding: 20px;
+    }
+
+    /* Grille responsive du plat concerné */
+    .form-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1.25rem;
+    }
+    @media (min-width: 768px) {
+        .form-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    /* Scroll horizontal sur mobile pour le tableau */
+    .table-responsive {
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        text-align: left;
+    }
+
+    .data-table th, .data-table td {
+        padding: 12px 16px;
+        border-bottom: 1px solid #e2e8f0;
+        white-space: nowrap;
+    }
+
+    .data-table thead th {
+        background-color: #f8fafc;
+        color: #475569;
+        font-weight: 600;
+    }
+
+    .field-label {
+        font-weight: 600;
+        font-size: 0.875rem;
+        margin-bottom: 0.35rem;
+        color: #334155;
+    }
+
+    .required {
+        color: #dc2626;
+    }
+
+    /* Adaptation de la barre d'action sur écran mobile */
+    @media (max-width: 576px) {
+        .toolbar {
+            flex-direction: column-reverse;
+            width: 100%;
+        }
+        .toolbar .btn {
+            width: 100%;
+        }
+    }
+</style>
+
+<div class="app container-fluid p-0">
 
   <!-- Sidebar globale -->
   <aside th:replace="~{layout/sidebar :: sidebar(activeMenu='plats')}"></aside>
 
   <!-- Conteneur principal -->
-  <div class="main">
+  <div class="main w-100">
 
     <!-- Topbar globale -->
     <div th:replace="~{layout/navbar :: topbar(pageTitle=${pageTitle})}"></div>
@@ -19,25 +124,27 @@
     <div class="content">
 
       <!-- En-tête de la page -->
-      <div class="page-header">
+      <div class="page-header d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3 mb-4">
         <div>
-          <h2>Composition de la Recette du Plat</h2>
-          <div class="breadcrumb">
+          <h2 class="h3 mb-1">Composition de la Recette du Plat</h2>
+          <div class="breadcrumb mb-0">
             Accueil / <a th:href="@{/plats}">Plats</a> / <span>Recette</span>
           </div>
         </div>
-        <a th:href="@{/plats}" class="btn btn-secondary">&larr; Retour à la liste</a>
+        <div>
+          <a th:href="@{/plats}" class="btn btn-secondary w-100 w-sm-auto">&larr; Retour à la liste</a>
+        </div>
       </div>
 
       <form th:action="@{/plats/recette/save}" method="post" id="recetteForm">
         
         <!-- Selection du Plat -->
-        <div class="form-card mb-4">
-          <h3 class="mb-3 text-primary">Plat concerné</h3>
-          <div class="form-grid" style="grid-template-columns: 1fr 1fr;">
+        <div class="form-card mb-4 shadow-sm">
+          <h3 class="mb-3 text-primary h5">Plat concerné</h3>
+          <div class="form-grid">
             <div class="field-group">
               <label for="platId" class="field-label">Sélectionner le Plat <span class="required">*</span></label>
-              <select class="form-control" id="platId" name="platId" required>
+              <select class="form-select" id="platId" name="platId" required>
                 <option value="" disabled selected>-- Choisir un plat --</option>
                 <option th:each="plat : ${plats}" 
                         th:value="${plat.id}" 
@@ -49,28 +156,28 @@
         </div>
 
         <!-- Section Ingrédients Dynamiques -->
-        <div class="table-card mb-4 p-4">
-          <div class="d-flex justify-content-between align-items-center mb-3">
-            <h3 class="m-0 text-secondary">Ingrédients Requis</h3>
-            <button type="button" class="btn btn-secondary btn-sm" id="btnAddIngredient">
+        <div class="table-card mb-4 p-3 p-sm-4 shadow-sm">
+          <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 mb-3">
+            <h3 class="m-0 text-secondary h5">Ingrédients Requis</h3>
+            <button type="button" class="btn btn-secondary btn-sm w-100 w-sm-auto" id="btnAddIngredient">
               <i class="bi bi-plus-circle"></i> Ajouter un ingrédient
             </button>
           </div>
 
           <div class="table-responsive">
-            <table class="data-table" id="ingredientsTable">
+            <table class="data-table align-middle" id="ingredientsTable">
               <thead>
                 <tr>
-                  <th style="width: 55%;">Ingrédient / Produit</th>
-                  <th style="width: 30%;">Quantité Nécessaire</th>
-                  <th style="width: 15%;" class="text-center">Action</th>
+                  <th style="min-width: 250px; width: 55%;">Ingrédient / Produit</th>
+                  <th style="min-width: 150px; width: 30%;">Quantité Nécessaire</th>
+                  <th style="min-width: 80px; width: 15%;" class="text-center">Action</th>
                 </tr>
               </thead>
               <tbody id="ingredientsContainer">
                 <!-- Ligne par défaut (Index 0) -->
                 <tr class="ingredient-row">
                   <td>
-                    <select name="ingredients[0].idProduit" class="form-control produit-select" required>
+                    <select name="ingredients[0].idProduit" class="form-select produit-select" required>
                       <option value="" disabled selected>-- Sélectionner l'ingrédient --</option>
                       <option th:each="prod : ${produits}" 
                               th:value="${prod.id}" 
@@ -83,7 +190,7 @@
                            class="form-control" placeholder="Ex: 0.500" required>
                   </td>
                   <td class="text-center">
-                    <button type="button" class="btn btn-danger btn-sm remove-row" disabled title="Supprimer">
+                    <button type="button" class="btn btn-outline-danger btn-sm remove-row" disabled title="Supprimer">
                       <i class="bi bi-trash"></i>
                     </button>
                   </td>

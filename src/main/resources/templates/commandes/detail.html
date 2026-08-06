@@ -1,16 +1,76 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" lang="fr"
       th:with="pageTitle='Détails de la Commande'">
-<head th:replace="~{layout/head :: head(pageTitle=${pageTitle})}"></head>
+<head th:replace="~{layout/head :: head(pageTitle=${pageTitle})}">
+    <!-- Viewport pour l'adaptation mobile -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
 <body>
 
-<div class="app">
+<!-- CSS d'adaptation responsive -->
+<style>
+    body, .app {
+        overflow-x: hidden;
+    }
+
+    .app {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+    }
+    
+    @media (min-width: 768px) {
+        .app {
+            flex-direction: row;
+        }
+        .main {
+            flex: 1;
+            min-width: 0;
+        }
+    }
+
+    .content {
+        padding: 15px;
+    }
+    @media (min-width: 768px) {
+        .content {
+            padding: 25px;
+        }
+    }
+
+    /* Grille adaptative pour les infos générales */
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1.25rem;
+    }
+
+    /* Support du scroll horizontal sur mobile pour la table */
+    .table-responsive {
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    @media (max-width: 576px) {
+        .header-actions {
+            width: 100%;
+            display: flex;
+            gap: 0.5rem;
+        }
+        .header-actions .btn {
+            flex: 1;
+        }
+    }
+</style>
+
+<div class="app container-fluid p-0">
 
   <!-- Sidebar globale avec l'onglet 'commandes' actif -->
   <aside th:replace="~{layout/sidebar :: sidebar(activeMenu='commandes')}"></aside>
 
   <!-- Conteneur principal -->
-  <div class="main">
+  <div class="main w-100">
 
     <!-- Topbar globale -->
     <div th:replace="~{layout/navbar :: topbar(pageTitle=${pageTitle})}"></div>
@@ -19,14 +79,14 @@
     <div class="content">
 
       <!-- En-tête de la page -->
-      <div class="page-header">
+      <div class="page-header d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3 mb-4">
         <div>
-          <h2>Détails de la Commande #<span th:text="${commande != null ? commande.id : ''}">1</span></h2>
-          <div class="breadcrumb">
+          <h2 class="h3 mb-1">Détails de la Commande #<span th:text="${commande != null ? commande.id : ''}">1</span></h2>
+          <div class="breadcrumb mb-0">
             Accueil / <a th:href="@{/commandes}">Commandes</a> / <span>Détails</span>
           </div>
         </div>
-        <div class="d-flex gap-2">
+        <div class="d-flex gap-2 header-actions">
           <a th:href="@{/commandes}" class="btn btn-secondary">&larr; Retour</a>
           <a th:if="${commande != null}" th:href="@{/commandes/edit/{id}(id=${commande.id})}" class="btn btn-primary">
             <i class="bi bi-pencil"></i> Modifier
@@ -35,27 +95,27 @@
       </div>
 
       <!-- Résumé des informations de la commande -->
-      <div class="form-card mb-4" th:if="${commande != null}">
-        <h3 class="text-primary mb-3">Informations Générales</h3>
+      <div class="form-card card shadow-sm p-3 p-md-4 mb-4" th:if="${commande != null}">
+        <h3 class="text-primary h5 mb-3">Informations Générales</h3>
         
-        <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+        <div class="form-grid">
           
           <div class="field-group">
-            <label class="field-label">Client</label>
+            <label class="field-label form-label text-muted mb-1">Client</label>
             <div class="fw-bold" th:text="${commande.client != null ? (commande.client.nom + ' ' + (commande.client.prenom != null ? commande.client.prenom : '')) : '-'}">
               Nom Prénom
             </div>
           </div>
 
           <div class="field-group">
-            <label class="field-label">Date de Commande</label>
+            <label class="field-label form-label text-muted mb-1">Date de Commande</label>
             <div th:text="${commande.dateCommande != null ? #temporals.format(commande.dateCommande, 'dd/MM/yyyy HH:mm') : '-'}">
               01/01/2026 12:00
             </div>
           </div>
 
           <div class="field-group">
-            <label class="field-label">Zone de Livraison</label>
+            <label class="field-label form-label text-muted mb-1">Zone de Livraison</label>
             <div>
               <span th:text="${commande.zoneLivraison != null ? commande.zoneLivraison.libelle : '-'}">Zone</span>
               <small class="text-muted" th:if="${commande.zoneLivraison != null && commande.zoneLivraison.prix != null}"
@@ -66,7 +126,7 @@
           </div>
 
           <div class="field-group">
-            <label class="field-label">Montant Total</label>
+            <label class="field-label form-label text-muted mb-1">Montant Total</label>
             <div>
               <span class="badge bg-info text-dark fs-6" 
                     th:text="${commande.montantTotal != null ? #numbers.formatDecimal(commande.montantTotal, 1, 'POINT', 2, 'COMMA') + ' Ar' : '0,00 Ar'}">
@@ -79,34 +139,38 @@
       </div>
 
       <!-- Tableau de la liste des plats -->
-      <div class="table-card mb-4">
+      <div class="table-card card shadow-sm mb-4">
         <div class="p-3 border-bottom bg-light">
-          <h3 class="m-0 text-secondary" style="font-size: 1.1rem;">
+          <h3 class="m-0 text-secondary h6">
             <i class="bi bi-journal-text"></i> Liste des Plats Commandés
           </h3>
         </div>
 
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Plat</th>
-              <th class="text-end">Prix Unitaire</th>
-              <th class="text-center">Quantité</th>
-              <th class="text-end">Montant Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr th:each="d : ${details}">
-              <td class="fw-bold" th:text="${d.plat != null ? d.plat.nom : '-'}">Nom du plat</td>
-              <td class="text-end" th:text="${d.prixUnitaire != null ? #numbers.formatDecimal(d.prixUnitaire, 1, 'POINT', 2, 'COMMA') + ' Ar' : '0,00 Ar'}">0,00 Ar</td>
-              <td class="text-center" th:text="${d.quantite != null ? d.quantite : 0}">1</td>
-              <td class="text-end fw-bold" th:text="${d.montant != null ? #numbers.formatDecimal(d.montant, 1, 'POINT', 2, 'COMMA') + ' Ar' : '0,00 Ar'}">0,00 Ar</td>
-            </tr>
-            <tr th:if="${#lists.isEmpty(details)}">
-              <td colspan="4" class="text-center text-muted py-4">Aucun plat associé à cette commande.</td>
-            </tr>
-          </tbody>
-        </table>
+        <div class="card-body p-0 p-sm-3">
+          <div class="table-responsive">
+            <table class="data-table table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Plat</th>
+                  <th class="text-end">Prix Unitaire</th>
+                  <th class="text-center">Quantité</th>
+                  <th class="text-end">Montant Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr th:each="d : ${details}">
+                  <td class="fw-bold" th:text="${d.plat != null ? d.plat.nom : '-'}">Nom du plat</td>
+                  <td class="text-end" th:text="${d.prixUnitaire != null ? #numbers.formatDecimal(d.prixUnitaire, 1, 'POINT', 2, 'COMMA') + ' Ar' : '0,00 Ar'}">0,00 Ar</td>
+                  <td class="text-center" th:text="${d.quantite != null ? d.quantite : 0}">1</td>
+                  <td class="text-end fw-bold" th:text="${d.montant != null ? #numbers.formatDecimal(d.montant, 1, 'POINT', 2, 'COMMA') + ' Ar' : '0,00 Ar'}">0,00 Ar</td>
+                </tr>
+                <tr th:if="${#lists.isEmpty(details)}">
+                  <td colspan="4" class="text-center text-muted py-4">Aucun plat associé à cette commande.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
     </div>

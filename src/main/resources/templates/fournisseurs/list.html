@@ -1,50 +1,114 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" lang="fr">
-<head th:replace="~{layout/head :: head(pageTitle='Fournisseurs')}"></head>
+<head th:replace="~{layout/head :: head(pageTitle='Fournisseurs')}">
+    <!-- Viewport pour l'adaptation mobile -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
 <body>
 
-<div class="app">
+<!-- CSS d'adaptation responsive -->
+<style>
+    body, .app {
+        overflow-x: hidden;
+    }
+
+    .app {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+    }
+    
+    @media (min-width: 768px) {
+        .app {
+            flex-direction: row;
+        }
+        .main {
+            flex: 1;
+            min-width: 0;
+        }
+    }
+
+    .content {
+        padding: 15px;
+    }
+    @media (min-width: 768px) {
+        .content {
+            padding: 25px;
+        }
+    }
+
+    /* Scroll horizontal sur smartphone */
+    .table-responsive {
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Style ajusté pour préserver l'apparence des icônes SVG */
+    .action-btn svg {
+        width: 18px;
+        height: 18px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        vertical-align: middle;
+    }
+
+    .td-actions {
+        white-space: nowrap;
+    }
+</style>
+
+<div class="app container-fluid p-0">
   <aside th:replace="~{layout/sidebar :: sidebar(activeMenu='fournisseurs')}"></aside>
 
-  <div class="main">
+  <div class="main w-100">
     <div th:replace="~{layout/navbar :: topbar(pageTitle='Fournisseurs')}"></div>
 
     <div class="content">
-      <div class="page-header">
+      <div class="page-header d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3 mb-4">
         <div>
-          <h2>Gestion des Fournisseurs</h2>
-          <div class="breadcrumb">Accueil / <span>Fournisseurs</span></div>
+          <h2 class="h3 mb-1">Gestion des Fournisseurs</h2>
+          <div class="breadcrumb mb-0">Accueil / <span>Fournisseurs</span></div>
         </div>
-        <a th:href="@{/fournisseurs/new}" class="btn btn-primary">+ Nouveau Fournisseur</a>
+        <div>
+          <a th:href="@{/fournisseurs/new}" class="btn btn-primary w-100 w-sm-auto">+ Nouveau Fournisseur</a>
+        </div>
       </div>
 
-      <div class="table-card">
-        <table>
-          <thead>
-            <tr><th>ID</th><th>Nom</th><th>Prénom</th><th>Contact</th><th>Type</th><th>Actions</th></tr>
-          </thead>
-          <tbody>
-            <tr th:each="f : ${fournisseursList}">
-              <td th:text="${f.id}">1</td>
-              <td th:text="${f.nom}">Nom</td>
-              <td th:text="${f.prenom}">Prénom</td>
-              <td th:text="${f.contact}">0340000000</td>
-              <td th:text="${f.typeFournisseurs != null ? f.typeFournisseurs.libelle : 'N/A'}">Type</td>
-              <td class="td-actions">
-                <a th:href="@{/fournisseurs/edit/{id}(id=${f.id})}" class="action-btn" title="Modifier">
-                  <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                </a>
-                <a th:href="@{/fournisseurs/delete/{id}(id=${f.id})}" class="action-btn del" title="Supprimer"
-                   onclick="return confirm('Confirmer la suppression ?');">
-                  <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
-                </a>
-              </td>
-            </tr>
-            <tr th:if="${fournisseursList.isEmpty()}">
-              <td colspan="6" style="text-align:center; color: var(--c-muted); padding: 24px;">Aucun fournisseur enregistré</td>
-            </tr>
-          </tbody>
-        </table>
+      <div class="table-card card shadow-sm mb-4">
+        <div class="card-body p-0 p-sm-3">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead>
+                <tr><th>ID</th><th>Nom</th><th>Prénom</th><th>Contact</th><th>Type</th><th>Actions</th></tr>
+              </thead>
+              <tbody>
+                <tr th:each="f : ${fournisseursList}">
+                  <td th:text="${f.id}">1</td>
+                  <td th:text="${f.nom}" class="fw-bold">Nom</td>
+                  <td th:text="${f.prenom}">Prénom</td>
+                  <td th:text="${f.contact}">0340000000</td>
+                  <td th:text="${f.typeFournisseurs != null ? f.typeFournisseurs.libelle : 'N/A'}">Type</td>
+                  <td class="td-actions">
+                    <a th:href="@{/fournisseurs/edit/{id}(id=${f.id})}" class="action-btn btn btn-sm btn-outline-secondary" title="Modifier">
+                      <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                    </a>
+                    <a th:href="@{/fournisseurs/delete/{id}(id=${f.id})}" class="action-btn del btn btn-sm btn-outline-danger" title="Supprimer"
+                       onclick="return confirm('Confirmer la suppression ?');">
+                      <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+                    </a>
+                  </td>
+                </tr>
+                <tr th:if="${fournisseursList.isEmpty()}">
+                  <td colspan="6" style="text-align:center; color: var(--c-muted); padding: 24px;">Aucun fournisseur enregistré</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
   </div>

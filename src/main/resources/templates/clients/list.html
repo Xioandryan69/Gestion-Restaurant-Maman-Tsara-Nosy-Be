@@ -1,16 +1,63 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" lang="fr"
       th:with="pageTitle='Gestion des Clients — Maman Tsara'">
-<head th:replace="~{layout/head :: head(pageTitle=${pageTitle})}"></head>
+<head th:replace="~{layout/head :: head(pageTitle=${pageTitle})}">
+    <!-- Viewport pour la réactivité mobile -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
 <body>
 
-<div class="app">
+<!-- CSS dédié au comportement responsive -->
+<style>
+    body, .app {
+        overflow-x: hidden;
+    }
+
+    .app {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+    }
+    
+    @media (min-width: 768px) {
+        .app {
+            flex-direction: row;
+        }
+        .main {
+            flex: 1;
+            min-width: 0;
+        }
+    }
+
+    .content {
+        padding: 15px;
+    }
+    @media (min-width: 768px) {
+        .content {
+            padding: 25px;
+        }
+    }
+
+    /* Scroll horizontal fluide sur smartphone */
+    .table-responsive {
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Empêche le chevauchement des boutons Modifier/Supprimer */
+    .actions {
+        white-space: nowrap;
+    }
+</style>
+
+<div class="app container-fluid p-0">
 
   <!-- Sidebar globale avec l'onglet 'clients' actif -->
   <aside th:replace="~{layout/sidebar :: sidebar(activeMenu='clients')}"></aside>
 
   <!-- Conteneur principal -->
-  <div class="main">
+  <div class="main w-100">
 
     <!-- Topbar globale -->
     <div th:replace="~{layout/navbar :: topbar(pageTitle=${pageTitle})}"></div>
@@ -19,56 +66,62 @@
     <div class="content">
 
       <!-- En-tête de la page -->
-      <div class="page-header">
+      <div class="page-header d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3 mb-4">
         <div>
-          <h2>Clients</h2>
-          <div class="breadcrumb">Accueil / <span>Clients</span></div>
+          <h2 class="h3 mb-1">Clients</h2>
+          <div class="breadcrumb mb-0">Accueil / <span>Clients</span></div>
         </div>
-        <a th:href="@{/clients/new}" class="btn btn-primary">
-          <i class="bi bi-plus-lg"></i> Nouveau Client
-        </a>
+        <div>
+          <a th:href="@{/clients/new}" class="btn btn-primary w-100 w-sm-auto">
+            <i class="bi bi-plus-lg"></i> Nouveau Client
+          </a>
+        </div>
       </div>
 
       <!-- Tableau des résultats -->
-      <div class="table-card mb-4">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Nom</th>
-              <th>Prénom</th>
-              <th>Contact</th>
-              <th>Type</th>
-              <th class="text-center">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr th:each="client : ${clientsList}">
-              <td th:text="${client.id}">1</td>
-              <td class="fw-bold" th:text="${client.nom}">Nom</td>
-              <td th:text="${client.prenom != null ? client.prenom : '-'}">Prénom</td>
-              <td th:text="${client.contact != null ? client.contact : '-'}">Contact</td>
-              <td>
-                <span class="badge bg-info text-dark" 
-                      th:text="${client.typeClientLibelle != null ? client.typeClientLibelle : 'Standard'}">
-                  Standard
-                </span>
-              </td>
-              <td class="actions text-center">
-                <a th:href="@{/clients/edit/{id}(id=${client.id})}" class="btn btn-warning btn-sm" title="Modifier">
-                  <i class="bi bi-pencil"></i> Modifier
-                </a>
-                <a th:href="@{/clients/delete/{id}(id=${client.id})}" class="btn btn-danger btn-sm" 
-                   onclick="return confirm('Supprimer ce client ?');" title="Supprimer">
-                  <i class="bi bi-trash"></i> Supprimer
-                </a>
-              </td>
-            </tr>
-            <tr th:if="${#lists.isEmpty(clientsList)}">
-              <td colspan="6" class="text-center text-muted py-4">Aucun client trouvé.</td>
-            </tr>
-          </tbody>
-        </table>
+      <div class="table-card card shadow-sm mb-4">
+        <div class="card-body p-0 p-sm-3">
+          <div class="table-responsive">
+            <table class="data-table table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Nom</th>
+                  <th>Prénom</th>
+                  <th>Contact</th>
+                  <th>Type</th>
+                  <th class="text-center">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr th:each="client : ${clientsList}">
+                  <td th:text="${client.id}">1</td>
+                  <td class="fw-bold" th:text="${client.nom}">Nom</td>
+                  <td th:text="${client.prenom != null ? client.prenom : '-'}">Prénom</td>
+                  <td th:text="${client.contact != null ? client.contact : '-'}">Contact</td>
+                  <td>
+                    <span class="badge bg-info text-dark" 
+                          th:text="${client.typeClientLibelle != null ? client.typeClientLibelle : 'Standard'}">
+                      Standard
+                    </span>
+                  </td>
+                  <td class="actions text-center">
+                    <a th:href="@{/clients/edit/{id}(id=${client.id})}" class="btn btn-warning btn-sm" title="Modifier">
+                      <i class="bi bi-pencil"></i> Modifier
+                    </a>
+                    <a th:href="@{/clients/delete/{id}(id=${client.id})}" class="btn btn-danger btn-sm" 
+                       onclick="return confirm('Supprimer ce client ?');" title="Supprimer">
+                      <i class="bi bi-trash"></i> Supprimer
+                    </a>
+                  </td>
+                </tr>
+                <tr th:if="${#lists.isEmpty(clientsList)}">
+                  <td colspan="6" class="text-center text-muted py-4">Aucun client trouvé.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
     </div>

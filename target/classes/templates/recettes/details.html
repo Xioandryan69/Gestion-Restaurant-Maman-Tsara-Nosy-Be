@@ -1,16 +1,109 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" lang="fr"
       th:with="pageTitle='Recette du Plat'">
-<head th:replace="~{layout/head :: head(pageTitle=${pageTitle})}"></head>
-<body>
+<head th:replace="~{layout/head :: head(pageTitle=${pageTitle})}">
+    <!-- Viewport pour l'adaptation mobile -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body class="bg-light">
 
-<div class="app">
+<!-- CSS d'adaptation responsive -->
+<style>
+    body, .app {
+        overflow-x: hidden;
+    }
 
-  <!-- Sidebar globale -->
+    .app {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+    }
+    
+    @media (min-width: 768px) {
+        .app {
+            flex-direction: row;
+        }
+        .main {
+            flex: 1;
+            min-width: 0;
+        }
+    }
+
+    .content {
+        padding: 15px;
+    }
+    @media (min-width: 768px) {
+        .content {
+            padding: 25px;
+        }
+    }
+
+    /* Styles des cartes et du tableau */
+    .form-card, .table-card {
+        background: #ffffff;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .form-card {
+        padding: 20px;
+    }
+
+    .table-card {
+        overflow: hidden;
+    }
+
+    /* Scroll horizontal sur mobile pour le tableau */
+    .table-responsive {
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        text-align: left;
+    }
+
+    .data-table th, .data-table td {
+        padding: 12px 16px;
+        border-bottom: 1px solid #e2e8f0;
+        white-space: nowrap;
+    }
+
+    .data-table thead th {
+        background-color: #f8fafc;
+        color: #475569;
+        font-weight: 600;
+    }
+
+    .field-label {
+        font-weight: 600;
+        font-size: 0.875rem;
+        margin-bottom: 0.35rem;
+        color: #334155;
+    }
+
+    .required {
+        color: #dc2626;
+    }
+
+    /* Alignement des actions */
+    .actions {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+</style>
+
+<div class="app container-fluid p-0">
+
+  <!-- Sidebar globale avec l'onglet 'plats' actif -->
   <aside th:replace="~{layout/sidebar :: sidebar(activeMenu='plats')}"></aside>
 
   <!-- Conteneur principal -->
-  <div class="main">
+  <div class="main w-100">
 
     <!-- Topbar globale -->
     <div th:replace="~{layout/navbar :: topbar(pageTitle=${pageTitle})}"></div>
@@ -19,14 +112,16 @@
     <div class="content">
 
       <!-- En-tête de la page -->
-      <div class="page-header">
+      <div class="page-header d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3 mb-4">
         <div>
-          <h2 th:text="${plat != null ? plat.nom : 'Détail de la Recette'}">Recette du Plat</h2>
-          <div class="breadcrumb">
+          <h2 class="h3 mb-1" th:text="${plat != null ? plat.nom : 'Détail de la Recette'}">Recette du Plat</h2>
+          <div class="breadcrumb mb-0">
             Accueil / <a th:href="@{/plats}">Plats</a> / <span>Fiche Recette</span>
           </div>
         </div>
-        <a th:href="@{/plats}" class="btn btn-secondary">&larr; Retour aux plats</a>
+        <div>
+          <a th:href="@{/plats}" class="btn btn-secondary w-100 w-sm-auto">&larr; Retour aux plats</a>
+        </div>
       </div>
 
       <!-- Notification de succès -->
@@ -36,10 +131,10 @@
       </div>
 
       <!-- Carte d'en-tête d'information du Plat -->
-      <div class="form-card mb-4" th:if="${plat != null}">
-        <div class="d-flex justify-content-between align-items-center">
+      <div class="form-card mb-4 shadow-sm" th:if="${plat != null}">
+        <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3">
           <div>
-            <h3 class="text-primary m-0" th:text="${plat.nom}">Nom du Plat</h3>
+            <h3 class="text-primary m-0 h4" th:text="${plat.nom}">Nom du Plat</h3>
             <div class="mt-2 text-muted">
               Catégorie : 
               <span class="badge bg-info text-dark" 
@@ -48,7 +143,7 @@
               </span>
             </div>
           </div>
-          <div class="text-end">
+          <div class="text-sm-end">
             <span class="text-muted d-block small">Prix de Vente</span>
             <span class="fs-4 fw-bold text-success" 
                   th:text="${plat.prixVente != null ? #numbers.formatDecimal(plat.prixVente, 1, 'POINT', 2, 'COMMA') + ' Ar' : '0,00 Ar'}">
@@ -58,57 +153,63 @@
         </div>
       </div>
 
-      <!-- Disposition 2 Colonnes (Tableau & Formulaire) -->
-      <div class="form-grid mb-4" style="grid-template-columns: 1fr 380px;">
+      <!-- Disposition Responsive 2 Colonnes (Tableau & Formulaire) -->
+      <div class="row g-4 mb-4">
         
         <!-- Colonne Gauche : Ingrédients de la Recette -->
-        <div class="table-card p-0">
-          <div class="p-3 border-bottom bg-light">
-            <h3 class="m-0 text-secondary" style="font-size: 1.1rem;">
-              <i class="bi bi-basket"></i> Ingrédients de la Recette
-            </h3>
+        <div class="col-12 col-lg-7">
+          <div class="table-card h-100 shadow-sm">
+            <div class="p-3 border-bottom bg-light">
+              <h3 class="m-0 text-secondary h6 fw-bold">
+                <i class="bi bi-basket"></i> Ingrédients de la Recette
+              </h3>
+            </div>
+            
+            <div class="table-responsive">
+              <table class="data-table align-middle">
+                <thead>
+                  <tr>
+                    <th>Ingrédient</th>
+                    <th>Quantité Requise</th>
+                    <th>Unité</th>
+                    <th class="text-center">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr th:each="recette : ${recettes}">
+                    <td class="fw-bold" th:text="${recette.ingredient != null ? recette.ingredient.nom : '-'}">Ingrédient</td>
+                    <td th:text="${recette.quantiteRequise}">0.00</td>
+                    <td>
+                      <span th:text="${recette.ingredient != null && recette.ingredient.unite != null ? recette.ingredient.unite.symbole : '-'}">
+                        unité
+                      </span>
+                    </td>
+                    <td class="text-center">
+                      <div class="actions">
+                        <form th:action="@{/recettes/supprimer/{id}(id=${recette.id})}" method="post" style="display:inline;">
+                          <input type="hidden" name="idPlat" th:value="${plat != null ? plat.id : ''}"/>
+                          <button type="submit" class="btn btn-danger btn-sm" 
+                                  onclick="return confirm('Retirer cet ingrédient ?');" 
+                                  title="Retirer cet ingrédient">
+                            <i class="bi bi-trash"></i> Retirer
+                          </button>
+                        </form>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr th:if="${#lists.isEmpty(recettes)}">
+                    <td colspan="4" class="text-center text-muted py-4">Aucun ingrédient associé à ce plat.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
-          
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Ingrédient</th>
-                <th>Quantité Requise</th>
-                <th>Unité</th>
-                <th class="text-center">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr th:each="recette : ${recettes}">
-                <td class="fw-bold" th:text="${recette.ingredient != null ? recette.ingredient.nom : '-'}">Ingrédient</td>
-                <td th:text="${recette.quantiteRequise}">0.00</td>
-                <td>
-                  <span th:text="${recette.ingredient != null && recette.ingredient.unite != null ? recette.ingredient.unite.symbole : '-'}">
-                    unité
-                  </span>
-                </td>
-                <td class="actions text-center">
-                  <form th:action="@{/recettes/supprimer/{id}(id=${recette.id})}" method="post" style="display:inline;">
-                    <input type="hidden" name="idPlat" th:value="${plat != null ? plat.id : ''}"/>
-                    <button type="submit" class="btn btn-danger btn-sm" 
-                            onclick="return confirm('Retirer cet ingrédient ?');" 
-                            title="Retirer cet ingrédient">
-                      <i class="bi bi-trash"></i> Retirer
-                    </button>
-                  </form>
-                </td>
-              </tr>
-              <tr th:if="${#lists.isEmpty(recettes)}">
-                <td colspan="4" class="text-center text-muted py-4">Aucun ingrédient associé à ce plat.</td>
-              </tr>
-            </tbody>
-          </table>
         </div>
 
         <!-- Colonne Droite : Formulaire Rapide d'Ajout -->
-        <div>
-          <div class="form-card">
-            <h3 class="mb-3 text-primary" style="font-size: 1.1rem;">
+        <div class="col-12 col-lg-5">
+          <div class="form-card h-100 shadow-sm">
+            <h3 class="mb-3 text-primary h6 fw-bold">
               <i class="bi bi-plus-circle"></i> Ajouter un Ingrédient
             </h3>
             
@@ -117,7 +218,7 @@
               
               <div class="field-group mb-3">
                 <label class="field-label">Ingrédient <span class="required">*</span></label>
-                <select th:field="*{idIngredient}" class="form-control" required>
+                <select th:field="*{idIngredient}" class="form-select" required>
                   <option value="">-- Choisir un Ingrédient --</option>
                   <option th:each="ing : ${ingredients}" 
                           th:value="${ing.id}" 

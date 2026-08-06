@@ -1,16 +1,63 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" lang="fr"
       th:with="pageTitle='Suivi des Commandes - Maman Tsara Nosy-Be'">
-<head th:replace="~{layout/head :: head(pageTitle=${pageTitle})}"></head>
+<head th:replace="~{layout/head :: head(pageTitle=${pageTitle})}">
+    <!-- Viewport pour l'adaptation mobile -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
 <body>
 
-<div class="app">
+<!-- CSS d'adaptation responsive -->
+<style>
+    body, .app {
+        overflow-x: hidden;
+    }
+
+    .app {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+    }
+    
+    @media (min-width: 768px) {
+        .app {
+            flex-direction: row;
+        }
+        .main {
+            flex: 1;
+            min-width: 0;
+        }
+    }
+
+    .content {
+        padding: 15px;
+    }
+    @media (min-width: 768px) {
+        .content {
+            padding: 25px;
+        }
+    }
+
+    /* Support du scroll horizontal fluide sur mobile pour la table */
+    .table-responsive {
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Empêche le retour à la ligne des boutons d'actions */
+    .actions {
+        white-space: nowrap;
+    }
+</style>
+
+<div class="app container-fluid p-0">
 
   <!-- Sidebar globale avec l'onglet 'commandes' actif -->
   <aside th:replace="~{layout/sidebar :: sidebar(activeMenu='commandes')}"></aside>
 
   <!-- Conteneur principal -->
-  <div class="main">
+  <div class="main w-100">
 
     <!-- Topbar globale -->
     <div th:replace="~{layout/navbar :: topbar(pageTitle=${pageTitle})}"></div>
@@ -19,67 +66,73 @@
     <div class="content">
 
       <!-- En-tête de la page -->
-      <div class="page-header">
+      <div class="page-header d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3 mb-4">
         <div>
-          <h2>Suivi des Commandes</h2>
-          <div class="breadcrumb">Accueil / <span>Commandes</span></div>
+          <h2 class="h3 mb-1">Suivi des Commandes</h2>
+          <div class="breadcrumb mb-0">Accueil / <span>Commandes</span></div>
         </div>
-        <a th:href="@{/commandes/new}" class="btn btn-primary">
-          <i class="bi bi-plus-lg"></i> Nouvelle Commande
-        </a>
+        <div>
+          <a th:href="@{/commandes/new}" class="btn btn-primary w-100 w-sm-auto">
+            <i class="bi bi-plus-lg"></i> Nouvelle Commande
+          </a>
+        </div>
       </div>
 
       <!-- Tableau des résultats -->
-      <div class="table-card mb-4">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Client</th>
-              <th>Date</th>
-              <th>Zone Livraison</th>
-              <th class="text-end">Montant Total</th>
-              <th class="text-center">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr th:each="c : ${commandesList}">
-              <td th:text="${c.id}">1</td>
-              <td class="fw-bold" 
-                  th:text="${c.client != null ? (c.client.nom + ' ' + (c.client.prenom != null ? c.client.prenom : '')) : 'N/A'}">
-                Client
-              </td>
-              <td th:text="${c.dateCommande != null ? #temporals.format(c.dateCommande, 'dd/MM/yyyy HH:mm') : '-'}">
-                2026-07-30
-              </td>
-              <td>
-                <span class="badge bg-info text-dark" 
-                      th:text="${c.zoneLivraison != null ? c.zoneLivraison.libelle : 'Sur place'}">
-                  Zone
-                </span>
-              </td>
-              <td class="text-end fw-bold text-success" 
-                  th:text="${c.montantTotal != null ? #numbers.formatDecimal(c.montantTotal, 1, 'POINT', 2, 'COMMA') + ' Ar' : '0,00 Ar'}">
-                45 000,00 Ar
-              </td>
-              <td class="actions text-center">
-                <a th:href="@{/commandes/detail/{id}(id=${c.id})}" class="btn btn-secondary btn-sm" title="Voir détails">
-                  <i class="bi bi-journal-text"></i>
-                </a>
-                <a th:href="@{/commandes/edit/{id}(id=${c.id})}" class="btn btn-warning btn-sm" title="Modifier">
-                  <i class="bi bi-pencil"></i> Modifier
-                </a>
-                <a th:href="@{/commandes/delete/{id}(id=${c.id})}" class="btn btn-danger btn-sm" 
-                   onclick="return confirm('Annuler cette commande ?');" title="Supprimer">
-                  <i class="bi bi-trash"></i> Supprimer
-                </a>
-              </td>
-            </tr>
-            <tr th:if="${#lists.isEmpty(commandesList)}">
-              <td colspan="6" class="text-center text-muted py-4">Aucune commande enregistrée.</td>
-            </tr>
-          </tbody>
-        </table>
+      <div class="table-card card shadow-sm mb-4">
+        <div class="card-body p-0 p-sm-3">
+          <div class="table-responsive">
+            <table class="data-table table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Client</th>
+                  <th>Date</th>
+                  <th>Zone Livraison</th>
+                  <th class="text-end">Montant Total</th>
+                  <th class="text-center">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr th:each="c : ${commandesList}">
+                  <td th:text="${c.id}">1</td>
+                  <td class="fw-bold" 
+                      th:text="${c.client != null ? (c.client.nom + ' ' + (c.client.prenom != null ? c.client.prenom : '')) : 'N/A'}">
+                    Client
+                  </td>
+                  <td th:text="${c.dateCommande != null ? #temporals.format(c.dateCommande, 'dd/MM/yyyy HH:mm') : '-'}">
+                    2026-07-30
+                  </td>
+                  <td>
+                    <span class="badge bg-info text-dark" 
+                          th:text="${c.zoneLivraison != null ? c.zoneLivraison.libelle : 'Sur place'}">
+                      Zone
+                    </span>
+                  </td>
+                  <td class="text-end fw-bold text-success" 
+                      th:text="${c.montantTotal != null ? #numbers.formatDecimal(c.montantTotal, 1, 'POINT', 2, 'COMMA') + ' Ar' : '0,00 Ar'}">
+                    45 000,00 Ar
+                  </td>
+                  <td class="actions text-center">
+                    <a th:href="@{/commandes/detail/{id}(id=${c.id})}" class="btn btn-secondary btn-sm" title="Voir détails">
+                      <i class="bi bi-journal-text"></i>
+                    </a>
+                    <a th:href="@{/commandes/edit/{id}(id=${c.id})}" class="btn btn-warning btn-sm" title="Modifier">
+                      <i class="bi bi-pencil"></i> Modifier
+                    </a>
+                    <a th:href="@{/commandes/delete/{id}(id=${c.id})}" class="btn btn-danger btn-sm" 
+                       onclick="return confirm('Annuler cette commande ?');" title="Supprimer">
+                      <i class="bi bi-trash"></i> Supprimer
+                    </a>
+                  </td>
+                </tr>
+                <tr th:if="${#lists.isEmpty(commandesList)}">
+                  <td colspan="6" class="text-center text-muted py-4">Aucune commande enregistrée.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
     </div>

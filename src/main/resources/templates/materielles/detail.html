@@ -1,40 +1,89 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{layout/head :: head(pageTitle='Matériels')}"></head>
+<html xmlns:th="http://www.thymeleaf.org" lang="fr">
+<head th:replace="~{layout/head :: head(pageTitle='Matériels')}">
+    <!-- Viewport pour l'adaptation mobile -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
 
-<body class="container py-4">
+<body class="bg-light">
 
-    <div class="app">
+<!-- CSS d'adaptation responsive -->
+<style>
+    body, .app {
+        overflow-x: hidden;
+    }
+
+    .app {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+    }
+    
+    @media (min-width: 768px) {
+        .app {
+            flex-direction: row;
+        }
+        .main {
+            flex: 1;
+            min-width: 0;
+        }
+    }
+
+    .content {
+        padding: 15px;
+    }
+    @media (min-width: 768px) {
+        .content {
+            padding: 25px;
+        }
+    }
+
+    /* Scroll horizontal sur smartphone pour le tableau d'historique */
+    .table-responsive {
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+</style>
+
+    <div class="app container-fluid p-0">
+        <!-- Sidebar globale -->
         <aside th:replace="~{layout/sidebar :: sidebar(activeMenu='materielles')}"></aside>
-        <div class="main">
+
+        <div class="main w-100">
+             <!-- Topbar globale -->
              <div th:replace="~{layout/navbar :: topbar(pageTitle='Matériels')}"></div>
+
              <div class="content">
-                    <div class="d-flex justify-content-between align-items-center mb-4">
-                        <h2>Détail du Matériel : <span th:text="${materiel.nom}"></span></h2>
-                        <a th:href="@{/materielles}" class="btn btn-secondary">Retour à la liste</a>
+                    <!-- En-tête -->
+                    <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3 mb-4">
+                        <h2 class="h3 mb-0">Détail du Matériel : <span th:text="${materiel.nom}"></span></h2>
+                        <div>
+                            <a th:href="@{/materielles}" class="btn btn-secondary w-100 w-sm-auto">&larr; Retour à la liste</a>
+                        </div>
                     </div>
 
                     <!-- Informations Générales & Stock Instantané -->
-                    <div class="row mb-4">
-                        <div class="col-md-6">
-                            <div class="card shadow-sm">
-                                <div class="card-header bg-primary text-white">Informations Générales</div>
+                    <div class="row g-3 mb-4">
+                        <div class="col-12 col-md-6">
+                            <div class="card shadow-sm h-100">
+                                <div class="card-header bg-primary text-white font-weight-bold">Informations Générales</div>
                                 <div class="card-body">
-                                    <p><strong>Catégorie :</strong> <span th:text="${materiel.categorieMaterielles != null ? materiel.categorieMaterielles.libelle : 'Non définie'}"></span></p>
-                                    <p><strong>Statut :</strong> <span class="badge bg-info" th:text="${materiel.statutMaterielles != null ? materiel.statutMaterielles.libelle : 'Inconnu'}"></span></p>
-                                    <p><strong>Date de mise en service :</strong> <span th:text="${#temporals.format(materiel.dateEntree, 'dd/MM/yyyy')}"></span></p>
-                                    <p><strong>Stock Actuel :</strong> <span class="fs-4 text-success font-weight-bold" th:text="${stockActuel}"></span> unités</p>
+                                    <p class="mb-2"><strong>Catégorie :</strong> <span th:text="${materiel.categorieMaterielles != null ? materiel.categorieMaterielles.libelle : 'Non définie'}"></span></p>
+                                    <p class="mb-2"><strong>Statut :</strong> <span class="badge bg-info text-dark" th:text="${materiel.statutMaterielles != null ? materiel.statutMaterielles.libelle : 'Inconnu'}"></span></p>
+                                    <p class="mb-2"><strong>Date de mise en service :</strong> <span th:text="${#temporals.format(materiel.dateEntree, 'dd/MM/yyyy')}"></span></p>
+                                    <p class="mb-0"><strong>Stock Actuel :</strong> <span class="fs-4 text-success font-weight-bold" th:text="${stockActuel}"></span> unités</p>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Actions Rapides -->
-                        <div class="col-md-6">
-                            <div class="card shadow-sm">
-                                <div class="card-header bg-dark text-white">Actions</div>
-                                <div class="card-body d-flex flex-column gap-2">
+                        <div class="col-12 col-md-6">
+                            <div class="card shadow-sm h-100">
+                                <div class="card-header bg-dark text-white font-weight-bold">Actions</div>
+                                <div class="card-body d-flex flex-column justify-content-center gap-2">
                                     <a th:href="@{/materielles/{id}/hors-service(id=${materiel.id})}" 
-                                       class="btn btn-danger" 
+                                       class="btn btn-danger w-100" 
                                        onclick="return confirm('Confirmer la mise hors service de cet équipement ?')">
                                         Déclarer Hors Service
                                     </a>
@@ -45,18 +94,18 @@
 
                     <!-- Section Enregistrement d'un Achat -->
                     <div class="card mb-4 shadow-sm">
-                        <div class="card-header bg-success text-white">Enregistrer un Achat (Entrée en stock + Sortie Caisse)</div>
+                        <div class="card-header bg-success text-white font-weight-bold">Enregistrer un Achat (Entrée en stock + Sortie Caisse)</div>
                         <div class="card-body">
                             <form th:action="@{/materielles/{id}/historique/save(id=${materiel.id})}" method="post" class="row g-3">
-                                <div class="col-md-3">
+                                <div class="col-12 col-sm-6 col-md-3">
                                     <label class="form-label">Quantité</label>
                                     <input type="number" step="0.001" name="quantite" class="form-control" required min="0.001">
                                 </div>
-                                <div class="col-md-3">
+                                <div class="col-12 col-sm-6 col-md-3">
                                     <label class="form-label">Prix Achat Unitaire</label>
                                     <input type="number" step="0.001" name="prixAchat" class="form-control" required min="0">
                                 </div>
-                                <div class="col-md-3">
+                                <div class="col-12 col-sm-6 col-md-3">
                                     <label class="form-label">Fournisseur</label>
                                     <select name="idFournisseur" class="form-select">
                                         <option value="">-- Sélectionner --</option>
@@ -65,66 +114,72 @@
                                                 th:text="|${f.nom} ${f.prenom}|"></option>
                                     </select>
                                 </div>
-                                <div class="col-md-3">
+                                <div class="col-12 col-sm-6 col-md-3">
                                     <label class="form-label">Date d'Entrée</label>
                                     <input type="date" name="dateEntree" class="form-control" th:value="${#temporals.format(#temporals.createNow(), 'yyyy-MM-dd')}" required>
                                 </div>
-                                <div class="col-12 text-end">
-                                    <button type="submit" class="btn btn-success">Enregistrer l'achat</button>
+                                <div class="col-12 text-end mt-3">
+                                    <button type="submit" class="btn btn-success w-100 w-sm-auto">Enregistrer l'achat</button>
                                 </div>
                             </form>
                         </div>
                     </div>
 
                     <!-- Historique des Achats -->
-                    <h4>Historique des Achats / Prix</h4>
-                    <table class="table table-striped mb-4">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Quantité</th>
-                                <th>Prix Unitaire</th>
-                                <th>Montant Total</th>
-                                <th>Fournisseur</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr th:each="h : ${historiqueList}">
-                                <td th:text="${#temporals.format(h.dateEntree, 'dd/MM/yyyy')}"></td>
-                                <td th:text="${h.quantite}"></td>
-                                <td th:text="${#numbers.formatDecimal(h.prixAchat, 1, 'WHITESPACE', 2, 'POINT')}"></td>
-                                <td th:text="${#numbers.formatDecimal(h.quantite * h.prixAchat, 1, 'WHITESPACE', 2, 'POINT')}"></td>
-                                <td th:text="${h.fournisseur != null ? h.fournisseur.nom + ' ' + h.fournisseur.prenom : 'Non renseigné'}"></td>
-                            </tr>
-                            <tr th:if="${#lists.isEmpty(historiqueList)}">
-                                <td colspan="5" class="text-center text-muted">Aucun achat enregistré dans la base de données.</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                    <h4 class="h5 mb-3">Historique des Achats / Prix</h4>
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-body p-0">
+                            <div class="table-responsive bg-white rounded">
+                                <table class="table table-striped align-middle mb-0">
+                                    <thead class="table-dark">
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Quantité</th>
+                                            <th>Prix Unitaire</th>
+                                            <th>Montant Total</th>
+                                            <th>Fournisseur</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr th:each="h : ${historiqueList}">
+                                            <td th:text="${#temporals.format(h.dateEntree, 'dd/MM/yyyy')}"></td>
+                                            <td th:text="${h.quantite}"></td>
+                                            <td th:text="${#numbers.formatDecimal(h.prixAchat, 1, 'WHITESPACE', 2, 'POINT')}"></td>
+                                            <td th:text="${#numbers.formatDecimal(h.quantite * h.prixAchat, 1, 'WHITESPACE', 2, 'POINT')}"></td>
+                                            <td th:text="${h.fournisseur != null ? h.fournisseur.nom + ' ' + h.fournisseur.prenom : 'Non renseigné'}"></td>
+                                        </tr>
+                                        <tr th:if="${#lists.isEmpty(historiqueList)}">
+                                            <td colspan="5" class="text-center text-muted py-4">Aucun achat enregistré dans la base de données.</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
 
                     <!-- Section Enregistrement d'une Maintenance -->
                     <div class="card mb-4 shadow-sm">
-                        <div class="card-header bg-warning text-dark">Enregistrer une Maintenance</div>
+                        <div class="card-header bg-warning text-dark font-weight-bold">Enregistrer une Maintenance</div>
                         <div class="card-body">
                             <form th:action="@{/materielles/{id}/maintenance/save(id=${materiel.id})}" method="post" class="row g-3">
-                                <div class="col-md-4">
+                                <div class="col-12 col-md-4">
                                     <label class="form-label">Description</label>
                                     <input type="text" name="description" class="form-control" required>
                                 </div>
-                                <div class="col-md-3">
+                                <div class="col-12 col-sm-6 col-md-3">
                                     <label class="form-label">Coût</label>
                                     <input type="number" step="0.001" name="cout" class="form-control" required min="0">
                                 </div>
-                                <div class="col-md-3">
+                                <div class="col-12 col-sm-6 col-md-3">
                                     <label class="form-label">Technicien</label>
                                     <input type="text" name="technicien" class="form-control">
                                 </div>
-                                <div class="col-md-2">
+                                <div class="col-12 col-md-2">
                                     <label class="form-label">Date</label>
                                     <input type="date" name="dateMaintenance" class="form-control" th:value="${#temporals.format(#temporals.createNow(), 'yyyy-MM-dd')}" required>
                                 </div>
-                                <div class="col-12 text-end">
-                                    <button type="submit" class="btn btn-warning">Enregistrer la maintenance</button>
+                                <div class="col-12 text-end mt-3">
+                                    <button type="submit" class="btn btn-warning w-100 w-sm-auto">Enregistrer la maintenance</button>
                                 </div>
                             </form>
                         </div>
@@ -133,5 +188,9 @@
              </div> <!-- /content -->
         </div> <!-- /main -->
     </div> <!-- /app -->
+
+<div th:replace="~{layout/footer :: footer}"></div>
+<th:block th:replace="~{layout/scripts :: scripts}"></th:block>
+
 </body>
 </html>

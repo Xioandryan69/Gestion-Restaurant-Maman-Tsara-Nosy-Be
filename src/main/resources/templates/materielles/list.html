@@ -1,31 +1,151 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" lang="fr">
-<head th:replace="~{layout/head :: head(pageTitle='Matériels')}"></head>
-<body>
+<head th:replace="~{layout/head :: head(pageTitle='Matériels')}">
+    <!-- Viewport pour l'adaptation mobile -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body class="bg-light">
 
-<div class="app">
+<!-- CSS d'adaptation responsive -->
+<style>
+    body, .app {
+        overflow-x: hidden;
+    }
+
+    .app {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+    }
+    
+    @media (min-width: 768px) {
+        .app {
+            flex-direction: row;
+        }
+        .main {
+            flex: 1;
+            min-width: 0;
+        }
+    }
+
+    .content {
+        padding: 15px;
+    }
+    @media (min-width: 768px) {
+        .content {
+            padding: 25px;
+        }
+    }
+
+    /* Grille et filtres responsive */
+    .toolbar-left {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        width: 100%;
+    }
+    .filter-select {
+        flex: 1 1 200px;
+    }
+
+    /* Container de la table pour le défilement mobile */
+    .table-card {
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        background: #ffffff;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        text-align: left;
+    }
+
+    table th, table td {
+        padding: 12px 16px;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    table thead th {
+        background-color: #1e293b;
+        color: #ffffff;
+        white-space: nowrap;
+    }
+
+    .td-actions {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 8px;
+        white-space: nowrap;
+    }
+
+    .action-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 6px;
+        background: #f1f5f9;
+        color: #475569;
+        text-decoration: none;
+        transition: all 0.2s;
+    }
+    .action-btn:hover {
+        background: #e2e8f0;
+        color: #0f172a;
+    }
+    .action-btn.del:hover {
+        background: #fee2e2;
+        color: #dc2626;
+    }
+    .action-btn svg {
+        width: 16px;
+        height: 16px;
+        stroke: currentColor;
+        fill: none;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    /* Styles des badges */
+    .badge-green { background-color: #d1fae5; color: #065f46; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: 500; }
+    .badge-red { background-color: #fee2e2; color: #991b1b; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: 500; }
+    .badge-amber { background-color: #fef3c7; color: #92400e; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: 500; }
+    .badge-gray { background-color: #f3f4f6; color: #374151; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: 500; }
+</style>
+
+<div class="app container-fluid p-0">
   <aside th:replace="~{layout/sidebar :: sidebar(activeMenu='materielles')}"></aside>
 
-  <div class="main">
+  <div class="main w-100">
     <div th:replace="~{layout/navbar :: topbar(pageTitle='Matériels')}"></div>
 
     <div class="content">
-      <div class="page-header">
+      <div class="page-header d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3 mb-4">
         <div>
-          <h2>Gestion des Matériels</h2>
-          <div class="breadcrumb">Accueil / <span>Matériels</span></div>
+          <h2 class="h3 mb-1">Gestion des Matériels</h2>
+          <div class="breadcrumb mb-0">Accueil / <span>Matériels</span></div>
         </div>
-        <a th:href="@{/materielles/new}" class="btn btn-primary">+ Nouveau Matériel</a>
+        <div>
+          <a th:href="@{/materielles/new}" class="btn btn-primary w-100 w-sm-auto">+ Nouveau Matériel</a>
+        </div>
       </div>
 
-      <form th:action="@{/materielles}" method="get" class="toolbar">
+      <!-- Formulaire de filtrage -->
+      <form th:action="@{/materielles}" method="get" class="toolbar mb-4">
         <div class="toolbar-left">
-          <select name="categorie" class="filter-select" onchange="this.form.submit()">
+          <select name="categorie" class="form-select filter-select" onchange="this.form.submit()">
             <option value="">Toutes les catégories</option>
             <option th:each="c : ${categories}" th:value="${c.id}" th:text="${c.libelle}"
                     th:selected="${selectedCategorie != null and selectedCategorie == c.id}"></option>
           </select>
-          <select name="statut" class="filter-select" onchange="this.form.submit()">
+          <select name="statut" class="form-select filter-select" onchange="this.form.submit()">
             <option value="">Tous les statuts</option>
             <option th:each="s : ${statuts}" th:value="${s.id}" th:text="${s.libelle}"
                     th:selected="${selectedStatut != null and selectedStatut == s.id}"></option>
@@ -33,20 +153,28 @@
         </div>
       </form>
 
+      <!-- Table responsive -->
       <div class="table-card">
-        <table>
+        <table class="align-middle">
           <thead>
-            <tr><th>ID</th><th>Nom</th><th>Catégorie</th><th>Statut</th><th>Date d'entrée</th><th>Actions</th></tr>
+            <tr>
+              <th>ID</th>
+              <th>Nom</th>
+              <th>Catégorie</th>
+              <th>Statut</th>
+              <th>Date d'entrée</th>
+              <th class="text-end">Actions</th>
+            </tr>
           </thead>
           <tbody>
-            <tr th:each="m : ${materiellesList}">
+            <tr th:each="m : ${materiellesList}" th:with="statutLib=${m.statutLibelle}">
               <td th:text="${m.id}">1</td>
-              <td th:text="${m.nom}">Nom</td>
+              <td><strong th:text="${m.nom}">Nom</strong></td>
               <td th:text="${m.categorieLibelle != null ? m.categorieLibelle : 'N/A'}"></td>
-              <td th:text="${m.statutLibelle != null ? m.statutLibelle : 'N/A'}"></td>
+              <td>
                 <span class="badge"
                       th:classappend="${statutLib == 'Disponible' or statutLib == 'En service'} ? 'badge-green' : (${statutLib == 'En panne' or statutLib == 'Hors service'} ? 'badge-red' : (${statutLib == 'En maintenance'} ? 'badge-amber' : 'badge-gray'))"
-                      th:text="${statutLib != '' ? statutLib : 'N/A'}">Statut</span>
+                      th:text="${statutLib != null and statutLib != '' ? statutLib : 'N/A'}">Statut</span>
               </td>
               <td th:text="${#temporals.format(m.dateEntree, 'dd/MM/yyyy')}">01/01/2026</td>
               <td class="td-actions">
@@ -63,7 +191,7 @@
               </td>
             </tr>
             <tr th:if="${materiellesList.isEmpty()}">
-              <td colspan="6" style="text-align:center; color: var(--c-muted); padding: 24px;">Aucun matériel trouvé</td>
+              <td colspan="6" class="text-center text-muted py-4">Aucun matériel trouvé</td>
             </tr>
           </tbody>
         </table>

@@ -1,53 +1,114 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" lang="fr"
       th:with="pageTitle=${fournisseur.id == null ? 'Nouveau Fournisseur' : 'Modifier Fournisseur'}">
-<head th:replace="~{layout/head :: head(pageTitle=${pageTitle})}"></head>
+<head th:replace="~{layout/head :: head(pageTitle=${pageTitle})}">
+    <!-- Viewport pour l'adaptation mobile -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
 <body>
 
-<div class="app">
+<!-- CSS d'adaptation responsive -->
+<style>
+    body, .app {
+        overflow-x: hidden;
+    }
+
+    .app {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+    }
+    
+    @media (min-width: 768px) {
+        .app {
+            flex-direction: row;
+        }
+        .main {
+            flex: 1;
+            min-width: 0;
+        }
+    }
+
+    .content {
+        padding: 15px;
+    }
+    @media (min-width: 768px) {
+        .content {
+            padding: 25px;
+        }
+    }
+
+    /* Grille adaptative (1 col sur mobile, 2 cols sur PC) */
+    .form-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+    @media (min-width: 768px) {
+        .form-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    /* Adaptabilité de la barre d'actions sur petit écran */
+    @media (max-width: 576px) {
+        .toolbar {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            width: 100%;
+        }
+        .toolbar .btn {
+            width: 100%;
+        }
+    }
+</style>
+
+<div class="app container-fluid p-0">
   <aside th:replace="~{layout/sidebar :: sidebar(activeMenu='fournisseurs')}"></aside>
 
-  <div class="main">
+  <div class="main w-100">
     <div th:replace="~{layout/navbar :: topbar(pageTitle=${pageTitle})}"></div>
 
     <div class="content">
-      <div class="page-header">
+      <div class="page-header d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3 mb-4">
         <div>
-          <h2 th:text="${fournisseur.id == null ? 'Ajouter un Fournisseur' : 'Modifier le Fournisseur'}"></h2>
-          <div class="breadcrumb">Accueil / <a th:href="@{/fournisseurs}">Fournisseurs</a> / <span>Formulaire</span></div>
+          <h2 class="h3 mb-1" th:text="${fournisseur.id == null ? 'Ajouter un Fournisseur' : 'Modifier le Fournisseur'}"></h2>
+          <div class="breadcrumb mb-0">Accueil / <a th:href="@{/fournisseurs}">Fournisseurs</a> / <span>Formulaire</span></div>
         </div>
       </div>
 
-      <div class="form-card">
+      <div class="form-card card shadow-sm p-3 p-md-4 mb-4">
         <form th:action="@{/fournisseurs/save}" th:object="${fournisseur}" method="post">
           <input type="hidden" th:field="*{id}" />
 
           <div class="form-grid">
             <div class="field-group">
-              <label class="field-label">Nom <span class="required">*</span></label>
-              <input type="text" th:field="*{nom}" required />
+              <label class="field-label form-label">Nom <span class="required text-danger">*</span></label>
+              <input type="text" class="form-control" th:field="*{nom}" required />
             </div>
             <div class="field-group">
-              <label class="field-label">Prénom <span class="required">*</span></label>
-              <input type="text" th:field="*{prenom}" required />
+              <label class="field-label form-label">Prénom <span class="required text-danger">*</span></label>
+              <input type="text" class="form-control" th:field="*{prenom}" required />
             </div>
           </div>
 
           <div class="form-grid">
             <div class="field-group">
-              <label class="field-label">Contact <span class="required">*</span></label>
-              <input type="text" th:field="*{contact}" required />
+              <label class="field-label form-label">Contact <span class="required text-danger">*</span></label>
+              <input type="text" class="form-control" th:field="*{contact}" required />
             </div>
             <div class="field-group">
-              <label class="field-label">Type de fournisseur <span class="required">*</span></label>
-              <select th:field="*{typeFournisseurs}" required>
+              <label class="field-label form-label">Type de fournisseur <span class="required text-danger">*</span></label>
+              <select class="form-control form-select" th:field="*{typeFournisseurs}" required>
                 <option value="">-- Sélectionner --</option>
                 <option th:each="tf : ${typesFournisseur}" th:value="${tf.id}" th:text="${tf.libelle}"></option>
               </select>
             </div>
           </div>
 
-          <div class="toolbar">
+          <div class="toolbar d-flex justify-content-end gap-2 mt-4">
             <button type="submit" class="btn btn-primary">Enregistrer</button>
             <a th:href="@{/fournisseurs}" class="btn btn-secondary">Annuler</a>
           </div>

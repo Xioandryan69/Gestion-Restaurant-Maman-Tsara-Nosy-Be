@@ -1,16 +1,81 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" lang="fr"
       th:with="pageTitle=${commandeDto.id == null ? 'Nouvelle Commande' : 'Modifier Commande'}">
-<head th:replace="~{layout/head :: head(pageTitle=${pageTitle})}"></head>
+<head th:replace="~{layout/head :: head(pageTitle=${pageTitle})}">
+    <!-- Viewport pour l'adaptation mobile -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
 <body>
 
-<div class="app">
+<!-- CSS d'adaptation responsive -->
+<style>
+    body, .app {
+        overflow-x: hidden;
+    }
+
+    .app {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+    }
+    
+    @media (min-width: 768px) {
+        .app {
+            flex-direction: row;
+        }
+        .main {
+            flex: 1;
+            min-width: 0;
+        }
+    }
+
+    .content {
+        padding: 15px;
+    }
+    @media (min-width: 768px) {
+        .content {
+            padding: 25px;
+        }
+    }
+
+    /* Grille adaptative pour les champs d'en-tête */
+    .form-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    @media (min-width: 768px) {
+        .form-grid {
+            grid-template-columns: repeat(3, 1fr);
+        }
+    }
+
+    /* Support du scroll horizontal sur mobile pour la table dynamique */
+    .table-responsive {
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Adapter la barre d'actions sur petit écran */
+    @media (max-width: 576px) {
+        .toolbar {
+            flex-direction: column-reverse;
+            width: 100%;
+        }
+        .toolbar .btn {
+            width: 100%;
+        }
+    }
+</style>
+
+<div class="app container-fluid p-0">
 
   <!-- Sidebar globale -->
   <aside th:replace="~{layout/sidebar :: sidebar(activeMenu='commandes')}"></aside>
 
   <!-- Conteneur principal -->
-  <div class="main">
+  <div class="main w-100">
 
     <!-- Topbar globale -->
     <div th:replace="~{layout/navbar :: topbar(pageTitle=${pageTitle})}"></div>
@@ -19,31 +84,33 @@
     <div class="content">
 
       <!-- En-tête de la page -->
-      <div class="page-header">
+      <div class="page-header d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3 mb-4">
         <div>
-          <h2 th:text="${commandeDto.id == null ? 'Nouvelle Commande' : 'Modifier Commande # ' + commandeDto.id}">
+          <h2 class="h3 mb-1" th:text="${commandeDto.id == null ? 'Nouvelle Commande' : 'Modifier Commande # ' + commandeDto.id}">
             Formulaire Commande
           </h2>
-          <div class="breadcrumb">
+          <div class="breadcrumb mb-0">
             Accueil / <a th:href="@{/commandes}">Commandes</a> / 
             <span th:text="${commandeDto.id == null ? 'Nouvelle' : 'Édition'}">Saisie</span>
           </div>
         </div>
-        <a th:href="@{/commandes}" class="btn btn-secondary">&larr; Annuler</a>
+        <div>
+          <a th:href="@{/commandes}" class="btn btn-secondary btn-sm w-100 w-sm-auto">&larr; Annuler</a>
+        </div>
       </div>
 
       <form th:action="@{/commandes/save}" th:object="${commandeDto}" method="post" id="commandeForm">
         <input type="hidden" th:field="*{id}" />
 
         <!-- En-tête de Commande -->
-        <div class="form-card mb-4">
-          <h3 class="text-primary mb-3">Informations de la Commande</h3>
+        <div class="form-card card shadow-sm p-3 p-md-4 mb-4">
+          <h3 class="text-primary h5 mb-3">Informations de la Commande</h3>
           
           <div class="form-grid">
             
             <div class="field-group">
-              <label class="field-label">Client <span class="required">*</span></label>
-              <select class="form-control" th:field="*{idClient}" required>
+              <label class="field-label form-label">Client <span class="required text-danger">*</span></label>
+              <select class="form-control form-select" th:field="*{idClient}" required>
                 <option value="">-- Sélectionner un client --</option>
                 <option th:each="c : ${clients}" 
                         th:value="${c.id}" 
@@ -53,8 +120,8 @@
             </div>
 
             <div class="field-group">
-              <label class="field-label">Zone de Livraison <span class="required">*</span></label>
-              <select class="form-control" th:field="*{idZoneLivraison}" required>
+              <label class="field-label form-label">Zone de Livraison <span class="required text-danger">*</span></label>
+              <select class="form-control form-select" th:field="*{idZoneLivraison}" required>
                 <option value="">-- Sélectionner une zone --</option>
                 <option th:each="z : ${zones}" 
                         th:value="${z.id}" 
@@ -64,7 +131,7 @@
             </div>
 
             <div class="field-group">
-              <label class="field-label">Date de Commande <span class="required">*</span></label>
+              <label class="field-label form-label">Date de Commande <span class="required text-danger">*</span></label>
               <input type="date" class="form-control" th:field="*{dateCommande}" required />
             </div>
 
@@ -72,27 +139,27 @@
         </div>
 
         <!-- Section Plats Commandés -->
-        <div class="table-card mb-4 p-4">
-          <div class="d-flex justify-content-between align-items-center mb-3">
-            <h3 class="m-0 text-secondary">Plats Commandés</h3>
+        <div class="table-card card shadow-sm mb-4 p-3 p-md-4">
+          <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 mb-3">
+            <h3 class="m-0 text-secondary h5">Plats Commandés</h3>
             <button type="button" class="btn btn-secondary btn-sm" id="btnAddPlat">
               <i class="bi bi-plus-circle"></i> Ajouter un plat
             </button>
           </div>
 
           <div class="table-responsive">
-            <table class="data-table" id="tablePlats">
+            <table class="data-table table table-hover align-middle mb-0" id="tablePlats">
               <thead>
                 <tr>
-                  <th style="width: 55%;">Plat</th>
-                  <th style="width: 30%;">Quantité</th>
-                  <th style="width: 15%;" class="text-center">Action</th>
+                  <th style="min-width: 250px; width: 55%;">Plat</th>
+                  <th style="min-width: 120px; width: 30%;">Quantité</th>
+                  <th style="min-width: 80px; width: 15%;" class="text-center">Action</th>
                 </tr>
               </thead>
               <tbody id="lignesContainer">
                 <tr th:each="ligne, stat : *{lignes}" class="ligne-plat-row">
                   <td>
-                    <select class="form-control plat-select" th:field="*{lignes[__${stat.index}__].idPlat}" required>
+                    <select class="form-control form-select plat-select" th:field="*{lignes[__${stat.index}__].idPlat}" required>
                       <option value="">-- Choisir un plat --</option>
                       <option th:each="p : ${plats}" 
                               th:value="${p.id}" 
@@ -174,7 +241,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
         tr.innerHTML = `
             <td>
-                <select name="lignes[${index}].idPlat" class="form-control plat-select" required>
+                <select name="lignes[${index}].idPlat" class="form-control form-select plat-select" required>
                     ${buildOptionsHtml()}
                 </select>
             </td>
@@ -183,7 +250,7 @@ document.addEventListener("DOMContentLoaded", function() {
             </td>
             <td class="text-center">
                 <button type="button" class="btn btn-danger btn-sm remove-ligne" title="Supprimer">
-                    <i class="bi bi-trash"></i> Supprimer
+                    <i class="bi bi-trash"></i>
                 </button>
             </td>
         `;

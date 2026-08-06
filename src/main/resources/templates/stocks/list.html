@@ -1,16 +1,92 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" lang="fr"
       th:with="pageTitle='Gestion stock'">
-<head th:replace="~{layout/head :: head(pageTitle=${pageTitle})}"></head>
-<body>
+<head th:replace="~{layout/head :: head(pageTitle=${pageTitle})}">
+    <!-- Viewport pour l'adaptation mobile -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body class="bg-light">
 
-<div class="app">
+<!-- CSS d'adaptation responsive -->
+<style>
+    body, .app {
+        overflow-x: hidden;
+    }
+
+    .app {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+    }
+    
+    @media (min-width: 768px) {
+        .app {
+            flex-direction: row;
+        }
+        .main {
+            flex: 1;
+            min-width: 0;
+        }
+    }
+
+    .content {
+        padding: 15px;
+    }
+    @media (min-width: 768px) {
+        .content {
+            padding: 25px;
+        }
+    }
+
+    /* Styles de la carte et du tableau */
+    .table-card {
+        background: #ffffff;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+
+    /* Scroll horizontal sur mobile pour le tableau */
+    .table-responsive {
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        text-align: left;
+    }
+
+    .data-table th, .data-table td {
+        padding: 12px 16px;
+        border-bottom: 1px solid #e2e8f0;
+        white-space: nowrap;
+    }
+
+    .data-table thead th {
+        background-color: #1e293b;
+        color: #ffffff;
+        font-weight: 600;
+    }
+
+    /* Alignment des boutons d'actions */
+    .actions {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+    }
+</style>
+
+<div class="app container-fluid p-0">
 
   <!-- Sidebar globale -->
   <aside th:replace="~{layout/sidebar :: sidebar(activeMenu='stocks')}"></aside>
 
   <!-- Conteneur principal -->
-  <div class="main">
+  <div class="main w-100">
     
     <!-- Topbar globale -->
     <div th:replace="~{layout/navbar :: topbar(pageTitle=${pageTitle})}"></div>
@@ -18,41 +94,61 @@
     <!-- Contenu de la page -->
     <div class="content">
       
-      <div class="page-header">
+      <!-- En-tête de la page -->
+      <div class="page-header d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3 mb-4">
         <div>
-          <h2>Mise à Jour / État du Stock</h2>
-          <div class="breadcrumb">Accueil / <span>Stocks</span></div>
+          <h2 class="h3 mb-1">Mise à Jour / État du Stock</h2>
+          <div class="breadcrumb mb-0">Accueil / <span>Stocks</span></div>
         </div>
-        <a th:href="@{/stocks/new}" class="btn btn-primary">Ajuster le Stock</a>
+        <div>
+          <a th:href="@{/stocks/new}" class="btn btn-primary w-100 w-sm-auto">
+            <i class="bi bi-plus-lg me-1"></i> Ajuster le Stock
+          </a>
+        </div>
       </div>
 
-      <div class="table-card">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Ingrédient</th>
-              <th>Date Relevé</th>
-              <th>Quantité restante</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr th:each="s : ${stocksList}">
-              <td th:text="${s.id}">1</td>
-              <td th:text="${s.ingredient != null ? s.ingredient.nom : 'N/A'}">Ingrédient</td>
-              <td th:text="${s.dateEtatStock}">2026-07-30</td>
-              <td th:text="${s.quantite != null ? #numbers.formatDecimal(s.quantite, 1, 'POINT', 3, 'COMMA') : '0.000'}">10.000</td>
-              <td class="actions">
-                <a th:href="@{/stocks/edit/{id}(id=${s.id})}" class="btn btn-warning">Modifier</a>
-                <a th:href="@{/stocks/delete/{id}(id=${s.id})}" class="btn btn-danger" onclick="return confirm('Effacer ce relevé de stock ?');">Supprimer</a>
-              </td>
-            </tr>
-            <tr th:if="${#lists.isEmpty(stocksList)}">
-              <td colspan="5" class="text-center">Aucun relevé de stock trouvé.</td>
-            </tr>
-          </tbody>
-        </table>
+      <!-- Tableau des relevés de stock -->
+      <div class="table-card mb-4 shadow-sm">
+        <div class="table-responsive">
+          <table class="data-table align-middle">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Ingrédient</th>
+                <th>Date Relevé</th>
+                <th>Quantité restante</th>
+                <th class="text-center">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr th:each="s : ${stocksList}">
+                <td th:text="${s.id}">1</td>
+                <td class="fw-bold" th:text="${s.ingredient != null ? s.ingredient.nom : 'N/A'}">Ingrédient</td>
+                <td th:text="${s.dateEtatStock}">2026-07-30</td>
+                <td>
+                  <span class="badge bg-light text-dark border fs-6 fw-semibold" 
+                        th:text="${s.quantite != null ? #numbers.formatDecimal(s.quantite, 1, 'POINT', 3, 'COMMA') : '0,000'}">
+                    10,000
+                  </span>
+                </td>
+                <td class="text-center">
+                  <div class="actions">
+                    <a th:href="@{/stocks/edit/{id}(id=${s.id})}" class="btn btn-warning btn-sm" title="Modifier">
+                      <i class="bi bi-pencil-square"></i> Modifier
+                    </a>
+                    <a th:href="@{/stocks/delete/{id}(id=${s.id})}" class="btn btn-danger btn-sm" 
+                       onclick="return confirm('Effacer ce relevé de stock ?');" title="Supprimer">
+                      <i class="bi bi-trash"></i> Supprimer
+                    </a>
+                  </div>
+                </td>
+              </tr>
+              <tr th:if="${#lists.isEmpty(stocksList)}">
+                <td colspan="5" class="text-center text-muted py-4">Aucun relevé de stock trouvé.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
     </div>

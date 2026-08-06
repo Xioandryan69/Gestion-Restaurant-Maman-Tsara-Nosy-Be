@@ -1,16 +1,100 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" lang="fr"
       th:with="pageTitle='Fiche Personnel — Maman Tsara'">
-<head th:replace="~{layout/head :: head(pageTitle=${pageTitle})}"></head>
-<body>
+<head th:replace="~{layout/head :: head(pageTitle=${pageTitle})}">
+    <!-- Viewport pour l'adaptation mobile -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body class="bg-light">
 
-<div class="app">
+<!-- CSS d'adaptation responsive -->
+<style>
+    body, .app {
+        overflow-x: hidden;
+    }
+
+    .app {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+    }
+    
+    @media (min-width: 768px) {
+        .app {
+            flex-direction: row;
+        }
+        .main {
+            flex: 1;
+            min-width: 0;
+        }
+    }
+
+    .content {
+        padding: 15px;
+    }
+    @media (min-width: 768px) {
+        .content {
+            padding: 25px;
+        }
+    }
+
+    /* Styles des cartes de formulaire et conteneurs */
+    .form-card, .table-card {
+        background: #ffffff;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .table-card {
+        padding: 0;
+        overflow: hidden;
+    }
+
+    /* Scroll horizontal sur mobile pour les tableaux */
+    .table-responsive {
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        text-align: left;
+    }
+
+    .data-table th, .data-table td {
+        padding: 12px 16px;
+        border-bottom: 1px solid #e2e8f0;
+        white-space: nowrap;
+    }
+
+    .data-table thead th {
+        background-color: #f8fafc;
+        color: #475569;
+        font-weight: 600;
+    }
+
+    .field-label {
+        font-weight: 600;
+        font-size: 0.875rem;
+        margin-bottom: 0.35rem;
+        color: #334155;
+    }
+
+    .required {
+        color: #dc2626;
+    }
+</style>
+
+<div class="app container-fluid p-0">
 
   <!-- Sidebar globale avec l'onglet 'personnels' actif -->
   <aside th:replace="~{layout/sidebar :: sidebar(activeMenu='personnels')}"></aside>
 
   <!-- Conteneur principal -->
-  <div class="main">
+  <div class="main w-100">
 
     <!-- Topbar globale -->
     <div th:replace="~{layout/navbar :: topbar(pageTitle=${pageTitle})}"></div>
@@ -19,27 +103,29 @@
     <div class="content">
 
       <!-- En-tête de la page -->
-      <div class="page-header">
+      <div class="page-header d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3 mb-4">
         <div>
-          <h2>
+          <h2 class="h3 mb-1">
             Fiche Employé : 
             <span th:text="${personnel != null ? (personnel.nom + (personnel.prenom != null ? ' ' + personnel.prenom : '')) : ''}">Nom Employé</span>
           </h2>
-          <div class="breadcrumb">
+          <div class="breadcrumb mb-0">
             Accueil / <a th:href="@{/personnels}">Personnel</a> / <span>Fiche Employé</span>
           </div>
         </div>
-        <a th:href="@{/personnels}" class="btn btn-secondary">&larr; Retour à la liste</a>
+        <div>
+          <a th:href="@{/personnels}" class="btn btn-secondary w-100 w-sm-auto">&larr; Retour à la liste</a>
+        </div>
       </div>
 
       <!-- Section Informations & Émission Paie -->
-      <div class="row mb-4" th:if="${personnel != null}">
+      <div class="row g-4 mb-4" th:if="${personnel != null}">
         
         <!-- Informations Générales -->
-        <div class="col-md-6 mb-3 mb-md-0">
+        <div class="col-12 col-md-6">
           <div class="form-card h-100">
-            <h3 class="text-primary mb-3"><i class="bi bi-person-badge"></i> Informations Générales</h3>
-            <div class="form-grid" style="grid-template-columns: 1fr;">
+            <h3 class="h5 text-primary mb-3"><i class="bi bi-person-badge"></i> Informations Générales</h3>
+            <div class="d-flex flex-column gap-3">
               <div class="field-group">
                 <label class="field-label">Poste / Rôle</label>
                 <div>
@@ -66,9 +152,9 @@
         </div>
 
         <!-- Formulaire de Paie -->
-        <div class="col-md-6">
+        <div class="col-12 col-md-6">
           <div class="form-card h-100">
-            <h3 class="text-primary mb-3"><i class="bi bi-cash-stack"></i> Émettre une Fiche de Paie</h3>
+            <h3 class="h5 text-primary mb-3"><i class="bi bi-cash-stack"></i> Émettre une Fiche de Paie</h3>
             <form th:action="@{/personnels/{id}/paie/save(id=${personnel.id})}" method="post">
               <div class="field-group mb-2">
                 <label class="field-label">Salaire de base (Ar) <span class="required">*</span></label>
@@ -86,7 +172,7 @@
               </div>
 
               <button type="submit" class="btn btn-primary w-100">
-                <i class="bi bi-check-circle"></i> Valider le paiement & Émettre Fiche
+                <i class="bi bi-check-circle"></i> Valider le paiement &amp; Émettre Fiche
               </button>
             </form>
           </div>
@@ -95,46 +181,48 @@
       </div>
 
       <!-- Tableau des Salaires -->
-      <div class="table-card mb-5">
+      <div class="table-card mb-4 shadow-sm">
         <div class="p-3 border-bottom bg-light">
-          <h3 class="m-0 text-secondary" style="font-size: 1.1rem;">
-            <i class="bi bi-journal-check"></i> Historique des Salaires & Fiches de Paie
+          <h3 class="m-0 text-secondary h6 fw-bold">
+            <i class="bi bi-journal-check"></i> Historique des Salaires &amp; Fiches de Paie
           </h3>
         </div>
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Date de Paie</th>
-              <th class="text-end">Salaire Base</th>
-              <th class="text-end">Montant Total Versé</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr th:each="paie : ${historiquePaie}">
-              <td th:text="${paie.datePaie != null ? #temporals.format(paie.datePaie, 'dd/MM/yyyy') : '-'}">01/01/2026</td>
-              <td class="text-end" 
-                  th:text="${paie.salaire != null ? #numbers.formatDecimal(paie.salaire, 1, 'POINT', 2, 'COMMA') + ' Ar' : '0,00 Ar'}">
-                0,00 Ar
-              </td>
-              <td class="text-end fw-bold text-success" 
-                  th:text="${paie.montantTotal != null ? #numbers.formatDecimal(paie.montantTotal, 1, 'POINT', 2, 'COMMA') + ' Ar' : '0,00 Ar'}">
-                0,00 Ar
-              </td>
-            </tr>
-            <tr th:if="${#lists.isEmpty(historiquePaie)}">
-              <td colspan="3" class="text-center text-muted py-4">Aucune fiche de paie générée.</td>
-            </tr>
-          </tbody>
-        </table>
+        <div class="table-responsive">
+          <table class="data-table align-middle">
+            <thead>
+              <tr>
+                <th>Date de Paie</th>
+                <th class="text-end">Salaire Base</th>
+                <th class="text-end">Montant Total Versé</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr th:each="paie : ${historiquePaie}">
+                <td th:text="${paie.datePaie != null ? #temporals.format(paie.datePaie, 'dd/MM/yyyy') : '-'}">01/01/2026</td>
+                <td class="text-end" 
+                    th:text="${paie.salaire != null ? #numbers.formatDecimal(paie.salaire, 1, 'POINT', 2, 'COMMA') + ' Ar' : '0,00 Ar'}">
+                  0,00 Ar
+                </td>
+                <td class="text-end fw-bold text-success" 
+                    th:text="${paie.montantTotal != null ? #numbers.formatDecimal(paie.montantTotal, 1, 'POINT', 2, 'COMMA') + ' Ar' : '0,00 Ar'}">
+                  0,00 Ar
+                </td>
+              </tr>
+              <tr th:if="${#lists.isEmpty(historiquePaie)}">
+                <td colspan="3" class="text-center text-muted py-4">Aucune fiche de paie générée.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <!-- Section Absences (Déclaration + Historique) -->
-      <div class="row mb-4" th:if="${personnel != null}">
+      <div class="row g-4 mb-4" th:if="${personnel != null}">
         
         <!-- Formulaire d'Absence -->
-        <div class="col-lg-5 mb-4 mb-lg-0">
+        <div class="col-12 col-lg-5">
           <div class="form-card h-100">
-            <h3 class="text-primary mb-3"><i class="bi bi-calendar-x"></i> Déclarer une Absence</h3>
+            <h3 class="h5 text-primary mb-3"><i class="bi bi-calendar-x"></i> Déclarer une Absence</h3>
             <form th:action="@{/personnels/{id}/absence/save(id=${personnel.id})}" method="post">
               
               <div class="field-group mb-2">
@@ -149,7 +237,7 @@
 
               <div class="field-group mb-2">
                 <label class="field-label">Motif / Raison <span class="required">*</span></label>
-                <select name="idRaison" class="form-control" required>
+                <select name="idRaison" class="form-select" required>
                   <option value="">-- Sélectionner un motif --</option>
                   <option th:each="r : ${raisonsAbsence}" 
                           th:value="${r.id}" 
@@ -170,39 +258,41 @@
         </div>
 
         <!-- Tableau Historique d'Absences -->
-        <div class="col-lg-7">
-          <div class="table-card h-100">
+        <div class="col-12 col-lg-7">
+          <div class="table-card h-100 shadow-sm">
             <div class="p-3 border-bottom bg-light">
-              <h3 class="m-0 text-secondary" style="font-size: 1.1rem;">
+              <h3 class="m-0 text-secondary h6 fw-bold">
                 <i class="bi bi-clock-history"></i> Historique des Absences
               </h3>
             </div>
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>Début</th>
-                  <th>Fin</th>
-                  <th>Motif</th>
-                  <th>Commentaire</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr th:each="abs : ${absencesList}">
-                  <td th:text="${abs.dateDebut != null ? #temporals.format(abs.dateDebut, 'dd/MM/yyyy') : '-'}">01/01/2026</td>
-                  <td th:text="${abs.dateFin != null ? #temporals.format(abs.dateFin, 'dd/MM/yyyy') : '-'}">02/01/2026</td>
-                  <td>
-                    <span class="badge bg-info text-dark" 
-                          th:text="${abs.raisonAbsence != null ? abs.raisonAbsence.libelle : (abs.raison != null ? abs.raison : '-')}">
-                      Motif
-                    </span>
-                  </td>
-                  <td th:text="${abs.commentaire != null && !abs.commentaire.isEmpty() ? abs.commentaire : '-'}">Commentaire</td>
-                </tr>
-                <tr th:if="${#lists.isEmpty(absencesList)}">
-                  <td colspan="4" class="text-center text-muted py-4">Aucune absence enregistrée.</td>
-                </tr>
-              </tbody>
-            </table>
+            <div class="table-responsive">
+              <table class="data-table align-middle">
+                <thead>
+                  <tr>
+                    <th>Début</th>
+                    <th>Fin</th>
+                    <th>Motif</th>
+                    <th>Commentaire</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr th:each="abs : ${absencesList}">
+                    <td th:text="${abs.dateDebut != null ? #temporals.format(abs.dateDebut, 'dd/MM/yyyy') : '-'}">01/01/2026</td>
+                    <td th:text="${abs.dateFin != null ? #temporals.format(abs.dateFin, 'dd/MM/yyyy') : '-'}">02/01/2026</td>
+                    <td>
+                      <span class="badge bg-info text-dark" 
+                            th:text="${abs.raisonAbsence != null ? abs.raisonAbsence.libelle : (abs.raison != null ? abs.raison : '-')}">
+                        Motif
+                      </span>
+                    </td>
+                    <td th:text="${abs.commentaire != null && !abs.commentaire.isEmpty() ? abs.commentaire : '-'}">Commentaire</td>
+                  </tr>
+                  <tr th:if="${#lists.isEmpty(absencesList)}">
+                    <td colspan="4" class="text-center text-muted py-4">Aucune absence enregistrée.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 

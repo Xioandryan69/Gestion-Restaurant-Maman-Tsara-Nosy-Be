@@ -1,79 +1,133 @@
-État Global des Stocks
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" lang="fr"
       th:with="pageTitle=${ 'État Global des Stocks'}">
-<head th:replace="~{layout/head :: head(pageTitle=${pageTitle})}"></head>
+<head th:replace="~{layout/head :: head(pageTitle=${pageTitle})}">
+    <!-- Viewport pour l'adaptation mobile -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
 <body class="bg-light">
-<div class="app">
 
-    <!-- Sidebar globale avec l'onglet 'caisse' actif -->
-  <aside th:replace="~{layout/sidebar :: sidebar(activeMenu='ingredients')}"></aside>
-    <div class="main">
+<!-- CSS d'adaptation responsive -->
+<style>
+    body, .app {
+        overflow-x: hidden;
+    }
+
+    .app {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+    }
+    
+    @media (min-width: 768px) {
+        .app {
+            flex-direction: row;
+        }
+        .main {
+            flex: 1;
+            min-width: 0;
+        }
+    }
+
+    .content {
+        padding: 15px;
+    }
+    @media (min-width: 768px) {
+        .content {
+            padding: 25px;
+        }
+    }
+
+    /* Scroll horizontal sur smartphone pour le tableau des stocks */
+    .table-responsive {
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Empêcher le chevauchement du bouton d'action */
+    .actions-cell {
+        white-space: nowrap;
+    }
+</style>
+
+<div class="app container-fluid p-0">
+
+    <!-- Sidebar globale avec l'onglet 'ingredients' actif -->
+    <aside th:replace="~{layout/sidebar :: sidebar(activeMenu='ingredients')}"></aside>
+    
+    <div class="main w-100">
         <div th:replace="~{fragments/layout :: topbar('État Global des Stocks')}"></div>
 
         <div class="content">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h2>État des Stocks (Ingrédients)</h2>
-                <a th:href="@{/ingredients}" class="btn btn-outline-secondary">&larr; Retour aux Ingrédients</a>
+            <!-- En-tête de la page -->
+            <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3 mb-4">
+                <h2 class="h3 mb-0">État des Stocks (Ingrédients)</h2>
+                <div>
+                    <a th:href="@{/ingredients}" class="btn btn-outline-secondary w-100 w-sm-auto">&larr; Retour aux Ingrédients</a>
+                </div>
             </div>
 
             <!-- Cartes KPI -->
-            <div class="row mb-4">
-                <div class="col-md-6">
-                    <div class="card bg-success text-white shadow-sm">
+            <div class="row g-3 mb-4">
+                <div class="col-12 col-md-6">
+                    <div class="card bg-success text-white shadow-sm h-100">
                         <div class="card-body">
-                            <h5>Stock Normal / Correct</h5>
-                            <h2 th:text="${nombreStockOk}">0</h2>
+                            <h5 class="card-title fs-6">Stock Normal / Correct</h5>
+                            <h2 class="display-6 fw-bold mb-0" th:text="${nombreStockOk}">0</h2>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-6">
-                    <div class="card bg-warning text-dark shadow-sm">
+                <div class="col-12 col-md-6">
+                    <div class="card bg-warning text-dark shadow-sm h-100">
                         <div class="card-body">
-                            <h5>Alerte / Stock Faible (&lt; 5)</h5>
-                            <h2 th:text="${nombreAlerteStock}">0</h2>
+                            <h5 class="card-title fs-6">Alerte / Stock Faible (&lt; 5)</h5>
+                            <h2 class="display-6 fw-bold mb-0" th:text="${nombreAlerteStock}">0</h2>
                         </div>
                     </div>
                 </div>
             </div>
 
             <!-- Table Global Stock -->
-            <div class="table-responsive bg-white shadow-sm rounded">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="table-dark">
-                    <tr>
-                        <th>Ingrédient</th>
-                        <th>Catégorie</th>
-                        <th>Quantité en Stock</th>
-                        <th>Unité</th>
-                        <th>Statut Stock</th>
-                        <th class="text-end">Action</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    <tr th:each="item : ${stockItems}">
-                        <td><strong th:text="${item.ingredient.nom}"></strong></td>
-                        <td th:text="${item.ingredient.categorieIngredients != null ? item.ingredient.categorieIngredients.libelle : '-'}"></td>
-                        <td th:text="${item.quantiteActuelle}"></td>
-                        <td th:text="${item.ingredient.unite != null ? item.ingredient.unite.symbole : ''}"></td>
-                        <td>
-                            <span th:if="${item.quantiteActuelle &lt; 5}" class="badge bg-danger">Alerte Faible</span>
-                            <span th:if="${item.quantiteActuelle &gt;= 5}" class="badge bg-success">En Stock</span>
-                        </td>
-                        <td class="text-end">
-                            <a th:href="@{/ingredients/{id}/detail(id=${item.ingredient.id})}" class="btn btn-sm btn-primary">Mouvement</a>
-                        </td>
-                    </tr>
-                    <tr th:if="${#lists.isEmpty(stockItems)}">
-                        <td colspan="6" class="text-center text-muted py-4">Aucun stock disponible.</td>
-                    </tr>
-                    </tbody>
-                </table>
+            <div class="card shadow-sm mb-4">
+                <div class="card-body p-0">
+                    <div class="table-responsive bg-white rounded">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-dark">
+                            <tr>
+                                <th>Ingrédient</th>
+                                <th>Catégorie</th>
+                                <th>Quantité en Stock</th>
+                                <th>Unité</th>
+                                <th>Statut Stock</th>
+                                <th class="text-end">Action</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr th:each="item : ${stockItems}">
+                                <td><strong th:text="${item.ingredient.nom}"></strong></td>
+                                <td th:text="${item.ingredient.categorieIngredients != null ? item.ingredient.categorieIngredients.libelle : '-'}"></td>
+                                <td th:text="${item.quantiteActuelle}"></td>
+                                <td th:text="${item.ingredient.unite != null ? item.ingredient.unite.symbole : ''}"></td>
+                                <td>
+                                    <span th:if="${item.quantiteActuelle &lt; 5}" class="badge bg-danger">Alerte Faible</span>
+                                    <span th:if="${item.quantiteActuelle &gt;= 5}" class="badge bg-success">En Stock</span>
+                                </td>
+                                <td class="text-end actions-cell">
+                                    <a th:href="@{/ingredients/{id}/detail(id=${item.ingredient.id})}" class="btn btn-sm btn-primary">Mouvement</a>
+                                </td>
+                            </tr>
+                            <tr th:if="${#lists.isEmpty(stockItems)}">
+                                <td colspan="6" class="text-center text-muted py-4">Aucun stock disponible.</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
-
 
 <div th:replace="~{layout/footer :: footer}"></div>
 <th:block th:replace="~{layout/scripts :: scripts}"></th:block>

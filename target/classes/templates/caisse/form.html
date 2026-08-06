@@ -1,58 +1,115 @@
-<<!DOCTYPE html>
+<!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" lang="fr"
       th:with="pageTitle=${ 'Gestion caisse'}">
-<head th:replace="~{layout/head :: head(pageTitle=${pageTitle})}"></head>
+<head th:replace="~{layout/head :: head(pageTitle=${pageTitle})}">
+    <!-- Meta viewport indispensable si votre layout/head n'en possède pas déjà -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
 <body>
 
-<div class="app">
+<!-- CSS interne pour garantir le comportement responsive sans casser vos classes existantes -->
+<style>
+    /* Sécurité anti-débordement sur mobile */
+    body, .app {
+        overflow-x: hidden;
+    }
+    
+    /* Adaptabilité globale de la structure */
+    .app {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+    }
+    
+    @media (min-width: 768px) {
+        .app {
+            flex-direction: row;
+        }
+        .main {
+            flex: 1;
+            min-width: 0; /* Évite les débordements de grille */
+        }
+    }
+
+    /* Rend la section de contenu fluide avec des espaces adaptés */
+    .content {
+        padding: 15px;
+    }
+    @media (min-width: 768px) {
+        .content {
+            padding: 25px;
+        }
+    }
+
+    /* Adaptabilité des boutons sur très petits écrans */
+    @media (max-width: 576px) {
+        .form-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .form-actions .btn {
+            width: 100%;
+            margin-top: 0 !important;
+        }
+    }
+</style>
+
+<div class="app container-fluid p-0">
 
     <!-- Sidebar globale avec l'onglet 'caisse' actif -->
   <aside th:replace="~{layout/sidebar :: sidebar(activeMenu='caisse')}"></aside>
 
-    <div class="main">
+    <div class="main w-100">
         <!-- Topbar globale avec titre dynamique -->
         <div th:replace="~{fragments/layout :: topbar(${mouvement.id == null ? 'Ajouter une Opération' : 'Modifier une Opération'})}"></div>
 
         <div class="content">
-            <div class="page-header">
+            <div class="page-header d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3 mb-4">
                 <div>
-                    <h2 th:text="${mouvement.id == null ? 'Ajouter une Opération' : 'Modifier une Opération'}">Opération de Caisse</h2>
-                    <div class="breadcrumb">Accueil / Caisse / <span th:text="${mouvement.id == null ? 'Nouvelle opération' : 'Édition'}">Formulaire</span></div>
+                    <h2 th:text="${mouvement.id == null ? 'Ajouter une Opération' : 'Modifier une Opération'}" class="h3 mb-1">Opération de Caisse</h2>
+                    <div class="breadcrumb mb-0">Accueil / Caisse / <span th:text="${mouvement.id == null ? 'Nouvelle opération' : 'Édition'}">Formulaire</span></div>
                 </div>
-                <a th:href="@{/caisse}" class="btn btn-secondary btn-sm">Retour aux mouvements</a>
+                <div>
+                    <a th:href="@{/caisse}" class="btn btn-secondary btn-sm w-100 w-sm-auto">Retour aux mouvements</a>
+                </div>
             </div>
 
-            <div class="card">
-                <section class="form-container">
-                    <form th:action="@{/caisse/save}" th:object="${mouvement}" method="post" class="custom-form">
-                        <input type="hidden" th:field="*{id}" />
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <section class="form-container">
+                        <form th:action="@{/caisse/save}" th:object="${mouvement}" method="post" class="custom-form">
+                            <input type="hidden" th:field="*{id}" />
 
-                        <div class="form-group">
-                            <label for="dateMouvement">Date :</label>
-                            <input type="date" id="dateMouvement" th:field="*{dateMouvement}" required class="form-control" />
-                        </div>
+                            <div class="row g-3">
+                                <div class="form-group col-12 col-md-6">
+                                    <label for="dateMouvement" class="form-label">Date :</label>
+                                    <input type="date" id="dateMouvement" th:field="*{dateMouvement}" required class="form-control" />
+                                </div>
 
-                        <div class="form-group">
-                            <label for="typeMouvement">Type d'opération :</label>
-                            <select id="typeMouvement" th:field="*{typeMouvement.id}" class="form-control" required>
-                                <option value="">-- Sélectionner --</option>
-                                <option th:each="tm : ${typesMouvement}" 
-                                        th:value="${tm.id}" 
-                                        th:text="${tm.libelle}">Type</option>
-                            </select>
-                        </div>
+                                <div class="form-group col-12 col-md-6">
+                                    <label for="typeMouvement" class="form-label">Type d'opération :</label>
+                                    <select id="typeMouvement" th:field="*{typeMouvement.id}" class="form-control" required>
+                                        <option value="">-- Sélectionner --</option>
+                                        <option th:each="tm : ${typesMouvement}" 
+                                                th:value="${tm.id}" 
+                                                th:text="${tm.libelle}">Type</option>
+                                    </select>
+                                </div>
 
-                        <div class="form-group">
-                            <label for="montant">Montant (Ar) :</label>
-                            <input type="number" id="montant" step="0.01" min="0" th:field="*{montant}" placeholder="0.00" required class="form-control" />
-                        </div>
+                                <div class="form-group col-12">
+                                    <label for="montant" class="form-label">Montant (Ar) :</label>
+                                    <input type="number" id="montant" step="0.01" min="0" th:field="*{montant}" placeholder="0.00" required class="form-control" />
+                                </div>
+                            </div>
 
-                        <div class="form-actions" style="margin-top: 20px;">
-                            <button type="submit" class="btn btn-primary">Enregistrer</button>
-                            <a th:href="@{/caisse}" class="btn btn-secondary">Annuler</a>
-                        </div>
-                    </form>
-                </section>
+                            <div class="form-actions d-flex flex-column flex-sm-row gap-2" style="margin-top: 20px;">
+                                <button type="submit" class="btn btn-primary">Enregistrer</button>
+                                <a th:href="@{/caisse}" class="btn btn-secondary">Annuler</a>
+                            </div>
+                        </form>
+                    </section>
+                </div>
             </div>
         </div>
     </div>

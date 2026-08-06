@@ -1,16 +1,78 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" lang="fr"
       th:with="pageTitle='Catalogue des Plats'">
-<head th:replace="~{layout/head :: head(pageTitle=${pageTitle})}"></head>
-<body>
+<head th:replace="~{layout/head :: head(pageTitle=${pageTitle})}">
+    <!-- Viewport pour l'adaptation mobile -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body class="bg-light">
 
-<div class="app">
+<!-- CSS d'adaptation responsive -->
+<style>
+    body, .app {
+        overflow-x: hidden;
+    }
+
+    .app {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+    }
+    
+    @media (min-width: 768px) {
+        .app {
+            flex-direction: row;
+        }
+        .main {
+            flex: 1;
+            min-width: 0;
+        }
+    }
+
+    .content {
+        padding: 15px;
+    }
+    @media (min-width: 768px) {
+        .content {
+            padding: 25px;
+        }
+    }
+
+    /* Styles des cartes */
+    .form-card {
+        background: #ffffff;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        padding: 20px;
+    }
+
+    /* Grille responsive du filtre */
+    .filter-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    @media (min-width: 768px) {
+        .filter-grid {
+            grid-template-columns: 1fr 2fr;
+        }
+    }
+
+    .field-label {
+        font-weight: 600;
+        font-size: 0.875rem;
+        margin-bottom: 0.35rem;
+        color: #334155;
+    }
+</style>
+
+<div class="app container-fluid p-0">
 
   <!-- Sidebar globale -->
   <aside th:replace="~{layout/sidebar :: sidebar(activeMenu='plats')}"></aside>
 
   <!-- Conteneur principal -->
-  <div class="main">
+  <div class="main w-100">
 
     <!-- Topbar globale -->
     <div th:replace="~{layout/navbar :: topbar(pageTitle=${pageTitle})}"></div>
@@ -19,22 +81,24 @@
     <div class="content">
 
       <!-- En-tête de la page -->
-      <div class="page-header">
+      <div class="page-header d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3 mb-4">
         <div>
-          <h2>Catalogue des Plats</h2>
-          <div class="breadcrumb">Accueil / <span>Catalogue</span></div>
+          <h2 class="h3 mb-1">Catalogue des Plats</h2>
+          <div class="breadcrumb mb-0">Accueil / <span>Catalogue</span></div>
         </div>
-        <a th:href="@{/plats/recette/nouveau}" class="btn btn-primary">
-          <i class="bi bi-plus-lg"></i> Nouvelle Recette
-        </a>
+        <div>
+          <a th:href="@{/plats/recette/nouveau}" class="btn btn-primary w-100 w-sm-auto">
+            <i class="bi bi-plus-lg"></i> Nouvelle Recette
+          </a>
+        </div>
       </div>
 
       <!-- Formulaire / Filtre par Catégorie -->
-      <div class="form-card mb-4">
-        <div class="form-grid" style="grid-template-columns: 1fr 2fr;">
+      <div class="form-card mb-4 shadow-sm">
+        <div class="filter-grid">
           <div class="field-group">
             <label for="categoryFilter" class="field-label">Filtrer par Catégorie</label>
-            <select id="categoryFilter" class="form-control">
+            <select id="categoryFilter" class="form-select">
               <option value="ALL">-- Toutes les catégories --</option>
               <option th:each="cat : ${categories}" 
                       th:value="${cat.id}" 
@@ -46,37 +110,37 @@
       </div>
 
       <!-- Message si aucun plat ne correspond au filtre -->
-      <div id="noPlatsMessage" class="form-card text-center text-muted py-4 mb-4" style="display: none;">
+      <div id="noPlatsMessage" class="form-card text-center text-muted py-4 mb-4 shadow-sm" style="display: none;">
         Aucun plat disponible pour cette catégorie.
       </div>
 
-      <!-- Grille des plats -->
-      <div class="row" id="platsGrid">
+      <!-- Grille des plats responsive (1 col mobile, 2 col tablette, 3 col desktop) -->
+      <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4" id="platsGrid">
         <div th:each="plat : ${plats}" 
-             class="col-md-4 mb-4 plat-card" 
+             class="col plat-card" 
              th:data-category-id="${plat.categoriePlats != null ? plat.categoriePlats.id : ''}">
           
-          <div class="form-card h-100 d-flex flex-column justify-content-between p-4">
+          <div class="form-card h-100 d-flex flex-column justify-content-between p-4 shadow-sm">
             <div>
-              <div class="d-flex justify-content-between align-items-center mb-2">
-                <span class="badge bg-info text-dark" 
+              <div class="d-flex justify-content-between align-items-center mb-2 gap-2">
+                <span class="badge bg-info text-dark text-truncate" 
                       th:text="${plat.categoriePlats != null ? plat.categoriePlats.libelle : 'Non catégorisé'}">
                   Catégorie
                 </span>
-                <span class="fw-bold text-primary" 
+                <span class="fw-bold text-primary fs-6 text-nowrap" 
                       th:text="${plat.prixVente != null ? #numbers.formatDecimal(plat.prixVente, 1, 'POINT', 2, 'COMMA') + ' Ar' : '0,00 Ar'}">
                   0,00 Ar
                 </span>
               </div>
               
-              <h3 class="mt-2 mb-2" th:text="${plat.nom}">Nom du Plat</h3>
-              <p class="text-muted" th:text="${plat.description != null ? plat.description : 'Aucune description disponible.'}">
+              <h3 class="h5 mt-2 mb-2 text-dark" th:text="${plat.nom}">Nom du Plat</h3>
+              <p class="text-muted small mb-0" th:text="${plat.description != null ? plat.description : 'Aucune description disponible.'}">
                 Description du plat...
               </p>
             </div>
 
             <div class="pt-3 border-top mt-3 d-flex justify-content-end">
-              <a th:href="@{'/plats/detail/' + ${plat.id}}" class="btn btn-secondary btn-sm">
+              <a th:href="@{'/plats/detail/' + ${plat.id}}" class="btn btn-secondary btn-sm w-100 w-sm-auto">
                 <i class="bi bi-journal-text"></i> Voir Recette
               </a>
             </div>

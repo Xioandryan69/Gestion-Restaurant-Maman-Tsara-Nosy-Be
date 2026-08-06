@@ -1,89 +1,142 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" lang="fr"
       th:with="pageTitle=${ 'Liste des ingredients'}">
-<head th:replace="~{layout/head :: head(pageTitle=${pageTitle})}"></head>
+<head th:replace="~{layout/head :: head(pageTitle=${pageTitle})}">
+    <!-- Viewport pour l'adaptation mobile -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
 <body>
 
-    <div class="app">
+<!-- CSS d'adaptation responsive -->
+<style>
+    body, .app {
+        overflow-x: hidden;
+    }
+
+    .app {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+    }
+    
+    @media (min-width: 768px) {
+        .app {
+            flex-direction: row;
+        }
+        .main {
+            flex: 1;
+            min-width: 0;
+        }
+    }
+
+    .content {
+        padding: 15px;
+    }
+    @media (min-width: 768px) {
+        .content {
+            padding: 25px;
+        }
+    }
+
+    /* Scroll horizontal sur mobile pour la table d'ingrédients */
+    .table-responsive {
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Garder les boutons d'actions sur la même ligne */
+    .actions-cell {
+        white-space: nowrap;
+    }
+</style>
+
+    <div class="app container-fluid p-0">
         <aside th:replace="~{layout/sidebar :: sidebar(activeMenu='ingredients')}"></aside>
-        <div class="main">
-        <!-- Topbar globale -->
+        
+        <div class="main w-100">
+            <!-- Topbar globale -->
             <div th:replace="~{fragments/layout :: topbar('Gestion de la Caisse')}"></div>
-                <div class="content">
-                    <div class="d-flex justify-content-between align-items-center mb-4">
-                        <h2>Ingrédients</h2>
-                        <div>
-                            <a th:href="@{/ingredients/stock}" class="btn btn-outline-info me-2">État du Stock</a>
-                            <a th:href="@{/ingredients/new}" class="btn btn-primary">+ Nouvel Ingrédient</a>
-                        </div>
-                    </div>
-
-                    <!-- Formulaire de recherche / filtrage -->
-                    <div class="card mb-4 shadow-sm">
-                        <div class="card-body">
-                            <form th:action="@{/ingredients}" method="get" th:object="${criteria}" class="row g-3">
-                                <div class="col-md-4">
-                                    <input type="text" th:field="*{nom}" class="form-control" placeholder="Nom de l'ingrédient...">
-                                </div>
-                                <div class="col-md-3">
-                                    <select th:field="*{idCategorie}" class="form-select">
-                                        <option value="">-- Categorie --</option>
-                                        <option th:each="cat : ${categories}" th:value="${cat.id}" th:text="${cat.libelle}"></option>
-                                    </select>
-                                </div>
-                                <div class="col-md-3">
-                                    <select th:field="*{idStatut}" class="form-select">
-                                        <option value="">-- Statut --</option>
-                                        <option th:each="st : ${statuts}" th:value="${st.id}" th:text="${st.libelle}"></option>
-                                    </select>
-                                </div>
-                                <div class="col-md-2 d-grid">
-                                    <button type="submit" class="btn btn-secondary">Filtrer</button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-
-                    <!-- Table d'affichage -->
-                    <div class="table-responsive bg-white shadow-sm rounded">
-                        <table class="table table-hover align-middle mb-0">
-                            <thead class="table-dark">
-                            <tr>
-                                <th>ID</th>
-                                <th>Nom</th>
-                                <th>Catégorie</th>
-                                <th>Fournisseur</th>
-                                <th>Unité</th>
-                                <th>Statut</th>
-                                <th class="text-end">Actions</th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            <tr th:each="ing : ${ingredientsList}">
-                                <td th:text="${ing.id}">1</td>
-                                <td><strong th:text="${ing.nom}">Riz</strong></td>
-                                <td th:text="${ing.categorieLibelle != null ? ing.categorieLibelle : '-'}">Céréales</td>
-                                <td th:text="${ing.fournisseurNom != null ? ing.fournisseurNom : '-'}">Fournisseur A</td>
-                                <td th:text="${ing.uniteNom != null ? ing.uniteNom + ' (' + ing.uniteSymbole + ')' : '-'}">Kg</td>
-                                <td>
-                                    <span class="badge bg-info" th:text="${ing.statutLibelle}">Disponible</span>
-                                </td>
-                                <td class="text-end">
-                                    <a th:href="@{/ingredients/{id}/detail(id=${ing.id})}" class="btn btn-sm btn-outline-primary">Détail</a>
-                                    <a th:href="@{/ingredients/edit/{id}(id=${ing.id})}" class="btn btn-sm btn-outline-warning">Éditer</a>
-                                    <a th:href="@{/ingredients/delete/{id}(id=${ing.id})}" class="btn btn-sm btn-outline-danger" 
-                                    onclick="return confirm('Supprimer cet ingrédient ?')">Supprimer</a>
-                                </td>
-                            </tr>
-                            <tr th:if="${#lists.isEmpty(ingredientsList)}">
-                                <td colspan="7" class="text-center text-muted py-4">Aucun ingrédient trouvé.</td>
-                            </tr>
-                            </tbody>
-                        </table>
+            
+            <div class="content">
+                <!-- En-tête avec titre et boutons d'action -->
+                <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3 mb-4">
+                    <h2>Ingrédients</h2>
+                    <div class="d-flex flex-column flex-sm-row gap-2">
+                        <a th:href="@{/ingredients/stock}" class="btn btn-outline-info">État du Stock</a>
+                        <a th:href="@{/ingredients/new}" class="btn btn-primary">+ Nouvel Ingrédient</a>
                     </div>
                 </div>
 
+                <!-- Formulaire de recherche / filtrage -->
+                <div class="card mb-4 shadow-sm">
+                    <div class="card-body">
+                        <form th:action="@{/ingredients}" method="get" th:object="${criteria}" class="row g-3">
+                            <div class="col-12 col-md-4">
+                                <input type="text" th:field="*{nom}" class="form-control" placeholder="Nom de l'ingrédient...">
+                            </div>
+                            <div class="col-12 col-sm-6 col-md-3">
+                                <select th:field="*{idCategorie}" class="form-select">
+                                    <option value="">-- Categorie --</option>
+                                    <option th:each="cat : ${categories}" th:value="${cat.id}" th:text="${cat.libelle}"></option>
+                                </select>
+                            </div>
+                            <div class="col-12 col-sm-6 col-md-3">
+                                <select th:field="*{idStatut}" class="form-select">
+                                    <option value="">-- Statut --</option>
+                                    <option th:each="st : ${statuts}" th:value="${st.id}" th:text="${st.libelle}"></option>
+                                </select>
+                            </div>
+                            <div class="col-12 col-md-2 d-grid">
+                                <button type="submit" class="btn btn-secondary">Filtrer</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Table d'affichage -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-body p-0">
+                        <div class="table-responsive bg-white rounded">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-dark">
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Nom</th>
+                                    <th>Catégorie</th>
+                                    <th>Fournisseur</th>
+                                    <th>Unité</th>
+                                    <th>Statut</th>
+                                    <th class="text-end">Actions</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                <tr th:each="ing : ${ingredientsList}">
+                                    <td th:text="${ing.id}">1</td>
+                                    <td><strong th:text="${ing.nom}">Riz</strong></td>
+                                    <td th:text="${ing.categorieLibelle != null ? ing.categorieLibelle : '-'}">Céréales</td>
+                                    <td th:text="${ing.fournisseurNom != null ? ing.fournisseurNom : '-'}">Fournisseur A</td>
+                                    <td th:text="${ing.uniteNom != null ? ing.uniteNom + ' (' + ing.uniteSymbole + ')' : '-'}">Kg</td>
+                                    <td>
+                                        <span class="badge bg-info text-dark" th:text="${ing.statutLibelle}">Disponible</span>
+                                    </td>
+                                    <td class="text-end actions-cell">
+                                        <a th:href="@{/ingredients/{id}/detail(id=${ing.id})}" class="btn btn-sm btn-outline-primary">Détail</a>
+                                        <a th:href="@{/ingredients/edit/{id}(id=${ing.id})}" class="btn btn-sm btn-outline-warning">Éditer</a>
+                                        <a th:href="@{/ingredients/delete/{id}(id=${ing.id})}" class="btn btn-sm btn-outline-danger" 
+                                           onclick="return confirm('Supprimer cet ingrédient ?')">Supprimer</a>
+                                    </td>
+                                </tr>
+                                <tr th:if="${#lists.isEmpty(ingredientsList)}">
+                                    <td colspan="7" class="text-center text-muted py-4">Aucun ingrédient trouvé.</td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
             </div>
+
         </div>
     </div>
 

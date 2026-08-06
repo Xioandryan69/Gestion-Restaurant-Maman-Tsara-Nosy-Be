@@ -1,56 +1,116 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" lang="fr"
       th:with="pageTitle=${ 'Gestion caisse'}">
-<head th:replace="~{layout/head :: head(pageTitle=${pageTitle})}"></head>
+<head th:replace="~{layout/head :: head(pageTitle=${pageTitle})}">
+    <!-- Viewport pour l'adaptation mobile -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
 <body>
 
-<div class="app">
+<!-- CSS d'adaptation responsive -->
+<style>
+    body, .app {
+        overflow-x: hidden;
+    }
+
+    .app {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+    }
+    
+    @media (min-width: 768px) {
+        .app {
+            flex-direction: row;
+        }
+        .main {
+            flex: 1;
+            min-width: 0;
+        }
+    }
+
+    .content {
+        padding: 15px;
+    }
+    @media (min-width: 768px) {
+        .content {
+            padding: 25px;
+        }
+    }
+
+    /* Support du scroll horizontal propre pour les petits écrans */
+    .table-responsive {
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Style ajusté pour les boutons d'action dans le tableau */
+    .actions {
+        white-space: nowrap;
+    }
+
+    @media (max-width: 576px) {
+        .actions .btn {
+            display: inline-block;
+            margin-bottom: 2px;
+        }
+    }
+</style>
+
+<div class="app container-fluid p-0">
 
     <!-- Sidebar globale avec l'onglet 'caisse' actif -->
   <aside th:replace="~{layout/sidebar :: sidebar(activeMenu='caisse')}"></aside>
 
-    <div class="main">
+    <div class="main w-100">
         <!-- Topbar globale -->
         <div th:replace="~{fragments/layout :: topbar('Gestion de la Caisse')}"></div>
 
         <div class="content">
-            <div class="page-header">
+            <div class="page-header d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3 mb-4">
                 <div>
-                    <h2>Mouvements de Caisse</h2>
-                    <div class="breadcrumb">Accueil / <span>Caisse</span></div>
+                    <h2 class="h3 mb-1">Mouvements de Caisse</h2>
+                    <div class="breadcrumb mb-0">Accueil / <span>Caisse</span></div>
                 </div>
-                <a th:href="@{/caisse/new}" class="btn btn-primary btn-sm">+ Saisir un Mouvement</a>
+                <div>
+                    <a th:href="@{/caisse/new}" class="btn btn-primary btn-sm w-100 w-sm-auto">+ Saisir un Mouvement</a>
+                </div>
             </div>
 
-            <div class="card">
-                <section class="table-container">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Date</th>
-                                <th>Type Mouvement</th>
-                                <th>Montant (Ar)</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr th:each="m : ${mouvementsList}">
-                                <td th:text="${m.id}">1</td>
-                                <td th:text="${#temporals.format(m.dateMouvement, 'dd/MM/yyyy HH:mm')}">30/07/2026 14:30</td>
-                                <td th:text="${m.typeMouvement != null ? m.typeMouvement.libelle : 'N/A'}">Type</td>
-                                <td th:text="${#numbers.formatDecimal(m.montant, 1, 'WHITESPACE', 2, 'POINT')} + ' Ar'">45 000.00 Ar</td>
-                                <td class="actions">
-                                    <a th:href="@{/caisse/edit/{id}(id=${m.id})}" class="btn btn-sm btn-secondary">Modifier</a>
-                                    <a th:href="@{/caisse/delete/{id}(id=${m.id})}" class="btn btn-sm btn-danger" onclick="return confirm('Supprimer ce mouvement ?');">Supprimer</a>
-                                </td>
-                            </tr>
-                            <tr th:if="${#lists.isEmpty(mouvementsList)}">
-                                <td colspan="5" style="text-align: center; color: #888;">Aucun mouvement de caisse enregistré.</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </section>
+            <div class="card shadow-sm">
+                <div class="card-body p-0 p-sm-3">
+                    <section class="table-container">
+                        <div class="table-responsive">
+                            <table class="data-table table table-hover align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Date</th>
+                                        <th>Type Mouvement</th>
+                                        <th>Montant (Ar)</th>
+                                        <th class="text-end">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr th:each="m : ${mouvementsList}">
+                                        <td th:text="${m.id}">1</td>
+                                        <td th:text="${#temporals.format(m.dateMouvement, 'dd/MM/yyyy HH:mm')}">30/07/2026 14:30</td>
+                                        <td th:text="${m.typeMouvement != null ? m.typeMouvement.libelle : 'N/A'}">Type</td>
+                                        <td th:text="${#numbers.formatDecimal(m.montant, 1, 'WHITESPACE', 2, 'POINT')} + ' Ar'" class="fw-bold">45 000.00 Ar</td>
+                                        <td class="actions text-end">
+                                            <a th:href="@{/caisse/edit/{id}(id=${m.id})}" class="btn btn-sm btn-secondary">Modifier</a>
+                                            <a th:href="@{/caisse/delete/{id}(id=${m.id})}" class="btn btn-sm btn-danger" onclick="return confirm('Supprimer ce mouvement ?');">Supprimer</a>
+                                        </td>
+                                    </tr>
+                                    <tr th:if="${#lists.isEmpty(mouvementsList)}">
+                                        <td colspan="5" style="text-align: center; color: #888;">Aucun mouvement de caisse enregistré.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+                </div>
             </div>
         </div>
     </div>
