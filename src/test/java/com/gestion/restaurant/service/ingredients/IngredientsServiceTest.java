@@ -1,7 +1,6 @@
 package com.gestion.restaurant.service.ingredients;
 
 import com.gestion.restaurant.dto.ingredients.IngredientRequestDto;
-import com.gestion.restaurant.dto.ingredients.IngredientStockDTO;
 import com.gestion.restaurant.entity.fournisseurs.Fournisseurs;
 import com.gestion.restaurant.entity.ingredients.*;
 import com.gestion.restaurant.exception.BusinessRuleException;
@@ -60,7 +59,7 @@ class IngredientsServiceTest {
 
     @Test
     void enregistrerAchatEntree_ok_etCaisse() {
-        when(ingredientsRepository.findById(1L)).thenReturn(Optional.of(ingredient));
+        when(ingredientsRepository.findByIdWithRelations(1L)).thenReturn(Optional.of(ingredient));
         when(historiqueRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(typeMvtRepo.findByLibelleIgnoreCase(anyString())).thenReturn(Optional.of(typeMvt("Entrée")));
         when(inventaireRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
@@ -78,7 +77,7 @@ class IngredientsServiceTest {
 
     @Test
     void enregistrerAchatEntree_peremptionAvantEntree() {
-        when(ingredientsRepository.findById(1L)).thenReturn(Optional.of(ingredient));
+        when(ingredientsRepository.findByIdWithRelations(1L)).thenReturn(Optional.of(ingredient));
         assertThatThrownBy(() -> ingredientsService.enregistrerAchatEntree(
                 1L, LocalDate.of(2026, 2, 1), LocalDate.of(2026, 1, 1),
                 new BigDecimal("1"), BigDecimal.ZERO))
@@ -88,7 +87,7 @@ class IngredientsServiceTest {
 
     @Test
     void enregistrerSortie_stockInsuffisant() {
-        when(ingredientsRepository.findById(1L)).thenReturn(Optional.of(ingredient));
+        when(ingredientsRepository.findByIdWithRelations(1L)).thenReturn(Optional.of(ingredient));
         when(etatStockRepo.findTopByIngredient_IdOrderByDateEtatStockDescIdDesc(1L))
                 .thenReturn(Optional.of(etat(new BigDecimal("2"))));
 
@@ -100,7 +99,7 @@ class IngredientsServiceTest {
 
     @Test
     void enregistrerSortie_ok() {
-        when(ingredientsRepository.findById(1L)).thenReturn(Optional.of(ingredient));
+        when(ingredientsRepository.findByIdWithRelations(1L)).thenReturn(Optional.of(ingredient));
         when(etatStockRepo.findTopByIngredient_IdOrderByDateEtatStockDescIdDesc(1L))
                 .thenReturn(Optional.of(etat(new BigDecimal("10"))));
         when(typeMvtRepo.findByLibelleIgnoreCase(anyString())).thenReturn(Optional.of(typeMvt("Sortie")));
@@ -116,7 +115,7 @@ class IngredientsServiceTest {
 
     @Test
     void reintegrerStock_sansCaisse() {
-        when(ingredientsRepository.findById(1L)).thenReturn(Optional.of(ingredient));
+        when(ingredientsRepository.findByIdWithRelations(1L)).thenReturn(Optional.of(ingredient));
         when(typeMvtRepo.findByLibelleIgnoreCase(anyString())).thenReturn(Optional.of(typeMvt("Entrée")));
         when(inventaireRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(etatStockRepo.findTopByIngredient_IdOrderByDateEtatStockDescIdDesc(1L))
@@ -131,13 +130,17 @@ class IngredientsServiceTest {
 
     @Test
     void getGlobalStockState_alerteSeuil() {
-        when(ingredientsRepository.findAll()).thenReturn(List.of(ingredient));
-        when(etatStockRepo.findTopByIngredient_IdOrderByDateEtatStockDescIdDesc(1L))
-                .thenReturn(Optional.of(etat(new BigDecimal("3"))));
+        when(ingredientsRepository.count()).thenReturn(1L);
+        when(ingredientsRepository.findAllWithRelations(any(org.springframework.data.domain.Pageable.class)))
+                .thenReturn(new org.springframework.data.domain.PageImpl<>(List.of(ingredient)));
+        when(etatStockRepo.findLatestQuantiteByIngredient())
+                .thenReturn(java.util.Collections.singletonList(new Object[]{1L, 3.0}));
 
-        List<IngredientStockDTO> stocks = ingredientsService.getGlobalStockState();
-        assertThat(stocks).hasSize(1);
-        assertThat(stocks.getFirst().getQuantiteActuelle()).isLessThan(IngredientsService.SEUIL_STOCK_FAIBLE);
+        var stocks = ingredientsService.getGlobalStockState(org.springframework.data.domain.Pageable.unpaged());
+        assertThat(stocks.page().getContent()).hasSize(1);
+        assertThat(stocks.page().getContent().getFirst().getQuantiteActuelle())
+                .isLessThan(IngredientsService.SEUIL_STOCK_FAIBLE);
+        assertThat(stocks.nombreAlerteStock()).isEqualTo(1);
     }
 
     @Test

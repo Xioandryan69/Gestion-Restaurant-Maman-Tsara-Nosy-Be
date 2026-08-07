@@ -4,6 +4,9 @@ import com.gestion.restaurant.dto.plats.PlatMultipleRequestDto;
 import com.gestion.restaurant.dto.plats.PlatSearchCriteria;
 import com.gestion.restaurant.service.ingredients.IngredientsService;
 import com.gestion.restaurant.service.plats.PlatsService;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -22,8 +25,10 @@ public class PlatsController {
     }
 
     @GetMapping
-    public String list(@ModelAttribute("criteria") PlatSearchCriteria criteria, Model model) {
-        model.addAttribute("platsList", platsService.search(criteria));
+    public String list(@ModelAttribute("criteria") PlatSearchCriteria criteria,
+                       @PageableDefault(size = 10, sort = "nom", direction = Sort.Direction.ASC) Pageable pageable,
+                       Model model) {
+        model.addAttribute("page", platsService.search(criteria, pageable));
         model.addAttribute("categories", platsService.findAllCategories());
         return "plats/list";
     }

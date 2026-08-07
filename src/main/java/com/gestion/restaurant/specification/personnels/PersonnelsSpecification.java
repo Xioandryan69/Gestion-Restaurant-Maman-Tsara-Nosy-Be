@@ -14,6 +14,10 @@ public class PersonnelsSpecification {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
+            if (criteria == null) {
+                return cb.conjunction();
+            }
+
             if (criteria.getNom() != null && !criteria.getNom().isBlank()) {
                 predicates.add(cb.like(cb.lower(root.get("nom")), "%" + criteria.getNom().toLowerCase() + "%"));
             }

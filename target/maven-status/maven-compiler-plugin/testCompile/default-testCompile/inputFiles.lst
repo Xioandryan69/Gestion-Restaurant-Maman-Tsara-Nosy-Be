@@ -1,4 +1,5 @@
 /app/src/test/java/com/gestion/restaurant/RestaurantApplicationTests.java
+/app/src/test/java/com/gestion/restaurant/config/AdminCredentialsTest.java
 /app/src/test/java/com/gestion/restaurant/config/DatabaseUrlConfigTest.java
 /app/src/test/java/com/gestion/restaurant/functional/AuthFunctionalTest.java
 /app/src/test/java/com/gestion/restaurant/functional/ModulesFunctionalTest.java
@@ -25,3 +26,4 @@
 /app/src/test/java/com/gestion/restaurant/service/unite/UniteServiceTest.java
 /app/src/test/java/com/gestion/restaurant/support/AbstractPostgresIT.java
 /app/src/test/java/com/gestion/restaurant/support/TestDataFactory.java
+/app/src/test/java/com/gestion/restaurant/web/PageLinksTest.java

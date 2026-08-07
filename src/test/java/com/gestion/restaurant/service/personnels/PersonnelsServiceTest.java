@@ -37,7 +37,7 @@ class PersonnelsServiceTest {
     void genererFichePaie_ok_sortieCaisse() {
         Personnels p = new Personnels();
         p.setId(1L);
-        when(personnelsRepository.findById(1L)).thenReturn(Optional.of(p));
+        when(personnelsRepository.findByIdWithRole(1L)).thenReturn(Optional.of(p));
         when(fichePaieRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         LocalDate date = LocalDate.of(2026, 1, 31);
@@ -49,7 +49,7 @@ class PersonnelsServiceTest {
 
     @Test
     void genererFichePaie_salaireInvalide() {
-        when(personnelsRepository.findById(1L)).thenReturn(Optional.of(new Personnels()));
+        when(personnelsRepository.findByIdWithRole(1L)).thenReturn(Optional.of(new Personnels()));
         assertThatThrownBy(() -> service.genererFichePaie(1L, BigDecimal.ZERO, null, null))
                 .isInstanceOf(BusinessRuleException.class)
                 .hasMessageContaining("salaire");
@@ -57,7 +57,7 @@ class PersonnelsServiceTest {
 
     @Test
     void enregistrerAbsence_datesInvalides() {
-        when(personnelsRepository.findById(1L)).thenReturn(Optional.of(new Personnels()));
+        when(personnelsRepository.findByIdWithRole(1L)).thenReturn(Optional.of(new Personnels()));
         assertThatThrownBy(() -> service.enregistrerAbsence(1L,
                 LocalDate.of(2026, 2, 10), LocalDate.of(2026, 2, 1), 1L, null))
                 .isInstanceOf(BusinessRuleException.class)
@@ -70,7 +70,7 @@ class PersonnelsServiceTest {
         p.setId(1L);
         RaisonAbsence r = new RaisonAbsence();
         r.setId(2L);
-        when(personnelsRepository.findById(1L)).thenReturn(Optional.of(p));
+        when(personnelsRepository.findByIdWithRole(1L)).thenReturn(Optional.of(p));
         when(raisonAbsenceRepo.findById(2L)).thenReturn(Optional.of(r));
         when(absenceRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
 

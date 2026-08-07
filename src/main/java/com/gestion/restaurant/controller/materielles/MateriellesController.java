@@ -4,6 +4,9 @@ import com.gestion.restaurant.dto.materielles.MaterielRequestDto;
 import com.gestion.restaurant.dto.materielles.MaterielSearchCriteria;
 import com.gestion.restaurant.service.materielles.MateriellesService;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -25,8 +28,10 @@ public class MateriellesController {
     }
 
     @GetMapping
-    public String listMaterielles(@ModelAttribute("criteria") MaterielSearchCriteria criteria, Model model) {
-        model.addAttribute("materiellesList", materiellesService.search(criteria));
+    public String listMaterielles(@ModelAttribute("criteria") MaterielSearchCriteria criteria,
+                                  @PageableDefault(size = 10, sort = "nom", direction = Sort.Direction.ASC) Pageable pageable,
+                                  Model model) {
+        model.addAttribute("page", materiellesService.search(criteria, pageable));
         model.addAttribute("categories", materiellesService.findAllCategories());
         model.addAttribute("statuts", materiellesService.findAllStatuts());
         return "materielles/list";

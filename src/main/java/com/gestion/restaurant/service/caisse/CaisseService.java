@@ -7,6 +7,8 @@ import com.gestion.restaurant.exception.BusinessRuleException;
 import com.gestion.restaurant.exception.ResourceNotFoundException;
 import com.gestion.restaurant.repository.caisse.MouvementCaisseRepository;
 import com.gestion.restaurant.repository.caisse.TypeMouvementCaisseRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,13 +36,13 @@ public class CaisseService {
     }
 
     @Transactional(readOnly = true)
-    public List<MouvementCaisse> findAll() {
-        return mouvementCaisseRepository.findAll();
+    public Page<MouvementCaisse> findAll(Pageable pageable) {
+        return mouvementCaisseRepository.findAllWithType(pageable);
     }
 
     @Transactional(readOnly = true)
     public MouvementCaisse findById(Long id) {
-        return mouvementCaisseRepository.findById(id)
+        return mouvementCaisseRepository.findByIdWithType(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Mouvement de caisse introuvable : " + id));
     }
 

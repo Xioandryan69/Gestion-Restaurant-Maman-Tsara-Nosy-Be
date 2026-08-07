@@ -60,7 +60,7 @@
                             </tr>
                             </thead>
                             <tbody>
-                            <tr th:each="ing : ${ingredientsList}">
+                            <tr th:each="ing : ${page.content}">
                                 <td th:text="${ing.id}">1</td>
                                 <td><strong th:text="${ing.nom}">Riz</strong></td>
                                 <td th:text="${ing.categorieLibelle != null ? ing.categorieLibelle : '-'}">Céréales</td>
@@ -78,11 +78,12 @@
                                     </form>
                                 </td>
                             </tr>
-                            <tr th:if="${#lists.isEmpty(ingredientsList)}">
+                            <tr th:if="${page == null or #lists.isEmpty(page.content)}">
                                 <td colspan="7" class="text-center text-muted py-4">Aucun ingrédient trouvé.</td>
                             </tr>
                             </tbody>
                         </table>
+                        <div th:replace="~{fragments/pagination :: pager(${page})}"></div>
                     </div>
                 </div>
 

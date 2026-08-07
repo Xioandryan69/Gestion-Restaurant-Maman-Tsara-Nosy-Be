@@ -75,7 +75,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr th:each="plat : ${platsList}">
+            <tr th:each="plat : ${page.content}">
               <td th:text="${plat.id}">1</td>
               <td class="fw-bold" th:text="${plat.nom}">Nom du Plat</td>
               <td>
@@ -95,11 +95,12 @@
                 </form>
               </td>
             </tr>
-            <tr th:if="${#lists.isEmpty(platsList)}">
+            <tr th:if="${page == null or #lists.isEmpty(page.content)}">
               <td colspan="5" class="text-center">Aucun plat trouvé.</td>
             </tr>
           </tbody>
         </table>
+        <div th:replace="~{fragments/pagination :: pager(${page})}"></div>
       </div>
 
     </div>

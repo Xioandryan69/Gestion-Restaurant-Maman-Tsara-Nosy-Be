@@ -49,7 +49,7 @@ class MateriellesServiceTest {
     void enregistrerAchat_majStockEtCaisse() {
         Materielles mat = new Materielles();
         mat.setId(1L);
-        when(materiellesRepository.findById(1L)).thenReturn(Optional.of(mat));
+        when(materiellesRepository.findByIdWithRelations(1L)).thenReturn(Optional.of(mat));
         when(historiqueMateriellesRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(etatStockMateriellesRepository.findTopByMateriel_IdOrderByDateEtatStockDescIdDesc(1L))
                 .thenReturn(Optional.of(etat(new BigDecimal("2"))));
@@ -68,7 +68,7 @@ class MateriellesServiceTest {
         mat.setId(1L);
         StatutMaterielles statut = new StatutMaterielles();
         statut.setLibelle(MateriellesService.STATUT_EN_MAINTENANCE);
-        when(materiellesRepository.findById(1L)).thenReturn(Optional.of(mat));
+        when(materiellesRepository.findByIdWithRelations(1L)).thenReturn(Optional.of(mat));
         when(maintenanceMateriellesRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(statutMateriellesRepository.findByLibelle(MateriellesService.STATUT_EN_MAINTENANCE))
                 .thenReturn(Optional.of(statut));
@@ -86,7 +86,7 @@ class MateriellesServiceTest {
         mat.setId(1L);
         StatutMaterielles statut = new StatutMaterielles();
         statut.setLibelle(MateriellesService.STATUT_HORS_SERVICE);
-        when(materiellesRepository.findById(1L)).thenReturn(Optional.of(mat));
+        when(materiellesRepository.findByIdWithRelations(1L)).thenReturn(Optional.of(mat));
         when(statutMateriellesRepository.findByLibelle(MateriellesService.STATUT_HORS_SERVICE))
                 .thenReturn(Optional.of(statut));
 

@@ -10,6 +10,8 @@ import com.gestion.restaurant.service.caisse.CaisseService;
 import com.gestion.restaurant.service.fournisseurs.FournisseursService;
 import com.gestion.restaurant.specification.materielles.MateriellesSpecification;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,7 +19,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 public class MateriellesService {
@@ -62,17 +63,14 @@ public class MateriellesService {
     }
 
     @Transactional(readOnly = true)
-    public List<MaterielResponseDto> search(MaterielSearchCriteria criteria) {
+    public Page<MaterielResponseDto> search(MaterielSearchCriteria criteria, Pageable pageable) {
         Specification<Materielles> spec = MateriellesSpecification.withFilters(criteria);
-        return materiellesRepository.findAll(spec)
-                .stream()
-                .map(MaterielMapper::toDto)
-                .collect(Collectors.toList());
+        return materiellesRepository.findAll(spec, pageable).map(MaterielMapper::toDto);
     }
 
     @Transactional(readOnly = true)
     public Materielles findById(Long id) {
-        return materiellesRepository.findById(id)
+        return materiellesRepository.findByIdWithRelations(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Matériel introuvable avec l'ID : " + id));
     }
 
@@ -88,6 +86,7 @@ public class MateriellesService {
         return dto;
     }
 
+    @Transactional(readOnly = true)
     public MaterielResponseDto findDtoById(Long id) {
         return MaterielMapper.toDto(findById(id));
     }
@@ -104,7 +103,7 @@ public class MateriellesService {
 
     @Transactional(readOnly = true)
     public List<Fournisseurs> findAllFournisseurs() {
-        return fournisseursService.findAll();
+        return fournisseursService.findAllForSelect();
     }
 
     @Transactional

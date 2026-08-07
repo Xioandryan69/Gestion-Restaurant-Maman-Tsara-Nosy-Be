@@ -39,6 +39,7 @@ class CaisseIT extends AbstractPostgresIT {
         dto.setIdTypeMouvement(type.getId());
         MouvementCaisse manuel = caisseService.saveFromDto(dto);
         assertThat(manuel.getId()).isNotNull();
-        assertThat(caisseService.findAll()).hasSizeGreaterThanOrEqualTo(3);
+        assertThat(caisseService.findAll(org.springframework.data.domain.Pageable.unpaged()).getTotalElements())
+                .isGreaterThanOrEqualTo(3);
     }
 }

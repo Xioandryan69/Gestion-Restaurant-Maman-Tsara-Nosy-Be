@@ -32,7 +32,7 @@ public class RecetteService {
 
     @Transactional(readOnly = true)
     public List<RecettePlats> getIngredientsParPlat(Long idPlat) {
-        return recettePlatsRepository.findByPlatId(idPlat);
+        return recettePlatsRepository.findByPlatIdWithIngredient(idPlat);
     }
 
     @Transactional

@@ -7,6 +7,8 @@ import com.gestion.restaurant.exception.BusinessRuleException;
 import com.gestion.restaurant.exception.ResourceNotFoundException;
 import com.gestion.restaurant.repository.fournisseur.FournisseursRepository;
 import com.gestion.restaurant.repository.fournisseur.TypeFournisseursRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,13 +27,19 @@ public class FournisseursService {
     }
 
     @Transactional(readOnly = true)
-    public List<Fournisseurs> findAll() {
-        return fournisseursRepository.findAll();
+    public Page<Fournisseurs> findAll(Pageable pageable) {
+        return fournisseursRepository.findAllWithType(pageable);
+    }
+
+    /** Listes déroulantes (formulaires). */
+    @Transactional(readOnly = true)
+    public List<Fournisseurs> findAllForSelect() {
+        return fournisseursRepository.findAllWithTypeList();
     }
 
     @Transactional(readOnly = true)
     public Fournisseurs findById(Long id) {
-        return fournisseursRepository.findById(id)
+        return fournisseursRepository.findByIdWithType(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Fournisseur introuvable : " + id));
     }
 

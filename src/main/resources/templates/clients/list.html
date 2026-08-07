@@ -45,7 +45,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr th:each="client : ${clientsList}">
+            <tr th:each="client : ${page.content}">
               <td th:text="${client.id}">1</td>
               <td class="fw-bold" th:text="${client.nom}">Nom</td>
               <td th:text="${client.prenom != null ? client.prenom : '-'}">Prénom</td>
@@ -68,11 +68,12 @@
                 </form>
               </td>
             </tr>
-            <tr th:if="${#lists.isEmpty(clientsList)}">
+            <tr th:if="${page == null or #lists.isEmpty(page.content)}">
               <td colspan="6" class="text-center text-muted py-4">Aucun client trouvé.</td>
             </tr>
           </tbody>
         </table>
+        <div th:replace="~{fragments/pagination :: pager(${page})}"></div>
       </div>
 
     </div>

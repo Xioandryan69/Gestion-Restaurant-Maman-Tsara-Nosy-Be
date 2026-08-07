@@ -8,12 +8,13 @@ import com.gestion.restaurant.exception.ResourceNotFoundException;
 import com.gestion.restaurant.repository.clients.ClientsRepository;
 import com.gestion.restaurant.repository.clients.TypeClientRepository;
 import com.gestion.restaurant.specification.clients.ClientsSpecification;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 public class ClientsService {
@@ -27,16 +28,14 @@ public class ClientsService {
     }
 
     @Transactional(readOnly = true)
-    public List<ClientResponseDto> search(ClientSearchCriteria criteria) {
+    public Page<ClientResponseDto> search(ClientSearchCriteria criteria, Pageable pageable) {
         Specification<Clients> spec = ClientsSpecification.withFilters(criteria);
-        return clientsRepository.findAll(spec).stream()
-                .map(ClientMapper::toDto)
-                .collect(Collectors.toList());
+        return clientsRepository.findAll(spec, pageable).map(ClientMapper::toDto);
     }
 
     @Transactional(readOnly = true)
     public Clients findById(Long id) {
-        return clientsRepository.findById(id)
+        return clientsRepository.findByIdWithType(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Client introuvable avec l'ID : " + id));
     }
 

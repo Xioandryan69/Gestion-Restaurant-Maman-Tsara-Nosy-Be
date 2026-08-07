@@ -3,6 +3,9 @@ package com.gestion.restaurant.controller.fournisseurs;
 import com.gestion.restaurant.dto.fournisseurs.FournisseurRequestDto;
 import com.gestion.restaurant.service.fournisseurs.FournisseursService;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -20,8 +23,10 @@ public class FournisseursController {
     }
 
     @GetMapping
-    public String listFournisseurs(Model model) {
-        model.addAttribute("fournisseursList", fournisseursService.findAll());
+    public String listFournisseurs(
+            @PageableDefault(size = 10, sort = "nom", direction = Sort.Direction.ASC) Pageable pageable,
+            Model model) {
+        model.addAttribute("page", fournisseursService.findAll(pageable));
         return "fournisseurs/list";
     }
 

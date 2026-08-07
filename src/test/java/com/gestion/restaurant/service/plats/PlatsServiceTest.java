@@ -68,7 +68,7 @@ class PlatsServiceTest {
 
     @Test
     void findById_introuvable() {
-        when(platsRepository.findById(1L)).thenReturn(Optional.empty());
+        when(platsRepository.findByIdWithCategorie(1L)).thenReturn(Optional.empty());
         assertThatThrownBy(() -> service.findById(1L)).isInstanceOf(ResourceNotFoundException.class);
     }
 

@@ -1,5 +1,8 @@
 /app/src/main/java/com/gestion/restaurant/RestaurantApplication.java
+/app/src/main/java/com/gestion/restaurant/config/AdminCredentials.java
 /app/src/main/java/com/gestion/restaurant/config/DatabaseUrlConfig.java
+/app/src/main/java/com/gestion/restaurant/config/PaginationConfig.java
+/app/src/main/java/com/gestion/restaurant/config/ProdSecurityGuard.java
 /app/src/main/java/com/gestion/restaurant/config/SecurityConfig.java
 /app/src/main/java/com/gestion/restaurant/controller/auth/LoginController.java
 /app/src/main/java/com/gestion/restaurant/controller/caisse/CaisseController.java
@@ -27,6 +30,7 @@
 /app/src/main/java/com/gestion/restaurant/dto/ingredients/IngredientResponseDto.java
 /app/src/main/java/com/gestion/restaurant/dto/ingredients/IngredientSearchCriteria.java
 /app/src/main/java/com/gestion/restaurant/dto/ingredients/IngredientStockDTO.java
+/app/src/main/java/com/gestion/restaurant/dto/ingredients/StockPageView.java
 /app/src/main/java/com/gestion/restaurant/dto/livraisons/ZoneLivraisonDto.java
 /app/src/main/java/com/gestion/restaurant/dto/livraisons/ZoneLivraisonFilterDto.java
 /app/src/main/java/com/gestion/restaurant/dto/materielles/MaterielMapper.java
@@ -130,3 +134,4 @@
 /app/src/main/java/com/gestion/restaurant/specification/livraisons/ZoneLivraisonSpecification.java
 /app/src/main/java/com/gestion/restaurant/specification/materielles/MateriellesSpecification.java
 /app/src/main/java/com/gestion/restaurant/specification/personnels/PersonnelsSpecification.java
+/app/src/main/java/com/gestion/restaurant/web/PageLinks.java

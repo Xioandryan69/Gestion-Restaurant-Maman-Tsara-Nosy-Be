@@ -45,7 +45,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr th:each="c : ${commandesList}">
+            <tr th:each="c : ${page.content}">
               <td th:text="${c.id}">1</td>
               <td class="fw-bold" 
                   th:text="${c.client != null ? (c.client.nom + ' ' + (c.client.prenom != null ? c.client.prenom : '')) : 'N/A'}">
@@ -76,11 +76,12 @@
                 </form>
               </td>
             </tr>
-            <tr th:if="${#lists.isEmpty(commandesList)}">
+            <tr th:if="${page == null or #lists.isEmpty(page.content)}">
               <td colspan="6" class="text-center text-muted py-4">Aucune commande enregistrée.</td>
             </tr>
           </tbody>
         </table>
+        <div th:replace="~{fragments/pagination :: pager(${page})}"></div>
       </div>
 
     </div>

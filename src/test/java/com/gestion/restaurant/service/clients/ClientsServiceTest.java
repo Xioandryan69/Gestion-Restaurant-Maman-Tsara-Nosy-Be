@@ -56,7 +56,7 @@ class ClientsServiceTest {
 
     @Test
     void findById_introuvable() {
-        when(clientsRepository.findById(1L)).thenReturn(Optional.empty());
+        when(clientsRepository.findByIdWithType(1L)).thenReturn(Optional.empty());
         assertThatThrownBy(() -> service.findById(1L)).isInstanceOf(ResourceNotFoundException.class);
     }
 

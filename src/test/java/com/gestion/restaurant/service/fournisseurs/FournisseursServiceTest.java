@@ -58,7 +58,7 @@ class FournisseursServiceTest {
 
     @Test
     void findById_introuvable() {
-        when(fournisseursRepository.findById(9L)).thenReturn(Optional.empty());
+        when(fournisseursRepository.findByIdWithType(9L)).thenReturn(Optional.empty());
         assertThatThrownBy(() -> service.findById(9L)).isInstanceOf(ResourceNotFoundException.class);
     }
 }

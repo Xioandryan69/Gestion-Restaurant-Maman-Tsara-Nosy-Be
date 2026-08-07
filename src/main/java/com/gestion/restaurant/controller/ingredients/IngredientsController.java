@@ -2,9 +2,12 @@ package com.gestion.restaurant.controller.ingredients;
 
 import com.gestion.restaurant.dto.ingredients.IngredientRequestDto;
 import com.gestion.restaurant.dto.ingredients.IngredientSearchCriteria;
-import com.gestion.restaurant.dto.ingredients.IngredientStockDTO;
+import com.gestion.restaurant.dto.ingredients.StockPageView;
 import com.gestion.restaurant.service.ingredients.IngredientsService;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -14,7 +17,6 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.List;
 
 @Controller
 @RequestMapping("/ingredients")
@@ -27,8 +29,10 @@ public class IngredientsController {
     }
 
     @GetMapping
-    public String listIngredients(@ModelAttribute("criteria") IngredientSearchCriteria criteria, Model model) {
-        model.addAttribute("ingredientsList", ingredientsService.search(criteria));
+    public String listIngredients(@ModelAttribute("criteria") IngredientSearchCriteria criteria,
+                                  @PageableDefault(size = 10, sort = "nom", direction = Sort.Direction.ASC) Pageable pageable,
+                                  Model model) {
+        model.addAttribute("page", ingredientsService.search(criteria, pageable));
         model.addAttribute("categories", ingredientsService.findAllCategories());
         model.addAttribute("statuts", ingredientsService.findAllStatuts());
         return "ingredients/list";
@@ -105,17 +109,14 @@ public class IngredientsController {
     }
 
     @GetMapping("/stock")
-    public String viewStockGlobal(Model model) {
-        List<IngredientStockDTO> stockItems = ingredientsService.getGlobalStockState();
-        long nbRuptureOuFaible = stockItems.stream()
-                .filter(i -> i.getQuantiteActuelle() < IngredientsService.SEUIL_STOCK_FAIBLE)
-                .count();
-        long nbStockOk = stockItems.size() - nbRuptureOuFaible;
-
-        model.addAttribute("stockItems", stockItems);
-        model.addAttribute("nombreAlerteStock", nbRuptureOuFaible);
-        model.addAttribute("nombreStockOk", nbStockOk);
-        model.addAttribute("seuilStockFaible", IngredientsService.SEUIL_STOCK_FAIBLE);
+    public String viewStockGlobal(
+            @PageableDefault(size = 10, sort = "nom", direction = Sort.Direction.ASC) Pageable pageable,
+            Model model) {
+        StockPageView stock = ingredientsService.getGlobalStockState(pageable);
+        model.addAttribute("page", stock.page());
+        model.addAttribute("nombreAlerteStock", stock.nombreAlerteStock());
+        model.addAttribute("nombreStockOk", stock.nombreStockOk());
+        model.addAttribute("seuilStockFaible", stock.seuilStockFaible());
         return "ingredients/stock";
     }
 

@@ -85,7 +85,7 @@ class RecetteServiceTest {
 
     @Test
     void getIngredientsParPlat() {
-        when(recettePlatsRepository.findByPlatId(1L)).thenReturn(List.of(new RecettePlats()));
+        when(recettePlatsRepository.findByPlatIdWithIngredient(1L)).thenReturn(List.of(new RecettePlats()));
         assertThat(recetteService.getIngredientsParPlat(1L)).hasSize(1);
     }
 }

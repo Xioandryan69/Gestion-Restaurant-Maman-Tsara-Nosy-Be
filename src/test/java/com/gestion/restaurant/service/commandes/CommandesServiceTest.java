@@ -177,12 +177,12 @@ class CommandesServiceTest {
         commande.setId(10L);
         commande.setDateCommande(LocalDate.of(2026, 3, 1));
         commande.setMontantTotal(new BigDecimal("22000"));
-        when(commandesRepository.findById(10L)).thenReturn(Optional.of(commande));
+        when(commandesRepository.findByIdWithRelations(10L)).thenReturn(Optional.of(commande));
 
         DetailsCommandes detail = new DetailsCommandes();
         detail.setPlat(plat);
         detail.setQuantite(new BigDecimal("2"));
-        when(detailsCommandesRepository.findByCommandeId(10L)).thenReturn(List.of(detail));
+        when(detailsCommandesRepository.findByCommandeIdWithPlat(10L)).thenReturn(List.of(detail));
 
         RecettePlats rp = new RecettePlats();
         rp.setIngredient(ingredient);
@@ -200,7 +200,7 @@ class CommandesServiceTest {
 
     @Test
     void findById_introuvable() {
-        when(commandesRepository.findById(1L)).thenReturn(Optional.empty());
+        when(commandesRepository.findByIdWithRelations(1L)).thenReturn(Optional.empty());
         assertThatThrownBy(() -> commandesService.findById(1L))
                 .isInstanceOf(ResourceNotFoundException.class);
     }

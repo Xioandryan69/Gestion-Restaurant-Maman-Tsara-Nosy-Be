@@ -581,23 +581,64 @@ td { padding: 13px 16px; font-size: 13.5px; vertical-align: middle; }
 
 .pagination {
   display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
   padding: 14px 18px;
   border-top: 1px solid var(--c-border);
   font-size: 13px; color: var(--c-muted);
+  background: var(--c-surface);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
 }
-.page-btns { display: flex; gap: 4px; }
+.pagination-info { flex: 1 1 auto; min-width: 140px; }
+.page-btns { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
 .page-btn {
-  width: 30px; height: 30px;
+  min-width: 30px; height: 30px;
+  padding: 0 6px;
   border: 1.5px solid var(--c-border);
   border-radius: 6px; background: transparent;
   font-size: 13px; font-weight: 600;
   cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
+  display: inline-flex; align-items: center; justify-content: center;
   color: var(--c-text);
-  transition: background .15s;
+  text-decoration: none;
+  transition: background .15s, color .15s;
 }
 .page-btn.active { background: var(--c-primary); border-color: var(--c-primary); color: #fff; }
-.page-btn:hover:not(.active) { background: var(--c-bg); }
+.page-btn:hover:not(.active):not(.disabled) { background: var(--c-bg); }
+.page-btn.disabled,
+.page-btn[aria-disabled="true"] {
+  opacity: .4;
+  pointer-events: none;
+  cursor: default;
+}
+.page-ellipsis {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  color: var(--c-muted);
+  user-select: none;
+}
+.pagination-size { margin-left: auto; }
+.page-size-select {
+  border: 1.5px solid var(--c-border);
+  border-radius: 6px;
+  padding: 5px 8px;
+  font-size: 13px;
+  background: var(--c-surface);
+  color: var(--c-text);
+}
+.table-card > .pagination,
+.table-responsive > .pagination {
+  margin-top: 0;
+}
+.visually-hidden {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0);
+  white-space: nowrap; border: 0;
+}
 
 /* ══════════════════════════════════════════════════════════════════════════
    FORM PAGE

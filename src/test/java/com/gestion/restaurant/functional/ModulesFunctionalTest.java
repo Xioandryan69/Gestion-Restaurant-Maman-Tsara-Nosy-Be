@@ -202,7 +202,10 @@ class ModulesFunctionalTest extends AbstractPostgresIT {
                         .param("idTypeMouvement", type.getId().toString()))
                 .andExpect(redirectedUrl("/caisse"));
 
-        var mvt = caisseService.findAll().getLast();
+        var mvt = caisseService.findAll(
+                org.springframework.data.domain.PageRequest.of(0, 1,
+                        org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "id")))
+                .getContent().getFirst();
         mockMvc.perform(get("/caisse/edit/" + mvt.getId())).andExpect(status().isOk());
         mockMvc.perform(post("/caisse/delete/" + mvt.getId()).with(csrf()))
                 .andExpect(redirectedUrl("/caisse"));

@@ -4,6 +4,9 @@ import com.gestion.restaurant.dto.clients.ClientRequestDto;
 import com.gestion.restaurant.dto.clients.ClientSearchCriteria;
 import com.gestion.restaurant.service.clients.ClientsService;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -21,8 +24,10 @@ public class ClientsController {
     }
 
     @GetMapping
-    public String listClients(@ModelAttribute("criteria") ClientSearchCriteria criteria, Model model) {
-        model.addAttribute("clientsList", clientsService.search(criteria));
+    public String listClients(@ModelAttribute("criteria") ClientSearchCriteria criteria,
+                              @PageableDefault(size = 10, sort = "id", direction = Sort.Direction.DESC) Pageable pageable,
+                              Model model) {
+        model.addAttribute("page", clientsService.search(criteria, pageable));
         model.addAttribute("typesClient", clientsService.findAllTypes());
         return "clients/list";
     }

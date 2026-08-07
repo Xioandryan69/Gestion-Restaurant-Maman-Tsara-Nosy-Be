@@ -1,6 +1,5 @@
 package com.gestion.restaurant.specification.materielles;
 
-
 import com.gestion.restaurant.dto.materielles.MaterielSearchCriteria;
 import com.gestion.restaurant.entity.materielles.Materielles;
 import jakarta.persistence.criteria.Predicate;

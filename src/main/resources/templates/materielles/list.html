@@ -41,11 +41,11 @@
             <tr><th>ID</th><th>Nom</th><th>Catégorie</th><th>Statut</th><th>Date d'entrée</th><th>Actions</th></tr>
           </thead>
           <tbody>
-            <tr th:each="m : ${materiellesList}">
+            <tr th:each="m : ${page.content}">
               <td th:text="${m.id}">1</td>
               <td th:text="${m.nom}">Nom</td>
               <td th:text="${m.categorieLibelle != null ? m.categorieLibelle : 'N/A'}"></td>
-              <td th:text="${m.statutLibelle != null ? m.statutLibelle : 'N/A'}"></td>
+              <td th:with="statutLib=${m.statutLibelle != null ? m.statutLibelle : ''}">
                 <span class="badge"
                       th:classappend="${statutLib == 'Disponible' or statutLib == 'En service'} ? 'badge-green' : (${statutLib == 'En panne' or statutLib == 'Hors service'} ? 'badge-red' : (${statutLib == 'En maintenance'} ? 'badge-amber' : 'badge-gray'))"
                       th:text="${statutLib != '' ? statutLib : 'N/A'}">Statut</span>
@@ -66,11 +66,12 @@
                 </form>
               </td>
             </tr>
-            <tr th:if="${materiellesList.isEmpty()}">
+            <tr th:if="${page == null or #lists.isEmpty(page.content)}">
               <td colspan="6" style="text-align:center; color: var(--c-muted); padding: 24px;">Aucun matériel trouvé</td>
             </tr>
           </tbody>
         </table>
+        <div th:replace="~{fragments/pagination :: pager(${page})}"></div>
       </div>
     </div>
   </div>

@@ -4,6 +4,9 @@ import com.gestion.restaurant.dto.personnels.PersonnelRequestDto;
 import com.gestion.restaurant.dto.personnels.PersonnelSearchCriteria;
 import com.gestion.restaurant.service.personnels.PersonnelsService;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -25,8 +28,10 @@ public class PersonnelsController {
     }
 
     @GetMapping
-    public String list(@ModelAttribute("criteria") PersonnelSearchCriteria criteria, Model model) {
-        model.addAttribute("personnelsList", personnelsService.search(criteria));
+    public String list(@ModelAttribute("criteria") PersonnelSearchCriteria criteria,
+                       @PageableDefault(size = 10, sort = "nom", direction = Sort.Direction.ASC) Pageable pageable,
+                       Model model) {
+        model.addAttribute("page", personnelsService.search(criteria, pageable));
         model.addAttribute("roles", personnelsService.findAllRoles());
         return "personnels/list";
     }

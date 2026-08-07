@@ -26,7 +26,7 @@
             <tr><th>ID</th><th>Nom</th><th>Prénom</th><th>Contact</th><th>Type</th><th>Actions</th></tr>
           </thead>
           <tbody>
-            <tr th:each="f : ${fournisseursList}">
+            <tr th:each="f : ${page.content}">
               <td th:text="${f.id}">1</td>
               <td th:text="${f.nom}">Nom</td>
               <td th:text="${f.prenom}">Prénom</td>
@@ -44,11 +44,12 @@
                 </form>
               </td>
             </tr>
-            <tr th:if="${fournisseursList.isEmpty()}">
+            <tr th:if="${page == null or #lists.isEmpty(page.content)}">
               <td colspan="6" style="text-align:center; color: var(--c-muted); padding: 24px;">Aucun fournisseur enregistré</td>
             </tr>
           </tbody>
         </table>
+        <div th:replace="~{fragments/pagination :: pager(${page})}"></div>
       </div>
     </div>
   </div>

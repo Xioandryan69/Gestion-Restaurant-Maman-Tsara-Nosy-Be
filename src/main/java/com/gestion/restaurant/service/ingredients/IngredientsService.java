@@ -10,6 +10,8 @@ import com.gestion.restaurant.service.caisse.CaisseService;
 import com.gestion.restaurant.service.fournisseurs.FournisseursService;
 import com.gestion.restaurant.specification.ingredients.IngredientsSpecification;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -62,17 +65,14 @@ public class IngredientsService {
     // ───────────────────────── Recherche Multicritère ─────────────────────────
 
     @Transactional(readOnly = true)
-    public List<IngredientResponseDto> search(IngredientSearchCriteria criteria) {
+    public Page<IngredientResponseDto> search(IngredientSearchCriteria criteria, Pageable pageable) {
         Specification<Ingredients> spec = IngredientsSpecification.withFilters(criteria);
-        return ingredientsRepository.findAll(spec)
-                .stream()
-                .map(IngredientMapper::toDto)
-                .collect(Collectors.toList());
+        return ingredientsRepository.findAll(spec, pageable).map(IngredientMapper::toDto);
     }
 
     @Transactional(readOnly = true)
     public Ingredients findById(Long id) {
-        return ingredientsRepository.findById(id)
+        return ingredientsRepository.findByIdWithRelations(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Ingrédient introuvable avec l'ID : " + id));
     }
 
@@ -119,7 +119,7 @@ public class IngredientsService {
 
     @Transactional(readOnly = true)
     public List<Fournisseurs> findAllFournisseurs() {
-        return fournisseursService.findAll();
+        return fournisseursService.findAllForSelect();
     }
 
     // ───────────────────────── C.R.U.D Base ─────────────────────────
@@ -276,13 +276,24 @@ public class IngredientsService {
     public static final double SEUIL_STOCK_FAIBLE = 5.0;
 
     @Transactional(readOnly = true)
-    public List<IngredientStockDTO> getGlobalStockState() {
-        return ingredientsRepository.findAll().stream()
-                .map(ing -> {
-                    BigDecimal quantite = getStockActuel(ing.getId());
-                    return new IngredientStockDTO(ing, quantite.doubleValue());
-                })
-                .collect(Collectors.toList());
+    public StockPageView getGlobalStockState(Pageable pageable) {
+        Map<Long, Double> stocks = etatStockRepo.findLatestQuantiteByIngredient().stream()
+                .collect(Collectors.toMap(
+                        row -> ((Number) row[0]).longValue(),
+                        row -> ((Number) row[1]).doubleValue(),
+                        (a, b) -> a
+                ));
+
+        long total = ingredientsRepository.count();
+        long stockOk = stocks.values().stream().filter(q -> q >= SEUIL_STOCK_FAIBLE).count();
+        // Ingrédients sans ligne d'état = quantité 0 → alerte
+        long nombreAlerte = total - stockOk;
+        long nombreOk = stockOk;
+
+        Page<IngredientStockDTO> page = ingredientsRepository.findAllWithRelations(pageable)
+                .map(ing -> new IngredientStockDTO(ing, stocks.getOrDefault(ing.getId(), 0.0)));
+
+        return new StockPageView(page, nombreAlerte, nombreOk, SEUIL_STOCK_FAIBLE);
     }
 
     /**
@@ -300,8 +311,9 @@ public class IngredientsService {
         enregistrerSnapshotStock(ing, nouveauStock, date);
     }
 
+    /** Listes déroulantes (formulaires). */
     @Transactional(readOnly = true)
     public List<Ingredients> findAll() {
-        return ingredientsRepository.findAll();
+        return ingredientsRepository.findAllWithRelationsList();
     }
 }

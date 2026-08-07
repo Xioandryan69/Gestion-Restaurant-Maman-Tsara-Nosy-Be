@@ -21,6 +21,8 @@ import com.gestion.restaurant.repository.plats.PlatsRepository;
 import com.gestion.restaurant.repository.recettes.RecettePlatsRepository;
 import com.gestion.restaurant.service.caisse.CaisseService;
 import com.gestion.restaurant.service.ingredients.IngredientsService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -63,19 +65,19 @@ public class CommandesService {
     }
 
     @Transactional(readOnly = true)
-    public List<Commandes> findAll() {
-        return commandesRepository.findAll();
+    public Page<Commandes> findAll(Pageable pageable) {
+        return commandesRepository.findAllWithRelations(pageable);
     }
 
     @Transactional(readOnly = true)
     public Commandes findById(Long id) {
-        return commandesRepository.findById(id)
+        return commandesRepository.findByIdWithRelations(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Commande introuvable avec l'ID : " + id));
     }
 
     @Transactional(readOnly = true)
     public List<DetailsCommandes> findDetailsByCommandeId(Long commandeId) {
-        return detailsCommandesRepository.findByCommandeId(commandeId);
+        return detailsCommandesRepository.findByCommandeIdWithPlat(commandeId);
     }
 
     @Transactional(readOnly = true)
@@ -210,7 +212,7 @@ public class CommandesService {
     public void deleteById(Long id) {
         Commandes commande = findById(id);
         LocalDate dateMvt = commande.getDateCommande() != null ? commande.getDateCommande() : LocalDate.now();
-        List<DetailsCommandes> details = detailsCommandesRepository.findByCommandeId(id);
+        List<DetailsCommandes> details = detailsCommandesRepository.findByCommandeIdWithPlat(id);
 
         for (DetailsCommandes detail : details) {
             Plats plat = detail.getPlat();

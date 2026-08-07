@@ -46,7 +46,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr th:each="p : ${personnelsList}">
+            <tr th:each="p : ${page.content}">
               <td th:text="${p.id}">1</td>
               <td class="fw-bold" th:text="${p.nom}">Nom</td>
               <td th:text="${p.prenom != null ? p.prenom : '-'}">Prénom</td>
@@ -75,11 +75,12 @@
                 </form>
               </td>
             </tr>
-            <tr th:if="${#lists.isEmpty(personnelsList)}">
+            <tr th:if="${page == null or #lists.isEmpty(page.content)}">
               <td colspan="7" class="text-center text-muted py-4">Aucun employé trouvé.</td>
             </tr>
           </tbody>
         </table>
+        <div th:replace="~{fragments/pagination :: pager(${page})}"></div>
       </div>
 
     </div>

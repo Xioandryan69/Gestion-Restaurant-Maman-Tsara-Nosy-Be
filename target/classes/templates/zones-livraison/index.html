@@ -64,11 +64,12 @@
                 </form>
               </td>
             </tr>
-            <tr th:if="${#lists.isEmpty(page.content)}">
+            <tr th:if="${page == null or #lists.isEmpty(page.content)}">
               <td colspan="6" class="text-center text-muted py-4">Aucune zone de livraison trouvée.</td>
             </tr>
           </tbody>
         </table>
+        <div th:replace="~{fragments/pagination :: pager(${page})}"></div>
       </div>
     </div>
   </div>

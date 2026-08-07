@@ -58,7 +58,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr th:each="item : ${stockItems}">
+            <tr th:each="item : ${page.content}">
               <td class="fw-bold" th:text="${item.ingredient.nom}">Nom</td>
               <td th:text="${item.ingredient.categorieIngredients != null ? item.ingredient.categorieIngredients.libelle : '-'}">Cat</td>
               <td th:text="${item.quantiteActuelle}">0</td>
@@ -73,11 +73,12 @@
                 </a>
               </td>
             </tr>
-            <tr th:if="${#lists.isEmpty(stockItems)}">
+            <tr th:if="${page == null or #lists.isEmpty(page.content)}">
               <td colspan="6" class="text-center text-muted py-4">Aucun stock disponible.</td>
             </tr>
           </tbody>
         </table>
+        <div th:replace="~{fragments/pagination :: pager(${page})}"></div>
       </div>
     </div>
   </div>

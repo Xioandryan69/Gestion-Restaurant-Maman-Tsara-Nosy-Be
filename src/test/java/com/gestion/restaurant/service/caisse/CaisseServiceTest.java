@@ -97,7 +97,7 @@ class CaisseServiceTest {
     void findById_ok() {
         MouvementCaisse m = new MouvementCaisse();
         m.setId(1L);
-        when(mouvementCaisseRepository.findById(1L)).thenReturn(Optional.of(m));
+        when(mouvementCaisseRepository.findByIdWithType(1L)).thenReturn(Optional.of(m));
         assertThat(caisseService.findById(1L).getId()).isEqualTo(1L);
     }
 }

@@ -68,7 +68,12 @@ public class GlobalExceptionHandler {
         if (referer != null && !referer.isBlank()) {
             try {
                 String path = URI.create(referer).getPath();
-                if (path != null && !path.isBlank() && !path.startsWith("/error")) {
+                // Chemin relatif sûr uniquement (pas d'open-redirect / protocol-relative)
+                if (path != null
+                        && path.startsWith("/")
+                        && !path.startsWith("//")
+                        && !path.startsWith("/error")
+                        && path.indexOf('\\') < 0) {
                     return path;
                 }
             } catch (IllegalArgumentException ignored) {

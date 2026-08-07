@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<!--
+  Fragment de pagination serveur.
+  Usage : <div th:replace="~{fragments/pagination :: pager(${page})}"></div>
+  Attend un org.springframework.data.domain.Page<?> nommé "page" (ou passé en paramètre).
+-->
+<nav th:fragment="pager(page)" class="pagination" th:if="${page != null and page.totalElements > 0}"
+     aria-label="Pagination">
+  <div class="pagination-info"
+       th:text="${'Affichage '
+         + (page.number * page.size + 1) + '–'
+         + (page.number * page.size + page.numberOfElements)
+         + ' sur ' + page.totalElements
+         + (page.totalPages > 1 ? ' (page ' + (page.number + 1) + '/' + page.totalPages + ')' : '')}">
+    Affichage 1–10 sur 25
+  </div>
+
+  <div class="page-btns" th:if="${page.totalPages > 1}">
+    <a class="page-btn"
+       th:classappend="${!page.hasPrevious()} ? ' disabled'"
+       th:href="${page.hasPrevious()} ? ${@pageLinks.url(#request, page.number - 1, page.size)} : '#'"
+       th:attr="aria-disabled=${!page.hasPrevious()}"
+       aria-label="Page précédente">&lsaquo;</a>
+
+    <th:block th:with="
+        total=${page.totalPages},
+        current=${page.number},
+        window=2,
+        start=${current - window < 0 ? 0 : current - window},
+        end=${current + window >= total ? total - 1 : current + window}">
+
+      <a th:if="${start > 0}"
+         class="page-btn"
+         th:href="${@pageLinks.url(#request, 0, page.size)}">1</a>
+      <span th:if="${start > 1}" class="page-ellipsis">…</span>
+
+      <a th:each="i : ${#numbers.sequence(start, end)}"
+         class="page-btn"
+         th:classappend="${i == current} ? ' active'"
+         th:href="${@pageLinks.url(#request, i, page.size)}"
+         th:text="${i + 1}"
+         th:aria-current="${i == current} ? 'page' : null">1</a>
+
+      <span th:if="${end < total - 2}" class="page-ellipsis">…</span>
+      <a th:if="${end < total - 1}"
+         class="page-btn"
+         th:href="${@pageLinks.url(#request, total - 1, page.size)}"
+         th:text="${total}">99</a>
+    </th:block>
+
+    <a class="page-btn"
+       th:classappend="${!page.hasNext()} ? ' disabled'"
+       th:href="${page.hasNext()} ? ${@pageLinks.url(#request, page.number + 1, page.size)} : '#'"
+       th:attr="aria-disabled=${!page.hasNext()}"
+       aria-label="Page suivante">&rsaquo;</a>
+  </div>
+
+  <div class="pagination-size" th:if="${page.totalElements > 10}">
+    <label class="visually-hidden" for="pageSizeSelect">Taille de page</label>
+    <select id="pageSizeSelect" class="page-size-select"
+            onchange="location.href=this.value">
+      <option th:value="${@pageLinks.url(#request, 0, 10)}" th:selected="${page.size == 10}">10 / page</option>
+      <option th:value="${@pageLinks.url(#request, 0, 20)}" th:selected="${page.size == 20}">20 / page</option>
+      <option th:value="${@pageLinks.url(#request, 0, 50)}" th:selected="${page.size == 50}">50 / page</option>
+    </select>
+  </div>
+</nav>
+
+</body>
+</html>

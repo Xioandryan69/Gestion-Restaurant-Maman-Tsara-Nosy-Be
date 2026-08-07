@@ -7,6 +7,8 @@ import com.gestion.restaurant.exception.ResourceNotFoundException;
 import com.gestion.restaurant.repository.personnels.*;
 import com.gestion.restaurant.service.caisse.CaisseService;
 import com.gestion.restaurant.specification.personnels.PersonnelsSpecification;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,7 +16,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 public class PersonnelsService {
@@ -41,16 +42,14 @@ public class PersonnelsService {
     }
 
     @Transactional(readOnly = true)
-    public List<PersonnelResponseDto> search(PersonnelSearchCriteria criteria) {
+    public Page<PersonnelResponseDto> search(PersonnelSearchCriteria criteria, Pageable pageable) {
         Specification<Personnels> spec = PersonnelsSpecification.withFilters(criteria);
-        return personnelsRepository.findAll(spec).stream()
-                .map(PersonnelMapper::toDto)
-                .collect(Collectors.toList());
+        return personnelsRepository.findAll(spec, pageable).map(PersonnelMapper::toDto);
     }
 
     @Transactional(readOnly = true)
     public Personnels findById(Long id) {
-        return personnelsRepository.findById(id)
+        return personnelsRepository.findByIdWithRole(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Employé introuvable avec l'ID : " + id));
     }
 

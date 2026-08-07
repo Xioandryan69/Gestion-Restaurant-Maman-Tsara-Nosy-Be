@@ -68,7 +68,9 @@ class ClientsFournisseursPlatsIT extends AbstractPostgresIT {
         dto.setPlats(List.of(item));
         platsService.saveMultiplePlats(dto);
 
-        assertThat(platsService.search(new com.gestion.restaurant.dto.plats.PlatSearchCriteria()))
+        assertThat(platsService.search(
+                        new com.gestion.restaurant.dto.plats.PlatSearchCriteria(),
+                        org.springframework.data.domain.Pageable.unpaged()).getContent())
                 .anyMatch(p -> "Salade".equals(p.getNom()));
         assertThat(clientId).isNotNull();
         assertThat(fId).isNotNull();
