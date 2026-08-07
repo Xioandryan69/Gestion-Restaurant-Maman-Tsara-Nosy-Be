@@ -52,6 +52,7 @@ com/gestion/restaurant/service/caisse/CaisseService.class
 com/gestion/restaurant/dto/clients/ClientSearchCriteria.class
 com/gestion/restaurant/entity/ingredients/StatutIngredient.class
 com/gestion/restaurant/repository/ingredients/IngredientsRepository.class
+com/gestion/restaurant/dto/materielles/MaintenanceStatDTO.class
 com/gestion/restaurant/service/materielles/MateriellesService.class
 com/gestion/restaurant/repository/fournisseur/TypeFournisseursRepository.class
 com/gestion/restaurant/dto/personnels/PersonnelSearchCriteria.class

@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.Year;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -214,5 +215,25 @@ public class MateriellesService {
         Materielles mat = findById(idMateriel);
         statutMateriellesRepository.findByLibelle(STATUT_HORS_SERVICE)
                 .ifPresent(mat::setStatutMaterielles);
+    }
+
+    /**
+     * Calcule l'évolution mensuelle entre deux dates spécifiques.
+     */
+    public List<MaintenanceStatDTO> getEvolutionMaintenancePériode(LocalDate dateDebut, LocalDate dateFin) {
+        if (dateDebut == null || dateFin == null) {
+            // Par défaut : l'année en cours complète
+            return getEvolutionMaintenanceAnnee(Year.now().getValue());
+        }
+        return materiellesRepository.findMaintenanceStatsByPeriod(dateDebut, dateFin);
+    }
+
+    /**
+     * Calcule l'évolution mensuelle sur une année complète (Du 1er janv au 31 déc).
+     */
+    public List<MaintenanceStatDTO> getEvolutionMaintenanceAnnee(int annee) {
+        LocalDate dateDebut = LocalDate.of(annee, 1, 1);
+        LocalDate dateFin = LocalDate.of(annee, 12, 31);
+        return materiellesRepository.findMaintenanceStatsByPeriod(dateDebut, dateFin);
     }
 }

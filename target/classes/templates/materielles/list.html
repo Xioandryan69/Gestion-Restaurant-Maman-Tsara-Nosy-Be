@@ -137,8 +137,48 @@
         </div>
       </div>
 
+      <!-- Filtre pour le Graphique de Maintenance (Par Année ou Entre 2 dates) -->
+      <div class="card p-3 mb-4 shadow-sm border-0">
+        <form th:action="@{/materielles}" method="get" class="row g-3 align-items-end">
+          <input type="hidden" name="categorie" th:value="${selectedCategorie}">
+          <input type="hidden" name="statut" th:value="${selectedStatut}">
+
+          <div class="col-12 col-sm-6 col-md-3">
+            <label class="form-label fw-semibold">Année complète</label>
+            <input type="number" name="annee" class="form-control" placeholder="Ex: 2026" th:value="${anneeSelectionnee}">
+          </div>
+
+          <div class="col-12 text-center col-md-1 fw-bold text-muted d-none d-md-block">OU</div>
+
+          <div class="col-12 col-sm-6 col-md-3">
+            <label class="form-label fw-semibold">Date Début</label>
+            <input type="date" name="dateDebut" class="form-control" th:value="${dateDebut}">
+          </div>
+
+          <div class="col-12 col-sm-6 col-md-3">
+            <label class="form-label fw-semibold">Date Fin</label>
+            <input type="date" name="dateFin" class="form-control" th:value="${dateFin}">
+          </div>
+
+          <div class="col-12 col-sm-6 col-md-2">
+            <button type="submit" class="btn btn-secondary w-100">Filtrer Graphe</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Carte du Graphique Évolution Maintenance -->
+      <div class="card p-3 p-md-4 shadow-sm border-0 mb-4 bg-white" style="border-radius: 8px;">
+        <h5 class="card-title mb-3 fw-bold">Évolution Mensuelle des Maintenances</h5>
+        <div style="position: relative; height: 320px; width: 100%;">
+          <canvas id="maintenanceChart"></canvas>
+        </div>
+      </div>
+
       <!-- Formulaire de filtrage -->
       <form th:action="@{/materielles}" method="get" class="toolbar mb-4">
+        <input type="hidden" name="annee" th:value="${anneeSelectionnee}">
+        <input type="hidden" name="dateDebut" th:value="${dateDebut}">
+        <input type="hidden" name="dateFin" th:value="${dateFin}">
         <div class="toolbar-left">
           <select name="categorie" class="form-select filter-select" onchange="this.form.submit()">
             <option value="">Toutes les catégories</option>
@@ -202,6 +242,72 @@
 
 <div th:replace="~{layout/footer :: footer}"></div>
 <th:block th:replace="~{layout/scripts :: scripts}"></th:block>
+
+<!-- Inclusion de Chart.js (Fichier local ou CDN) -->
+<script th:src="@{/cdn/chart.js}"></script>
+
+<!-- Script d'initialisation du graphique -->
+<script th:inline="javascript">
+document.addEventListener('DOMContentLoaded', function() {
+    /* Extraction des statistiques dynamiques */
+    const statsData = /*[[${stats}]]*/ [];
+
+    const labels = statsData ? statsData.map(item => item.mois) : [];
+    const couts = statsData ? statsData.map(item => item.coutTotal) : [];
+    const nombres = statsData ? statsData.map(item => item.nombreMaintenances) : [];
+
+    const canvas = document.getElementById('maintenanceChart');
+    if (canvas) {
+        const ctx = canvas.getContext('2d');
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Coût Total (Ar)',
+                        data: couts,
+                        borderColor: '#2563eb',
+                        backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                        fill: true,
+                        tension: 0.3,
+                        yAxisID: 'yCout'
+                    },
+                    {
+                        label: 'Nombre Interventions',
+                        data: nombres,
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                        type: 'bar',
+                        yAxisID: 'yNombre'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    yCout: {
+                        type: 'linear',
+                        position: 'left',
+                        title: { display: true, text: 'Coût (Ar)' },
+                        ticks: {
+                            callback: function(value) { return value.toLocaleString() + ' Ar'; }
+                        }
+                    },
+                    yNombre: {
+                        type: 'linear',
+                        position: 'right',
+                        title: { display: true, text: 'Interventions' },
+                        grid: { drawOnChartArea: false },
+                        ticks: { precision: 0 }
+                    }
+                }
+            }
+        });
+    }
+});
+</script>
 
 </body>
 </html>

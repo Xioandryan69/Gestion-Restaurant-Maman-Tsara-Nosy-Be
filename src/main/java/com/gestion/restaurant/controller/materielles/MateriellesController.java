@@ -9,6 +9,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.Year;
+import java.util.List;
 
 @Controller
 @RequestMapping("/materielles")
@@ -91,5 +93,38 @@ public class MateriellesController {
     public String horsService(@PathVariable("id") Long id) {
         materiellesService.mettreHorsService(id);
         return "redirect:/materielles/" + id + "/detail";
+    }
+
+    @GetMapping("/list")
+    public String afficherListeEtGraphe(
+            @RequestParam(value = "dateDebut", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateDebut,
+            @RequestParam(value = "dateFin", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFin,
+            @RequestParam(value = "annee", required = false) Integer annee,
+            Model model) {
+
+        // 1. Définition des dates selon la sélection (Par Année ou Entre 2 Dates)
+        if (annee != null) {
+            dateDebut = LocalDate.of(annee, 1, 1);
+            dateFin = LocalDate.of(annee, 12, 31);
+        } else if (dateDebut == null || dateFin == null) {
+            // Valeur par défaut : Année actuelle
+            annee = Year.now().getValue();
+            dateDebut = LocalDate.of(annee, 1, 1);
+            dateFin = LocalDate.of(annee, 12, 31);
+        }
+
+        // 2. Récupération des statistiques calculées dans MaterielService
+        List<MaintenanceStatDTO> stats = materiellesService.getEvolutionMaintenancePériode(dateDebut, dateFin);
+
+        // 3. Passage au Model
+        model.addAttribute("stats", stats);
+        model.addAttribute("dateDebut", dateDebut);
+        model.addAttribute("dateFin", dateFin);
+        model.addAttribute("anneeSelectionnee", annee);
+
+        // Vos autres données de liste (ex: materielsList)
+        // model.addAttribute("materielsList", materielService.getAllMateriels());
+
+        return "materiels/list";
     }
 }
