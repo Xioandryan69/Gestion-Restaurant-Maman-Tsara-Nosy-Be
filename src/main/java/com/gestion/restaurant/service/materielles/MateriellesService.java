@@ -172,6 +172,34 @@ public class MateriellesService {
         return inventairesMateriellesRepository.findByMateriel_IdOrderByDateInventaireDesc(idMateriel);
     }
 
+        // ---------- New reporting methods for charts (no ORM changes) ----------
+        @Transactional(readOnly = true)
+        public List<HistoriqueMaterielles> getAchatMateriellesBetween(LocalDate debut, LocalDate fin) {
+        if (debut == null || fin == null) return List.of();
+        return historiqueMateriellesRepository.findAll().stream()
+            .filter(h -> (h.getDateEntree() != null &&
+                (!h.getDateEntree().isBefore(debut) && !h.getDateEntree().isAfter(fin))))
+            .toList();
+        }
+
+        @Transactional(readOnly = true)
+        public List<MaintenanceMaterielles> getMaintenancesBetween(LocalDate debut, LocalDate fin) {
+        if (debut == null || fin == null) return List.of();
+        return maintenanceMateriellesRepository.findAll().stream()
+            .filter(m -> (m.getDateMaintenance() != null &&
+                (!m.getDateMaintenance().isBefore(debut) && !m.getDateMaintenance().isAfter(fin))))
+            .toList();
+        }
+
+        @Transactional(readOnly = true)
+        public long countMateriellesHorsServiceForYear(int annee) {
+        return materiellesRepository.findAll().stream()
+            .filter(m -> m.getStatutMaterielles() != null &&
+                ("Hors Service".equalsIgnoreCase(m.getStatutMaterielles().getLibelle())) &&
+                m.getDateEntree() != null && m.getDateEntree().getYear() == annee)
+            .count();
+        }
+
     @Transactional
     public void enregistrerAchat(Long idMateriel, LocalDate dateEntree, BigDecimal quantite, BigDecimal prixAchat, Long idFournisseur) {
         Materielles mat = findById(idMateriel);

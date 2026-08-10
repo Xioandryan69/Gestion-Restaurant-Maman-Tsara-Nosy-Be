@@ -21,6 +21,8 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.math.BigDecimal;
+import com.gestion.restaurant.dto.ingredients.IngredientMovementSummaryDTO;
 
 @Service
 public class IngredientsService {
@@ -262,6 +264,47 @@ public class IngredientsService {
     public List<InventaireIngredient> findInventaire(Long idIngredient) {
         return inventaireRepo.findByIngredient_IdOrderByDateInventaireDesc(idIngredient);
     }
+
+        // ---------- New reporting methods for charts (no ORM changes) ----------
+        @Transactional(readOnly = true)
+        public List<HistoriqueIngredients> getAchatIngredientsBetween(LocalDate debut, LocalDate fin) {
+        if (debut == null || fin == null) return List.of();
+        return historiqueRepo.findAll().stream()
+            .filter(h -> (h.getDateEntree() != null &&
+                (!h.getDateEntree().isBefore(debut) && !h.getDateEntree().isAfter(fin))))
+            .toList();
+        }
+
+        @Transactional(readOnly = true)
+        public List<IngredientMovementSummaryDTO> getIngredientMovementSummaryForYear(int annee) {
+        List<Ingredients> all = ingredientsRepository.findAllWithRelationsList();
+        List<HistoriqueIngredients> histos = historiqueRepo.findAll();
+        List<InventaireIngredient> invs = inventaireRepo.findAll();
+
+        return all.stream().map(ing -> {
+            IngredientMovementSummaryDTO s = new IngredientMovementSummaryDTO();
+            s.setIngredientId(ing.getId());
+            s.setNom(ing.getNom());
+
+            BigDecimal entree = histos.stream()
+                .filter(h -> h.getIngredient() != null && h.getIngredient().getId().equals(ing.getId())
+                    && h.getDateEntree() != null && h.getDateEntree().getYear() == annee)
+                .map(HistoriqueIngredients::getQuantite)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+            BigDecimal sortie = invs.stream()
+                .filter(i -> i.getIngredient() != null && i.getIngredient().getId().equals(ing.getId())
+                    && i.getDateInventaire() != null && i.getDateInventaire().getYear() == annee
+                    && (i.getTypeMvtIngredient() == null || !"Entrée".equalsIgnoreCase(i.getTypeMvtIngredient().getLibelle())))
+                .map(InventaireIngredient::getQuantite)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+            s.setEntreeTotal(entree);
+            s.setSortieTotal(sortie);
+            s.setStockCurrent(getStockActuel(ing.getId()));
+            return s;
+        }).toList();
+        }
 
     private TypeMvtIngredient findOrCreateTypeMvt(String libelle) {
         return typeMvtRepo.findByLibelleIgnoreCase(libelle)

@@ -1,4 +1,5 @@
 com/gestion/restaurant/exception/ResourceNotFoundException.class
+com/gestion/restaurant/controller/api/StatsController.class
 com/gestion/restaurant/controller/commandes/CommandesController.class
 com/gestion/restaurant/config/PaginationConfig.class
 com/gestion/restaurant/service/clients/ClientsService.class
@@ -59,6 +60,7 @@ com/gestion/restaurant/repository/fournisseur/TypeFournisseursRepository.class
 com/gestion/restaurant/dto/personnels/PersonnelSearchCriteria.class
 com/gestion/restaurant/repository/ingredients/HistoriqueIngredientsRepository.class
 com/gestion/restaurant/entity/materielles/InventairesMaterielles.class
+com/gestion/restaurant/dto/caisse/CaisseSummaryDTO.class
 com/gestion/restaurant/specification/materielles/MateriellesSpecification.class
 com/gestion/restaurant/service/livraisons/ZoneLivraisonService.class
 com/gestion/restaurant/dto/commandes/CommandeLigneRequestDto.class
@@ -108,6 +110,7 @@ com/gestion/restaurant/entity/materielles/MaintenanceMaterielles.class
 com/gestion/restaurant/repository/personnels/FichePaieRepository.class
 com/gestion/restaurant/repository/ingredients/CategorieIngredientsRepository.class
 com/gestion/restaurant/entity/fournisseurs/TypeFournisseurs.class
+com/gestion/restaurant/dto/ingredients/IngredientMovementSummaryDTO.class
 com/gestion/restaurant/dto/fournisseurs/FournisseurRequestDto.class
 com/gestion/restaurant/repository/ingredients/EtatStockIngredientRepository.class
 com/gestion/restaurant/repository/commandes/DetailsCommandesRepository.class

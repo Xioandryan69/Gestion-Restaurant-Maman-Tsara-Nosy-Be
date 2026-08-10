@@ -15,6 +15,13 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import com.gestion.restaurant.repository.commandes.CommandesRepository;
+import com.gestion.restaurant.repository.ingredients.HistoriqueIngredientsRepository;
+import com.gestion.restaurant.repository.materielles.HistoriqueMateriellesRepository;
+import com.gestion.restaurant.repository.materielles.MaintenanceMateriellesRepository;
+import com.gestion.restaurant.dto.caisse.CaisseSummaryDTO;
 
 /**
  * Service central pour la caisse. Utilisé par les autres modules
@@ -28,11 +35,68 @@ public class CaisseService {
 
     private final MouvementCaisseRepository mouvementCaisseRepository;
     private final TypeMouvementCaisseRepository typeMouvementCaisseRepository;
+    private final HistoriqueIngredientsRepository historiqueIngredientsRepository;
+    private final HistoriqueMateriellesRepository historiqueMateriellesRepository;
+    private final MaintenanceMateriellesRepository maintenanceMateriellesRepository;
+    private final CommandesRepository commandesRepository;
 
     public CaisseService(MouvementCaisseRepository mouvementCaisseRepository,
-                         TypeMouvementCaisseRepository typeMouvementCaisseRepository) {
+                         TypeMouvementCaisseRepository typeMouvementCaisseRepository,
+                         HistoriqueIngredientsRepository historiqueIngredientsRepository,
+                         HistoriqueMateriellesRepository historiqueMateriellesRepository,
+                         MaintenanceMateriellesRepository maintenanceMateriellesRepository,
+                         CommandesRepository commandesRepository) {
         this.mouvementCaisseRepository = mouvementCaisseRepository;
         this.typeMouvementCaisseRepository = typeMouvementCaisseRepository;
+        this.historiqueIngredientsRepository = historiqueIngredientsRepository;
+        this.historiqueMateriellesRepository = historiqueMateriellesRepository;
+        this.maintenanceMateriellesRepository = maintenanceMateriellesRepository;
+        this.commandesRepository = commandesRepository;
+    }
+
+    @Transactional(readOnly = true)
+    public CaisseSummaryDTO getSummaryBetween(LocalDate debut, LocalDate fin) {
+        CaisseSummaryDTO s = new CaisseSummaryDTO();
+        if (debut == null || fin == null) return s;
+
+        List<com.gestion.restaurant.entity.caisse.MouvementCaisse> mvts = mouvementCaisseRepository.findAll();
+        mvts.stream().filter(m -> m.getDateMouvement() != null && !m.getDateMouvement().isBefore(debut) && !m.getDateMouvement().isAfter(fin))
+                .forEach(m -> {
+                    if (m.getTypeMouvement() != null && "Entree".equalsIgnoreCase(m.getTypeMouvement().getLibelle())) {
+                        s.setTotalEntrees(s.getTotalEntrees().add(m.getMontant()));
+                    } else {
+                        s.setTotalSorties(s.getTotalSorties().add(m.getMontant()));
+                    }
+                });
+
+        // Achats ingrédients
+        historiqueIngredientsRepository.findAll().stream()
+                .filter(h -> h.getDateEntree() != null && !h.getDateEntree().isBefore(debut) && !h.getDateEntree().isAfter(fin))
+                .forEach(h -> s.setAchatsIngredients(s.getAchatsIngredients().add(h.getPrixAchat().multiply(h.getQuantite()))));
+
+        // Achats matérielles
+        historiqueMateriellesRepository.findAll().stream()
+                .filter(h -> h.getDateEntree() != null && !h.getDateEntree().isBefore(debut) && !h.getDateEntree().isAfter(fin))
+                .forEach(h -> s.setAchatsMaterielles(s.getAchatsMaterielles().add(h.getPrixAchat().multiply(h.getQuantite()))));
+
+        // Maintenances
+        maintenanceMateriellesRepository.findAll().stream()
+                .filter(m -> m.getDateMaintenance() != null && !m.getDateMaintenance().isBefore(debut) && !m.getDateMaintenance().isAfter(fin))
+                .forEach(m -> s.setMaintenance(s.getMaintenance().add(m.getCout())));
+
+        // Ventes (commandes)
+        commandesRepository.findAll().stream()
+                .filter(c -> c.getDateCommande() != null && !c.getDateCommande().isBefore(debut) && !c.getDateCommande().isAfter(fin))
+                .forEach(c -> s.setVentes(s.getVentes().add(c.getMontantTotal() != null ? c.getMontantTotal() : BigDecimal.ZERO)));
+
+        return s;
+    }
+
+    @Transactional(readOnly = true)
+    public CaisseSummaryDTO getSummaryForYear(int annee) {
+        LocalDate debut = LocalDate.of(annee, 1, 1);
+        LocalDate fin = LocalDate.of(annee, 12, 31);
+        return getSummaryBetween(debut, fin);
     }
 
     @Transactional(readOnly = true)

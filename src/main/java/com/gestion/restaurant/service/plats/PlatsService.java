@@ -20,6 +20,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.math.BigDecimal;
+import com.gestion.restaurant.entity.ingredients.HistoriqueIngredients;
+import com.gestion.restaurant.repository.ingredients.HistoriqueIngredientsRepository;
 
 @Service
 public class PlatsService {
@@ -28,15 +31,18 @@ public class PlatsService {
     private final CategoriePlatsRepository categoriePlatsRepository;
     private final RecettePlatsRepository recettePlatsRepository;
     private final IngredientsRepository ingredientsRepository;
+    private final HistoriqueIngredientsRepository historiqueIngredientsRepository;
 
     public PlatsService(PlatsRepository platsRepository,
                         CategoriePlatsRepository categoriePlatsRepository,
                         RecettePlatsRepository recettePlatsRepository,
-                        IngredientsRepository ingredientsRepository) {
+                        IngredientsRepository ingredientsRepository,
+                        HistoriqueIngredientsRepository historiqueIngredientsRepository) {
         this.platsRepository = platsRepository;
         this.categoriePlatsRepository = categoriePlatsRepository;
         this.recettePlatsRepository = recettePlatsRepository;
         this.ingredientsRepository = ingredientsRepository;
+        this.historiqueIngredientsRepository = historiqueIngredientsRepository;
     }
 
     @Transactional(readOnly = true)
@@ -101,5 +107,25 @@ public class PlatsService {
     @Transactional
     public void deleteById(Long id) {
         platsRepository.deleteById(id);
+    }
+
+    @Transactional(readOnly = true)
+    public BigDecimal calculatePrixAchatPlat(Long idPlat) {
+        List<RecettePlats> recettes = recettePlatsRepository.findByPlatIdWithIngredient(idPlat);
+        return recettes.stream().map(rp -> {
+            if (rp.getIngredient() == null || rp.getQuantiteRequise() == null) return BigDecimal.ZERO;
+            Long idIng = rp.getIngredient().getId();
+            List<HistoriqueIngredients> hist = historiqueIngredientsRepository.findByIngredient_IdOrderByDateEntreeDesc(idIng);
+            BigDecimal prixUnitaire = hist.isEmpty() ? BigDecimal.ZERO : hist.get(0).getPrixAchat();
+            return prixUnitaire.multiply(rp.getQuantiteRequise());
+        }).reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    @Transactional(readOnly = true)
+    public BigDecimal calculateProfitPerUnit(Long idPlat) {
+        Plats plat = findById(idPlat);
+        BigDecimal prixAchat = calculatePrixAchatPlat(idPlat);
+        BigDecimal prixVente = plat.getPrixVente() != null ? plat.getPrixVente() : BigDecimal.ZERO;
+        return prixVente.subtract(prixAchat);
     }
 }

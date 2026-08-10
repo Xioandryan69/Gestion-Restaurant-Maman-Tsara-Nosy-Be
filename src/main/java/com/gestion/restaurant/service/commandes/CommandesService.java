@@ -40,6 +40,7 @@ public class CommandesService {
     private final ClientsRepository clientsRepository;
     private final ZoneLivraisonRepository zoneLivraisonRepository;
     private final PlatsRepository platsRepository;
+    private final com.gestion.restaurant.service.plats.PlatsService platsService;
     private final RecettePlatsRepository recettePlatsRepository;
     private final CaisseService caisseService;
     private final IngredientsService ingredientsService;
@@ -52,7 +53,8 @@ public class CommandesService {
                             PlatsRepository platsRepository,
                             RecettePlatsRepository recettePlatsRepository,
                             CaisseService caisseService,
-                            IngredientsService ingredientsService) {
+                            IngredientsService ingredientsService,
+                            com.gestion.restaurant.service.plats.PlatsService platsService) {
         this.commandesRepository = commandesRepository;
         this.detailsCommandesRepository = detailsCommandesRepository;
         this.facturesCommandesRepository = facturesCommandesRepository;
@@ -62,6 +64,7 @@ public class CommandesService {
         this.recettePlatsRepository = recettePlatsRepository;
         this.caisseService = caisseService;
         this.ingredientsService = ingredientsService;
+        this.platsService = platsService;
     }
 
     @Transactional(readOnly = true)
@@ -233,5 +236,19 @@ public class CommandesService {
         facturesCommandesRepository.deleteByCommande_Id(id);
         detailsCommandesRepository.deleteByCommandeId(id);
         commandesRepository.deleteById(id);
+    }
+
+    @Transactional(readOnly = true)
+    public java.math.BigDecimal computeProfitForCommande(Long commandeId) {
+        Commandes commande = findById(commandeId);
+        java.math.BigDecimal montant = commande.getMontantTotal() != null ? commande.getMontantTotal() : java.math.BigDecimal.ZERO;
+        java.math.BigDecimal coutTotal = java.math.BigDecimal.ZERO;
+        List<DetailsCommandes> details = findDetailsByCommandeId(commandeId);
+        for (DetailsCommandes d : details) {
+            if (d.getPlat() == null || d.getQuantite() == null) continue;
+            java.math.BigDecimal coutUnitaire = platsService.calculatePrixAchatPlat(d.getPlat().getId());
+            coutTotal = coutTotal.add(coutUnitaire.multiply(d.getQuantite()));
+        }
+        return montant.subtract(coutTotal);
     }
 }
