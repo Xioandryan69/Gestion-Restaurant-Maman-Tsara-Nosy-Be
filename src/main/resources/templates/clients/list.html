@@ -27,6 +27,23 @@
         <a th:href="@{/clients/new}" class="btn btn-primary">
           <i class="bi bi-plus-lg"></i> Nouveau Client
         </a>
+
+        <div class="card mb-4">
+    <div class="card-body">
+
+        <h5 class="mb-3">
+            Import / Export Excel
+        </h5>
+
+        <div th:replace="~{fragments/excel-actions :: excelActions(
+            '/import/clients',
+            '/export/clients',
+            '/template_exel/clients/template_import_clients.xlsx'
+        )}">
+        </div>
+
+    </div>
+</div>
       </div>
 
       <div th:replace="~{fragments/alerts :: flash}"></div>

@@ -16,6 +16,22 @@
           <div class="breadcrumb">Accueil / <span>Fournisseurs</span></div>
         </div>
         <a th:href="@{/fournisseurs/new}" class="btn btn-primary">+ Nouveau Fournisseur</a>
+        <div class="card mb-4">
+    <div class="card-body">
+
+            <h5 class="mb-3">
+                Import / Export Excel
+            </h5>
+
+            <div th:replace="~{fragments/excel-actions :: excelActions(
+                '/import/fournisseurs',
+                '/export/fournisseurs',
+                '/template_exel/fournisseurs/template_import_fournisseurs.xlsx'
+            )}">
+            </div>
+
+        </div>
+    </div>
       </div>
 
       <div th:replace="~{fragments/alerts :: flash}"></div>

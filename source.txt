@@ -1,5 +1,5 @@
 ===== EXPORT COMPLET SPRING =====
-Date : mar. 11 août 2026 20:00:22 EAT
+Date : mar. 11 août 2026 21:16:06 EAT
 
 
 ======================================
@@ -783,6 +783,66 @@ public class DashboardController {
     }
 }
 
+
+======================================
+FILE : src/main/java/com/gestion/restaurant/controller/excel/ExportController.java
+======================================
+package com.gestion.restaurant.controller.excel;
+
+import com.gestion.restaurant.service.excel.RestaurantExcelExchangeService;
+import com.gestion.restaurant.service.exportation.ingredients.IngredientsExport;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+
+import java.io.IOException;
+
+@Controller
+@RequestMapping("/export")
+public class ExportController {
+
+    private final RestaurantExcelExchangeService excelService;
+    private final IngredientsExport ingredientsExport;
+
+    public ExportController(
+            RestaurantExcelExchangeService excelService,
+            IngredientsExport ingredientsExport) {
+
+        this.excelService = excelService;
+        this.ingredientsExport = ingredientsExport;
+    }
+
+    @GetMapping("/clients")
+    public void clients(HttpServletResponse response) throws IOException {
+        excelService.exportClients(response);
+    }
+
+    @GetMapping("/fournisseurs")
+    public void fournisseurs(HttpServletResponse response) throws IOException {
+        excelService.exportFournisseurs(response);
+    }
+
+    @GetMapping("/personnels")
+    public void personnels(HttpServletResponse response) throws IOException {
+        excelService.exportPersonnels(response);
+    }
+
+    @GetMapping("/caisse")
+    public void caisse(HttpServletResponse response) throws IOException {
+        excelService.exportCaisse(response);
+    }
+
+    @GetMapping("/plats")
+    public void plats(HttpServletResponse response) throws IOException {
+        excelService.exportPlats(response);
+    }
+
+    @GetMapping("/ingredients")
+    public void ingredients(HttpServletResponse response) throws IOException {
+        ingredientsExport.exportIngredients(response);
+    }
+}
 
 ======================================
 FILE : src/main/java/com/gestion/restaurant/controller/fournisseurs/FournisseursController.java
@@ -8510,6 +8570,11 @@ to represent the company, product, or service to which they refer.**
 
 
 ======================================
+RESOURCE : src/main/resources/static/template_exel/personnels/.~lock.template_import_personnels_complet.xlsx#
+======================================
+,andrianandrainy,andrianandrainy-HP-EliteBook-830-G6,11.08.2026 20:40,file:///home/andrianandrainy/.config/libreoffice/4;
+
+======================================
 RESOURCE : src/main/resources/templates/caisse/form.html
 ======================================
 <!DOCTYPE html>
@@ -8606,6 +8671,22 @@ RESOURCE : src/main/resources/templates/caisse/list.html
         <a th:href="@{/caisse/new}" class="btn btn-primary">
           <i class="bi bi-plus-lg"></i> Saisir un Mouvement
         </a>
+        <div class="card mb-4">
+    <div class="card-body">
+
+            <h5 class="mb-3">
+                Import / Export Excel
+            </h5>
+
+            <div th:replace="~{fragments/excel-actions :: excelActions(
+                '/import/caisse',
+                '/export/caisse',
+                '/template_exel/caisse/template_import_caisse.xlsx'
+            )}">
+            </div>
+
+        </div>
+    </div>
       </div>
 
       <div th:replace="~{fragments/alerts :: flash}"></div>
@@ -8799,6 +8880,23 @@ RESOURCE : src/main/resources/templates/clients/list.html
         <a th:href="@{/clients/new}" class="btn btn-primary">
           <i class="bi bi-plus-lg"></i> Nouveau Client
         </a>
+
+        <div class="card mb-4">
+    <div class="card-body">
+
+        <h5 class="mb-3">
+            Import / Export Excel
+        </h5>
+
+        <div th:replace="~{fragments/excel-actions :: excelActions(
+            '/import/clients',
+            '/export/clients',
+            '/template_exel/clients/template_import_clients.xlsx'
+        )}">
+        </div>
+
+    </div>
+</div>
       </div>
 
       <div th:replace="~{fragments/alerts :: flash}"></div>
@@ -9593,6 +9691,22 @@ RESOURCE : src/main/resources/templates/fournisseurs/list.html
           <div class="breadcrumb">Accueil / <span>Fournisseurs</span></div>
         </div>
         <a th:href="@{/fournisseurs/new}" class="btn btn-primary">+ Nouveau Fournisseur</a>
+        <div class="card mb-4">
+    <div class="card-body">
+
+            <h5 class="mb-3">
+                Import / Export Excel
+            </h5>
+
+            <div th:replace="~{fragments/excel-actions :: excelActions(
+                '/import/fournisseurs',
+                '/export/fournisseurs',
+                '/template_exel/fournisseurs/template_import_fournisseurs.xlsx'
+            )}">
+            </div>
+
+        </div>
+    </div>
       </div>
 
       <div th:replace="~{fragments/alerts :: flash}"></div>
@@ -9657,6 +9771,44 @@ RESOURCE : src/main/resources/templates/fragments/alerts.html
 </body>
 </html>
 
+
+======================================
+RESOURCE : src/main/resources/templates/fragments/excel-actions.html
+======================================
+<div th:fragment="excelActions(importUrl, exportUrl, templateUrl)"
+     class="d-flex flex-wrap gap-2">
+
+    <form th:action="${importUrl}"
+          method="post"
+          enctype="multipart/form-data"
+          class="d-flex gap-2">
+
+        <input type="file"
+               name="file"
+               accept=".xlsx"
+               class="form-control"
+               required />
+
+        <button type="submit"
+                class="btn btn-outline-primary">
+            <i class="bi bi-upload"></i>
+            Importer
+        </button>
+    </form>
+
+    <a th:href="${exportUrl}"
+       class="btn btn-outline-success">
+        <i class="bi bi-download"></i>
+        Exporter
+    </a>
+
+    <a th:href="${templateUrl}"
+       class="btn btn-outline-secondary">
+        <i class="bi bi-file-earmark-excel"></i>
+        Template
+    </a>
+
+</div>
 
 ======================================
 RESOURCE : src/main/resources/templates/fragments/layout.html
@@ -10215,11 +10367,11 @@ RESOURCE : src/main/resources/templates/ingredients/list.html
                     <div class="d-flex justify-content-between align-items-center mb-4">
                         <h2>Ingrédients</h2>
                         <div>
-                            <a th:href="@{/ingredients/export}" class="btn btn-outline-success me-2">Exporter</a>
+                            <a th:href="@{/export/ingredients}" class="btn btn-outline-success me-2">Exporter</a>
                             <a th:href="@{/ingredients/dashboard}" class="btn btn-outline-secondary me-2">Dashboard</a>
                             <a th:href="@{/ingredients/stock}" class="btn btn-outline-info me-2">État du Stock</a>
                             <a th:href="@{/ingredients/new}" class="btn btn-primary">+ Nouvel Ingrédient</a>
-                        </div>
+                        </div>/ingredients/export
                     </div>
                     <div th:replace="~{fragments/alerts :: flash}"></div>
 
@@ -10230,7 +10382,7 @@ RESOURCE : src/main/resources/templates/ingredients/list.html
                                     <h5 class="mb-1">Import Excel</h5>
                                     <p class="mb-0 text-muted">Importer ingrédients, catégories, statuts, unités, fournisseurs et mouvements.</p>
                                 </div>
-                                <form th:action="@{/ingredients/import}" method="post" enctype="multipart/form-data" class="d-flex gap-2 align-items-center">
+                                <form th:action="@{/import/ingredients}" method="post" enctype="multipart/form-data" class="d-flex gap-2 align-items-center">
                                     <input type="file" name="file" class="form-control" accept=".xlsx,.xls" required>
                                     <button type="submit" class="btn btn-success">Importer</button>
                                 </form>
@@ -11435,6 +11587,22 @@ RESOURCE : src/main/resources/templates/personnels/list.html
         <a th:href="@{/personnels/new}" class="btn btn-primary">
           <i class="bi bi-person-plus"></i> Nouvel Employé
         </a>
+        <div class="card mb-4">
+    <div class="card-body">
+
+            <h5 class="mb-3">
+                Import / Export Excel
+            </h5>
+
+            <div th:replace="~{fragments/excel-actions :: excelActions(
+                '/import/personnels',
+                '/export/personnels',
+                '/template_exel/personnels/template_import_personnels.xlsx'
+            )}">
+            </div>
+
+        </div>
+    </div>
       </div>
 
       <div th:replace="~{fragments/alerts :: flash}"></div>
@@ -11889,6 +12057,22 @@ RESOURCE : src/main/resources/templates/plats/list.html
           <a th:href="@{/plats/new}" class="btn btn-primary">
             <i class="bi bi-plus-lg"></i> Créer des Plats / Recettes
           </a>
+          <div class="card mb-4">
+    <div class="card-body">
+
+            <h5 class="mb-3">
+                Import / Export Excel
+            </h5>
+
+            <div th:replace="~{fragments/excel-actions :: excelActions(
+                '/import/plats',
+                '/export/plats',
+                '/template_exel/plats/template_import_plats.xlsx'
+            )}">
+            </div>
+
+        </div>
+    </div>
         </div>
       </div>
 

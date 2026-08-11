@@ -44,6 +44,7 @@ com/gestion/restaurant/entity/fournisseurs/Fournisseurs.class
 com/gestion/restaurant/entity/materielles/EtatStockMaterielles.class
 com/gestion/restaurant/dto/plats/PlatMultipleRequestDto$IngredientQuantiteDto.class
 com/gestion/restaurant/entity/materielles/Materielles.class
+com/gestion/restaurant/controller/excel/ExportController.class
 com/gestion/restaurant/repository/livraisons/ZoneLivraisonRepository.class
 com/gestion/restaurant/repository/materielles/CategorieMateriellesRepository.class
 com/gestion/restaurant/entity/commandes/FacturesCommandes.class

@@ -1,0 +1,34 @@
+<div th:fragment="excelActions(importUrl, exportUrl, templateUrl)"
+     class="d-flex flex-wrap gap-2">
+
+    <form th:action="${importUrl}"
+          method="post"
+          enctype="multipart/form-data"
+          class="d-flex gap-2">
+
+        <input type="file"
+               name="file"
+               accept=".xlsx"
+               class="form-control"
+               required />
+
+        <button type="submit"
+                class="btn btn-outline-primary">
+            <i class="bi bi-upload"></i>
+            Importer
+        </button>
+    </form>
+
+    <a th:href="${exportUrl}"
+       class="btn btn-outline-success">
+        <i class="bi bi-download"></i>
+        Exporter
+    </a>
+
+    <a th:href="${templateUrl}"
+       class="btn btn-outline-secondary">
+        <i class="bi bi-file-earmark-excel"></i>
+        Template
+    </a>
+
+</div>
