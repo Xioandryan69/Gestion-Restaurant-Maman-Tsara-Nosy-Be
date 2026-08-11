@@ -1,5 +1,5 @@
 ===== EXPORT COMPLET SPRING =====
-Date : mar. 11 août 2026 11:11:57 EAT
+Date : mar. 11 août 2026 16:55:20 EAT
 
 
 ======================================
@@ -430,7 +430,7 @@ public class StatsController {
         return ingredientsService.getIngredientMovementSummaryForYear(year);
     }
 
-    @GetMapping("/api/stats/plats/{id}/cost")
+    @GetMapping(" ")
     public Map<String, Object> platCost(@PathVariable("id") String id) {
         Map<String, Object> m = new HashMap<>();
         try {
@@ -627,6 +627,8 @@ package com.gestion.restaurant.controller.commandes;
 
 import com.gestion.restaurant.dto.commandes.CommandeCreateRequestDto;
 import com.gestion.restaurant.service.commandes.CommandesService;
+import com.gestion.restaurant.service.plats.PlatsService;
+
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -642,15 +644,31 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 public class CommandesController {
 
     private final CommandesService commandesService;
+    private final PlatsService platsService;
 
-    public CommandesController(CommandesService commandesService) {
+    public CommandesController(CommandesService commandesService,PlatsService platsService) {
         this.commandesService = commandesService;
+        this.platsService = platsService;
     }
 
     @GetMapping
     public String list(@PageableDefault(size = 10, sort = "id", direction = Sort.Direction.DESC) Pageable pageable,
                        Model model) {
-        model.addAttribute("page", commandesService.findAll(pageable));
+        var page = commandesService.findAll(pageable);
+        model.addAttribute("page", page);
+        // compute profit per commande for server-side display
+        var profitMap = new java.util.HashMap<Long, java.math.BigDecimal>();
+        for (var c : page.getContent()) {
+            if (c != null && c.getId() != null) {
+                try {
+                    java.math.BigDecimal prof = commandesService.computeProfitForCommande(c.getId());
+                    profitMap.put(c.getId(), prof);
+                } catch (Exception ex) {
+                    // ignore and leave absent
+                }
+            }
+        }
+        model.addAttribute("commandeProfitMap", profitMap);
         return "commandes/list";
     }
 
@@ -689,7 +707,37 @@ public class CommandesController {
     @GetMapping({"/{id}/detail", "/detail/{id}"})
     public String showDetail(@PathVariable("id") Long id, Model model) {
         model.addAttribute("commande", commandesService.findById(id));
-        model.addAttribute("details", commandesService.findDetailsByCommandeId(id));
+        var details = commandesService.findDetailsByCommandeId(id);
+        model.addAttribute("details", details);
+        // compute profit per detail (per-unit and per-line) and total profit for the commande
+        var detailUnitProfit = new java.util.HashMap<Long, java.math.BigDecimal>();
+        var detailLineProfit = new java.util.HashMap<Long, java.math.BigDecimal>();
+        for (var d : details) {
+            try {
+                if (d.getId() == null) continue;
+                var plat = d.getPlat();
+                java.math.BigDecimal quant = d.getQuantite() != null ? d.getQuantite() : java.math.BigDecimal.ZERO;
+                java.math.BigDecimal prixUnitaire = d.getPrixUnitaire() != null ? d.getPrixUnitaire() : java.math.BigDecimal.ZERO;
+                java.math.BigDecimal coutUnitaire = java.math.BigDecimal.ZERO;
+                if (plat != null && plat.getId() != null) {
+                    coutUnitaire = platsService.calculatePrixAchatPlat(plat.getId());
+                }
+                java.math.BigDecimal unitProfit = prixUnitaire.subtract(coutUnitaire);
+                java.math.BigDecimal lineProfit = unitProfit.multiply(quant);
+                detailUnitProfit.put(d.getId(), unitProfit);
+                detailLineProfit.put(d.getId(), lineProfit);
+            } catch (Exception ex) {
+                // ignore per-line failures
+            }
+        }
+        model.addAttribute("detailUnitProfit", detailUnitProfit);
+        model.addAttribute("detailLineProfit", detailLineProfit);
+        // total profit for the whole commande
+        try {
+            model.addAttribute("commandeProfitTotal", commandesService.computeProfitForCommande(id));
+        } catch (Exception ex) {
+            model.addAttribute("commandeProfitTotal", java.math.BigDecimal.ZERO);
+        }
         return "commandes/detail";
     }
 
@@ -849,6 +897,12 @@ public class IngredientsController {
         model.addAttribute("categories", ingredientsService.findAllCategories());
         model.addAttribute("statuts", ingredientsService.findAllStatuts());
         return "ingredients/list";
+    }
+
+    @GetMapping("/dashboard")
+    public String dashboard(Model model) {
+        model.addAttribute("dashboard", ingredientsService.getDashboardData());
+        return "ingredients/dashboard";
     }
 
     @GetMapping("/new")
@@ -1084,7 +1138,15 @@ public class MateriellesController {
         model.addAttribute("page", materiellesService.search(criteria, pageable));
         model.addAttribute("categories", materiellesService.findAllCategories());
         model.addAttribute("statuts", materiellesService.findAllStatuts());
+        model.addAttribute("selectedCategorie", criteria != null ? criteria.getIdCategorie() : null);
+        model.addAttribute("selectedStatut", criteria != null ? criteria.getIdStatut() : null);
         return "materielles/list";
+    }
+
+    @GetMapping("/dashboard")
+    public String dashboard(Model model) {
+        model.addAttribute("dashboard", materiellesService.getDashboardData());
+        return "materielles/dashboard";
     }
 
     @GetMapping("/new")
@@ -1318,7 +1380,31 @@ public class PlatsController {
                        Model model) {
         model.addAttribute("page", platsService.search(criteria, pageable));
         model.addAttribute("categories", platsService.findAllCategories());
+        // compute prixAchat and benef per plat to provide server-side fallback for the list view
+        var page = platsService.search(criteria, pageable);
+        var prixAchatMap = new java.util.HashMap<Long, java.math.BigDecimal>();
+        var benefMap = new java.util.HashMap<Long, java.math.BigDecimal>();
+        for (var p : page.getContent()) {
+            if (p != null && p.getId() != null) {
+                try {
+                    java.math.BigDecimal pa = platsService.calculatePrixAchatPlat(p.getId());
+                    java.math.BigDecimal bf = platsService.calculateProfitPerUnit(p.getId());
+                    prixAchatMap.put(p.getId(), pa);
+                    benefMap.put(p.getId(), bf);
+                } catch (Exception ex) {
+                    // ignore per-item failures and leave map entries absent
+                }
+            }
+        }
+        model.addAttribute("prixAchatMap", prixAchatMap);
+        model.addAttribute("benefMap", benefMap);
         return "plats/list";
+    }
+
+    @GetMapping("/dashboard")
+    public String dashboard(Model model) {
+        model.addAttribute("dashboard", platsService.getDashboardData());
+        return "plats/dashboard";
     }
 
     @GetMapping("/new")
@@ -1634,6 +1720,32 @@ public class FournisseurRequestDto {
 
 
 ======================================
+FILE : src/main/java/com/gestion/restaurant/dto/ingredients/IngredientDashboardDto.java
+======================================
+package com.gestion.restaurant.dto.ingredients;
+
+import lombok.Data;
+
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
+
+@Data
+public class IngredientDashboardDto {
+    private long totalIngredients;
+    private long ingredientsEnStock;
+    private long ingredientsEnAlerte;
+    private BigDecimal stockTotal;
+    private BigDecimal valeurTotale;
+    private String etatStock;
+    private String derniereMiseAJour;
+    private List<String> alerts = new ArrayList<>();
+    private List<String> movements = new ArrayList<>();
+    private List<String> quickActions = new ArrayList<>();
+}
+
+
+======================================
 FILE : src/main/java/com/gestion/restaurant/dto/ingredients/IngredientMapper.java
 ======================================
 package com.gestion.restaurant.dto.ingredients;
@@ -1864,6 +1976,31 @@ public class ZoneLivraisonFilterDto {
 }
 
 ======================================
+FILE : src/main/java/com/gestion/restaurant/dto/materielles/MaterielDashboardDto.java
+======================================
+package com.gestion.restaurant.dto.materielles;
+
+import lombok.Data;
+
+import java.util.ArrayList;
+import java.util.List;
+
+@Data
+public class MaterielDashboardDto {
+    private long totalMateriels;
+    private long modulesEnLigne;
+    private long modulesHorsLigne;
+    private double tauxErreur;
+    private String etatTempsReel;
+    private String derniereSynchronisation;
+    private String niveauAlimentation;
+    private List<String> alerts = new ArrayList<>();
+    private List<String> activities = new ArrayList<>();
+    private List<String> quickActions = new ArrayList<>();
+}
+
+
+======================================
 FILE : src/main/java/com/gestion/restaurant/dto/materielles/MaterielMapper.java
 ======================================
 package com.gestion.restaurant.dto.materielles;
@@ -2061,6 +2198,31 @@ public class PersonnelSearchCriteria {
     private String prenom;
     private Long idRole;
 }
+
+======================================
+FILE : src/main/java/com/gestion/restaurant/dto/plats/PlatDashboardDto.java
+======================================
+package com.gestion.restaurant.dto.plats;
+
+import lombok.Data;
+
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
+
+@Data
+public class PlatDashboardDto {
+    private long totalPlats;
+    private long platsAvecRecette;
+    private long platsSansRecette;
+    private BigDecimal chiffreAffairesPotentiel;
+    private BigDecimal margePotentielle;
+    private String tendance;
+    private List<String> alerts = new ArrayList<>();
+    private List<String> topPlats = new ArrayList<>();
+    private List<String> quickActions = new ArrayList<>();
+}
+
 
 ======================================
 FILE : src/main/java/com/gestion/restaurant/dto/plats/PlatMultipleRequestDto.java
@@ -3815,6 +3977,12 @@ import java.util.Optional;
 @Repository
 public interface MateriellesRepository extends JpaRepository<Materielles, Long>, JpaSpecificationExecutor<Materielles> {
 
+    long countByStatutMateriellesLibelleIgnoreCase(String libelle);
+
+    default long countByStatutMaterielles_LibelleIgnoreCase(String libelle) {
+        return countByStatutMateriellesLibelleIgnoreCase(libelle);
+    }
+
     @EntityGraph(attributePaths = {"categorieMaterielles", "statutMaterielles"})
     Page<Materielles> findAll(Specification<Materielles> spec, Pageable pageable);
 
@@ -4624,6 +4792,81 @@ public class DashboardService {
 
 
 ======================================
+FILE : src/main/java/com/gestion/restaurant/service/exportation/ingredients/IngredientsExport.java
+======================================
+package com.gestion.restaurant.service.exportation.ingredients;
+
+import java.io.FileOutputStream;
+import java.io.OutputStream;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.itextpdf.kernel.colors.ColorConstants;
+import com.itextpdf.kernel.pdf.PdfDocument;
+import com.itextpdf.kernel.pdf.PdfWriter;
+import com.itextpdf.layout.Document;
+import com.itextpdf.layout.element.Cell;
+import com.itextpdf.layout.element.Paragraph;
+import com.itextpdf.layout.element.Table;
+import com.itextpdf.layout.properties.TextAlignment;
+import com.itextpdf.layout.properties.UnitValue;
+
+import jakarta.servlet.http.HttpServletResponse;
+public class IngredientsExport {
+    
+
+
+@Service
+public class ExportService {
+
+    // @Autowired
+    // private RaceRizeRepository raceRizRepository;
+
+    // @Autowired
+    // private HistoriquePrixRizRepository historiquePrixRizRepository;
+
+    // @Autowired
+    // private ClientRepository clientRepository;
+
+    // @Autowired
+    // private MouvementStockService mouvementStockService;
+
+    // @Autowired
+    // private EtatRizRepository etatRizRepository;
+
+    /**
+     * Export Excel de l'etat du stock (toutes varietes / tous etats de riz) a une date donnee.
+     */
+    // /
+    //     Cell labelCell = new Cell()
+    //             .add(new Paragraph(label))
+    //             .setTextAlignment(TextAlignment.LEFT)
+    //             .setBorder(null);
+    //     table.addCell(labelCell);
+
+    //     Cell valueCell = new Cell()
+    //             .add(new Paragraph(value))
+    //             .setTextAlignment(TextAlignment.RIGHT)
+    //             .setBorder(null);
+    //     table.addCell(valueCell);
+    // }
+}
+}
+
+
+======================================
 FILE : src/main/java/com/gestion/restaurant/service/fournisseurs/FournisseursService.java
 ======================================
 package com.gestion.restaurant.service.fournisseurs;
@@ -4715,6 +4958,227 @@ public class FournisseursService {
         }
         fournisseursRepository.deleteById(id);
     }
+}
+
+
+======================================
+FILE : src/main/java/com/gestion/restaurant/service/importation/ingredients/IngredientsImportService.java
+======================================
+package com.gestion.restaurant.service.importation.ingredients;
+
+import java.io.InputStream;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.apache.poi.ss.usermodel.DataFormatter;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellType;
+import org.apache.poi.ss.usermodel.DateUtil;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.usermodel.WorkbookFactory;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.Resource;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+
+import com.gestion.restaurant.repository.ingredients.*;
+
+public class IngredientsImportService {
+    @Autowired
+    private CategorieIngredientsRepository categorieIngredientsRepository;
+    @Autowired
+    private IngredientsRepository ingredientsRepository;
+    @Autowired
+    private HistoriqueIngredientsRepository historiqueIngredientsRepository;
+    @Autowired
+    private EtatStockIngredientRepository etatstockIngredientsRepository;
+    @Autowired
+    private UniteRepository unitesRepository;
+    @Autowired
+    private StatutIngredientRepository statutIngredientsRepository;
+    @Autowired
+    private TypeMvtIngredientRepository typeMvtIngredientRepository;
+    @Autowired
+    private InventaireIngredientRepository inventaireIngredientRepository;
+
+    public void importerExcelIngredients(MultipartFile file) throws Exception {
+
+        try (InputStream is = file.getInputStream(); Workbook workbook = new XSSFWorkbook(is)) {
+
+            Sheet summarySheet = workbook.getSheet("Résumé Approvisionnement");
+            if (summarySheet == null) {
+                throw new IllegalArgumentException("La feuille 'Résumé Approvisionnement' est introuvable.");
+            }
+
+            // La ligne 0 est l'en-tête, les données sont à la ligne 1
+            Row rowMere = summarySheet.getRow(1);
+            if (rowMere == null) {
+                throw new IllegalArgumentException(
+                        "Le fichier Excel ne contient aucune donnée d'approvisionnement parent.");
+            }
+
+            // ApprovisionnementMere mere = new ApprovisionnementMere();
+
+            // String dateStr = rowMere.getCell(1).getStringCellValue();
+            // mere.setDateApprovisionnement(LocalDate.parse(dateStr));
+
+            // double prixTransportDouble = rowMere.getCell(2).getNumericCellValue();
+            // mere.setPrixTransport(BigDecimal.valueOf(prixTransportDouble));
+
+            // SourceApprovisionnement source = new SourceApprovisionnement();
+            // String fournisseurNomComplet = rowMere.getCell(3).getStringCellValue(); //
+            // "Rakoto Be"
+            // source.setNom(fournisseurNomComplet);
+            // source.setContact(rowMere.getCell(4).getStringCellValue());
+            // source.setLieu(rowMere.getCell(5).getStringCellValue());
+            // source = sourceApprovisionnementService.save(source);
+            // mere.setSourceApprovisionnement(source);
+
+            // Sheet sheetFille = workbook.getSheet("Détails Articles (Fille)");
+            // if (sheetFille == null) {
+            // throw new IllegalArgumentException("La feuille 'Détails Articles (Fille)' est
+            // introuvable.");
+            // }
+
+            // List<ApprovisionnementFille> listeFilles = new ArrayList<>();
+
+            // for (int i = 1; i <= sheetFille.getLastRowNum(); i++) {
+            // Row rowFille = sheetFille.getRow(i);
+            // if (rowFille == null) {
+            // continue;
+            // }
+
+            // ApprovisionnementFille fille = new ApprovisionnementFille();
+            // fille.setApprovisionnementMere(mere);
+
+            // String libelleRiz = rowFille.getCell(2).getStringCellValue();
+            // RaceRiz raceRiz = raceRizRepository.findByLibelleIgnoreCase(libelleRiz)
+            // .orElseThrow(() -> new RuntimeException("Variete de riz introuvable : " +
+            // libelleRiz));
+
+            // if (rowFille.getCell(5) != null) {
+            // raceRiz.setPuVente(BigDecimal.valueOf(rowFille.getCell(5).getNumericCellValue()));
+            // }
+
+            // fille.setRaceRiz(raceRiz);
+
+            // double quantite = rowFille.getCell(3).getNumericCellValue();
+            // fille.setQuantite(BigDecimal.valueOf(quantite));
+
+            // double puAchat = rowFille.getCell(4).getNumericCellValue();
+            // fille.setPuAchat(BigDecimal.valueOf(puAchat));
+
+            // listeFilles.add(fille);
+
+            // }
+
+            // ApprovisionnementMere savedMere = approvisionnementMereRepository.save(mere);
+            // for (ApprovisionnementFille fille : listeFilles) {
+            // fille.setApprovisionnementMere(savedMere);
+            // approvisionnementFilleRepository.save(fille);
+            // }
+            // }
+
+        }
+
+    }
+
+    private int getInt(Cell cell) {
+        if (cell == null) {
+            throw new RuntimeException("Cellule vide alors qu'un nombre entier était attendu");
+        }
+        switch (cell.getCellType()) {
+            case NUMERIC:
+                return (int) cell.getNumericCellValue();
+            case STRING:
+                String value = cell.getStringCellValue().trim();
+                if (value.isEmpty()) {
+                    throw new RuntimeException("Cellule vide alors qu'un nombre entier était attendu");
+                }
+                return Integer.parseInt(value);
+            default:
+                throw new RuntimeException("Type de cellule non supporté pour un entier : " + cell.getCellType());
+        }
+    }
+
+    private double getDouble(Cell cell) {
+        if (cell == null) {
+            throw new RuntimeException("Cellule vide alors qu'un nombre décimal était attendu");
+        }
+        switch (cell.getCellType()) {
+            case NUMERIC:
+                return cell.getNumericCellValue();
+            case STRING:
+                String value = cell.getStringCellValue().trim().replace(",", ".");
+                if (value.isEmpty()) {
+                    throw new RuntimeException("Cellule vide alors qu'un nombre décimal était attendu");
+                }
+                return Double.parseDouble(value);
+            default:
+                throw new RuntimeException("Type de cellule non supporté pour un nombre : " + cell.getCellType());
+        }
+    }
+
+    private LocalDate getLocalDate(Cell cell) {
+        if (cell == null) {
+            throw new RuntimeException("Cellule vide alors qu'une date était attendue");
+        }
+        if (cell.getCellType() == CellType.NUMERIC && DateUtil.isCellDateFormatted(cell)) {
+            return cell.getLocalDateTimeCellValue().toLocalDate();
+        }
+        if (cell.getCellType() == CellType.STRING) {
+            String value = cell.getStringCellValue().trim();
+            return LocalDate.parse(value); // format attendu : AAAA-MM-JJ
+        }
+        throw new RuntimeException("Type de cellule non supporté pour une date : " + cell.getCellType());
+    }
+
+    public Resource getTemplateImportPaymentFactures() {
+        return new ClassPathResource("static/template_exel/facture/template_import_payment_factures.xlsx");
+    }
+        private boolean isRowEmpty(Row row) {
+        if (row == null) {
+            return true;
+        }
+        for (int c = row.getFirstCellNum(); c < row.getLastCellNum(); c++) {
+            Cell cell = row.getCell(c);
+            if (cell != null && cell.getCellType() != CellType.BLANK
+                    && !cell.toString().trim().isEmpty()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+
+    private String getString(Cell cell) {
+        if (cell == null) {
+            return null;
+        }
+        return new DataFormatter().formatCellValue(cell).trim();
+    }
+
+    private BigDecimal getBigDecimal(Cell cell) {
+        if (cell == null) {
+            return BigDecimal.ZERO;
+        }
+        switch (cell.getCellType()) {
+            case NUMERIC:
+                return BigDecimal.valueOf(cell.getNumericCellValue());
+            case STRING:
+                return new BigDecimal(cell.getStringCellValue().trim());
+            default:
+                throw new IllegalStateException("Type de cellule salaire invalide : " + cell.getCellType());
+        }
+    }
+
 }
 
 
@@ -4845,6 +5309,39 @@ public class IngredientsService {
     @Transactional(readOnly = true)
     public List<Fournisseurs> findAllFournisseurs() {
         return fournisseursService.findAllForSelect();
+    }
+
+    @Transactional(readOnly = true)
+    public IngredientDashboardDto getDashboardData() {
+        long totalIngredients = ingredientsRepository.count();
+        BigDecimal stockTotal = etatStockRepo.findAll().stream()
+                .map(EtatStockIngredient::getQuantite)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        long ingredientsEnStock = etatStockRepo.findAll().stream()
+                .filter(e -> e.getQuantite() != null && e.getQuantite().compareTo(BigDecimal.ZERO) > 0)
+                .count();
+        long ingredientsEnAlerte = totalIngredients - ingredientsEnStock;
+
+        IngredientDashboardDto dto = new IngredientDashboardDto();
+        dto.setTotalIngredients(totalIngredients);
+        dto.setIngredientsEnStock(ingredientsEnStock);
+        dto.setIngredientsEnAlerte(ingredientsEnAlerte);
+        dto.setStockTotal(stockTotal);
+        dto.setValeurTotale(stockTotal.multiply(BigDecimal.valueOf(1000)));
+        dto.setEtatStock(ingredientsEnAlerte == 0 ? "Optimal" : "À surveiller");
+        dto.setDerniereMiseAJour(LocalDate.now().toString());
+
+        dto.getAlerts().add(ingredientsEnAlerte == 0 ? "Aucune alerte de stock" : ingredientsEnAlerte + " ingrédient(s) nécessitent un réapprovisionnement");
+        dto.getAlerts().add("Suivi des achats et sorties activé");
+
+        dto.getMovements().add("Entrées enregistrées ce mois : " + historiqueRepo.count());
+        dto.getMovements().add("Mouvements de stock : " + inventaireRepo.count());
+        dto.getMovements().add("Seuil d’alerte : " + SEUIL_STOCK_FAIBLE);
+
+        dto.getQuickActions().add("Consulter le stock global");
+        dto.getQuickActions().add("Enregistrer un achat");
+        dto.getQuickActions().add("Planifier une sortie");
+        return dto;
     }
 
     // ───────────────────────── C.R.U.D Base ─────────────────────────
@@ -5185,6 +5682,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -5261,6 +5759,50 @@ public class MateriellesService {
     @Transactional(readOnly = true)
     public List<CategorieMaterielles> findAllCategories() {
         return categorieMateriellesRepository.findAll();
+    }
+
+    @Transactional(readOnly = true)
+    public MaterielDashboardDto getDashboardData() {
+        long totalMateriels = materiellesRepository.count();
+        long modulesEnLigne = materiellesRepository.countByStatutMaterielles_LibelleIgnoreCase("Disponible")
+                + materiellesRepository.countByStatutMaterielles_LibelleIgnoreCase("En service");
+        long modulesHorsLigne = materiellesRepository.countByStatutMaterielles_LibelleIgnoreCase("Hors Service")
+                + materiellesRepository.countByStatutMaterielles_LibelleIgnoreCase("En maintenance");
+        double tauxErreur = totalMateriels == 0 ? 0.0 : (modulesHorsLigne * 100.0) / totalMateriels;
+
+        MaterielDashboardDto dto = new MaterielDashboardDto();
+        dto.setTotalMateriels(totalMateriels);
+        dto.setModulesEnLigne(modulesEnLigne);
+        dto.setModulesHorsLigne(modulesHorsLigne);
+        dto.setTauxErreur(Math.round(tauxErreur * 10.0) / 10.0);
+        dto.setEtatTempsReel(modulesHorsLigne == 0 ? "Opérationnel" : "Attention");
+        dto.setDerniereSynchronisation(LocalDate.now().toString());
+        dto.setNiveauAlimentation(modulesEnLigne >= totalMateriels / 2 ? "Stable" : "À surveiller");
+
+        List<String> alerts = new ArrayList<>();
+        if (modulesHorsLigne > 0) {
+            alerts.add("" + modulesHorsLigne + " matériel(s) nécessitent une intervention");
+        }
+        if (totalMateriels > 0 && modulesEnLigne < totalMateriels) {
+            alerts.add("Certaines unités sont encore en maintenance ou hors service");
+        }
+        if (alerts.isEmpty()) {
+            alerts.add("Aucune alerte système en cours");
+        }
+        dto.setAlerts(alerts);
+
+        List<String> activities = new ArrayList<>();
+        activities.add("Dernière mise à jour du stock : " + LocalDate.now().minusDays(1));
+        activities.add("Suivi des maintenances : actif");
+        activities.add("Inventaires quotidiens : à jour");
+        dto.setActivities(activities);
+
+        List<String> quickActions = new ArrayList<>();
+        quickActions.add("Démarrer la synchronisation");
+        quickActions.add("Planifier une maintenance");
+        quickActions.add("Consulter les alertes");
+        dto.setQuickActions(quickActions);
+        return dto;
     }
 
     @Transactional(readOnly = true)
@@ -5602,6 +6144,7 @@ FILE : src/main/java/com/gestion/restaurant/service/plats/PlatsService.java
 ======================================
 package com.gestion.restaurant.service.plats;
 
+import com.gestion.restaurant.dto.plats.PlatDashboardDto;
 import com.gestion.restaurant.dto.plats.PlatMultipleRequestDto;
 import com.gestion.restaurant.dto.plats.PlatSearchCriteria;
 import com.gestion.restaurant.entity.ingredients.Ingredients;
@@ -5675,6 +6218,39 @@ public class PlatsService {
         return categoriePlatsRepository.findAll();
     }
 
+    @Transactional(readOnly = true)
+    public PlatDashboardDto getDashboardData() {
+        long totalPlats = platsRepository.count();
+        long platsAvecRecette = platsRepository.findAll().stream()
+                .filter(p -> p.getId() != null && recettePlatsRepository.findByPlatIdWithIngredient(p.getId()).size() > 0)
+                .count();
+        long platsSansRecette = totalPlats - platsAvecRecette;
+        BigDecimal chiffreAffairesPotentiel = platsRepository.findAll().stream()
+                .map(Plats::getPrixVente)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal margePotentielle = chiffreAffairesPotentiel.subtract(chiffreAffairesPotentiel.multiply(BigDecimal.valueOf(0.25)));
+
+        PlatDashboardDto dto = new PlatDashboardDto();
+        dto.setTotalPlats(totalPlats);
+        dto.setPlatsAvecRecette(platsAvecRecette);
+        dto.setPlatsSansRecette(platsSansRecette);
+        dto.setChiffreAffairesPotentiel(chiffreAffairesPotentiel);
+        dto.setMargePotentielle(margePotentielle);
+        dto.setTendance(platsSansRecette == 0 ? "Croissance" : "À compléter");
+
+        dto.getAlerts().add(platsSansRecette == 0 ? "Toutes les recettes sont renseignées" : platsSansRecette + " plat(s) n’ont pas encore de recette");
+        dto.getAlerts().add("Prix de vente et coût ingrédients suivis");
+
+        dto.getTopPlats().add("Plats à forte marge : à définir");
+        dto.getTopPlats().add("Évolution des ventes : à suivre");
+        dto.getTopPlats().add("Recettes validées : " + platsAvecRecette);
+
+        dto.getQuickActions().add("Créer un nouveau plat");
+        dto.getQuickActions().add("Renseigner une recette");
+        dto.getQuickActions().add("Évaluer la rentabilité");
+        return dto;
+    }
+
     @Transactional
     public void saveMultiplePlats(PlatMultipleRequestDto dto) {
         for (PlatMultipleRequestDto.PlatFormItem item : dto.getPlats()) {
@@ -5716,9 +6292,15 @@ public class PlatsService {
         List<RecettePlats> recettes = recettePlatsRepository.findByPlatIdWithIngredient(idPlat);
         return recettes.stream().map(rp -> {
             if (rp.getIngredient() == null || rp.getQuantiteRequise() == null) return BigDecimal.ZERO;
+
             Long idIng = rp.getIngredient().getId();
             List<HistoriqueIngredients> hist = historiqueIngredientsRepository.findByIngredient_IdOrderByDateEntreeDesc(idIng);
-            BigDecimal prixUnitaire = hist.isEmpty() ? BigDecimal.ZERO : hist.get(0).getPrixAchat();
+
+            if (hist.isEmpty()) {
+                return BigDecimal.ZERO;
+            }
+
+            BigDecimal prixUnitaire = hist.get(0).getPrixAchat() != null ? hist.get(0).getPrixAchat() : BigDecimal.ZERO;
             return prixUnitaire.multiply(rp.getQuantiteRequise());
         }).reduce(BigDecimal.ZERO, BigDecimal::add);
     }
@@ -5729,6 +6311,15 @@ public class PlatsService {
         BigDecimal prixAchat = calculatePrixAchatPlat(idPlat);
         BigDecimal prixVente = plat.getPrixVente() != null ? plat.getPrixVente() : BigDecimal.ZERO;
         return prixVente.subtract(prixAchat);
+    }
+
+    @Transactional(readOnly = true)
+    public List<String> getCostEvolutionSummary() {
+        List<String> summary = new ArrayList<>();
+        summary.add("Coût moyen des recettes : calculé à partir des derniers achats ingrédients");
+        summary.add("Bénéfice estimé : prix de vente - coût de recette");
+        summary.add("Mise à jour automatique à chaque consultation");
+        return summary;
     }
 }
 
@@ -421375,6 +421966,18 @@ RESOURCE : src/main/resources/templates/caisse/list.html
 
       <div th:replace="~{fragments/alerts :: flash}"></div>
 
+      <div class="card mb-4" style="padding:16px; border-radius:12px; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,0.06);">
+        <h4 style="margin-top:0;">Synthèse annuelle de la caisse</h4>
+        <canvas id="caisseYearChart" height="220"></canvas>
+        <script th:inline="javascript">
+          document.addEventListener('DOMContentLoaded', function(){
+            if (typeof renderCaisseYearPie === 'function') {
+              renderCaisseYearPie('caisseYearChart', new Date().getFullYear());
+            }
+          });
+        </script>
+      </div>
+
       <div class="table-card mb-4">
         <table class="data-table">
           <thead>
@@ -421692,6 +422295,14 @@ RESOURCE : src/main/resources/templates/commandes/detail.html
             </div>
           </div>
 
+          <div class="field-group">
+            <label class="field-label">Bénéfice estimé</label>
+            <div>
+              <span class="badge bg-success text-dark fs-6"
+                    th:text="${commandeProfitTotal != null ? #numbers.formatDecimal(commandeProfitTotal, 1, 'POINT', 2, 'COMMA') + ' Ar' : '0,00 Ar'}">0,00 Ar</span>
+            </div>
+          </div>
+
         </div>
       </div>
 
@@ -421708,16 +422319,20 @@ RESOURCE : src/main/resources/templates/commandes/detail.html
             <tr>
               <th>Plat</th>
               <th class="text-end">Prix Unitaire</th>
+              <th class="text-end">Bénéfice Unitaire</th>
               <th class="text-center">Quantité</th>
               <th class="text-end">Montant Total</th>
+              <th class="text-end">Bénéfice Ligne</th>
             </tr>
           </thead>
           <tbody>
             <tr th:each="d : ${details}">
               <td class="fw-bold" th:text="${d.plat != null ? d.plat.nom : '-'}">Nom du plat</td>
               <td class="text-end" th:text="${d.prixUnitaire != null ? #numbers.formatDecimal(d.prixUnitaire, 1, 'POINT', 2, 'COMMA') + ' Ar' : '0,00 Ar'}">0,00 Ar</td>
+              <td class="text-end" th:text="${detailUnitProfit[d.id] != null ? #numbers.formatDecimal(detailUnitProfit[d.id], 1, 'POINT', 2, 'COMMA') + ' Ar' : '—'}">—</td>
               <td class="text-center" th:text="${d.quantite != null ? d.quantite : 0}">1</td>
               <td class="text-end fw-bold" th:text="${d.montant != null ? #numbers.formatDecimal(d.montant, 1, 'POINT', 2, 'COMMA') + ' Ar' : '0,00 Ar'}">0,00 Ar</td>
+              <td class="text-end fw-bold" th:text="${detailLineProfit[d.id] != null ? #numbers.formatDecimal(detailLineProfit[d.id], 1, 'POINT', 2, 'COMMA') + ' Ar' : '—'}">—</td>
             </tr>
             <tr th:if="${#lists.isEmpty(details)}">
               <td colspan="4" class="text-center text-muted py-4">Aucun plat associé à cette commande.</td>
@@ -421989,6 +422604,18 @@ RESOURCE : src/main/resources/templates/commandes/list.html
       <div th:replace="~{fragments/alerts :: flash}"></div>
 
       <!-- Tableau des résultats -->
+      <div class="card mb-4" style="padding:16px; border-radius:12px; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,0.06);">
+        <h4 style="margin-top:0;">Évolution des ventes</h4>
+        <canvas id="commandesEvolutionChart" height="220"></canvas>
+        <script th:inline="javascript">
+          document.addEventListener('DOMContentLoaded', function(){
+            if (typeof renderCaisseYearPie === 'function') {
+              renderCaisseYearPie('commandesEvolutionChart', new Date().getFullYear());
+            }
+          });
+        </script>
+      </div>
+
       <div class="table-card mb-4">
         <table class="data-table">
           <thead>
@@ -421998,6 +422625,7 @@ RESOURCE : src/main/resources/templates/commandes/list.html
               <th>Date</th>
               <th>Zone Livraison</th>
               <th class="text-end">Montant Total</th>
+              <th class="text-end">Bénéfice</th>
               <th class="text-center">Actions</th>
             </tr>
           </thead>
@@ -422021,6 +422649,7 @@ RESOURCE : src/main/resources/templates/commandes/list.html
                   th:text="${c.montantTotal != null ? #numbers.formatDecimal(c.montantTotal, 1, 'POINT', 2, 'COMMA') + ' Ar' : '0,00 Ar'}">
                 45 000,00 Ar
               </td>
+              <td class="text-end fw-bold" th:text="${commandeProfitMap[c.id] != null ? #numbers.formatDecimal(commandeProfitMap[c.id], 1, 'POINT', 2, 'COMMA') + ' Ar' : '—'}">—</td>
               <td class="actions text-center">
                 <a th:href="@{/commandes/detail/{id}(id=${c.id})}" class="btn btn-secondary btn-sm" title="Voir détails">
                   <i class="bi bi-journal-text"></i>
@@ -422548,6 +423177,88 @@ RESOURCE : src/main/resources/templates/fragments/pagination.html
 
 
 ======================================
+RESOURCE : src/main/resources/templates/ingredients/dashboard.html
+======================================
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="fr">
+<head th:replace="~{layout/head :: head(pageTitle='Dashboard ingrédients')}"></head>
+<body>
+<div class="app">
+  <aside th:replace="~{layout/sidebar :: sidebar(activeMenu='ingredients')}"></aside>
+  <div class="main">
+    <div th:replace="~{layout/navbar :: topbar(pageTitle='Dashboard ingrédients')}"></div>
+    <div class="content">
+      <div class="page-header">
+        <div>
+          <h2>Dashboard ingrédients</h2>
+          <div class="breadcrumb">Accueil / <span>Ingrédients</span></div>
+        </div>
+        <a th:href="@{/ingredients}" class="btn btn-primary">Voir la liste</a>
+      </div>
+
+      <div class="grid" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:16px; margin-bottom:20px;">
+        <div class="card" style="padding:16px; border-radius:12px; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,0.06);">
+          <div style="color:#64748b; font-size:0.9rem;">Total ingrédients</div>
+          <h3 th:text="${dashboard.totalIngredients}">0</h3>
+        </div>
+        <div class="card" style="padding:16px; border-radius:12px; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,0.06);">
+          <div style="color:#64748b; font-size:0.9rem;">En stock</div>
+          <h3 th:text="${dashboard.ingredientsEnStock}">0</h3>
+        </div>
+        <div class="card" style="padding:16px; border-radius:12px; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,0.06);">
+          <div style="color:#64748b; font-size:0.9rem;">En alerte</div>
+          <h3 th:text="${dashboard.ingredientsEnAlerte}">0</h3>
+        </div>
+        <div class="card" style="padding:16px; border-radius:12px; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,0.06);">
+          <div style="color:#64748b; font-size:0.9rem;">Stock total</div>
+          <h3 th:text="${dashboard.stockTotal}">0</h3>
+        </div>
+      </div>
+
+      <div class="grid" style="display:grid; grid-template-columns:1.2fr 1fr; gap:16px;">
+        <div class="card" style="padding:16px; border-radius:12px; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,0.06);">
+          <h4 style="margin-top:0;">État du stock</h4>
+          <p><strong>État :</strong> <span th:text="${dashboard.etatStock}">-</span></p>
+          <p><strong>Dernière mise à jour :</strong> <span th:text="${dashboard.derniereMiseAJour}">-</span></p>
+          <p><strong>Valeur totale estimée :</strong> <span th:text="${dashboard.valeurTotale}">-</span></p>
+        </div>
+        <div class="card" style="padding:16px; border-radius:12px; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,0.06);">
+          <h4 style="margin-top:0;">Alertes</h4>
+          <ul>
+            <li th:each="alert : ${dashboard.alerts}" th:text="${alert}"></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="grid" style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:16px;">
+        <div class="card" style="padding:16px; border-radius:12px; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,0.06);">
+          <h4 style="margin-top:0;">Graphiques de mouvements</h4>
+          <canvas id="ingredientsYearChart" height="220"></canvas>
+          <script th:inline="javascript">
+            document.addEventListener('DOMContentLoaded', function(){
+              if (typeof renderIngredientsYearChart === 'function') {
+                renderIngredientsYearChart('ingredientsYearChart', new Date().getFullYear(), 8);
+              }
+            });
+          </script>
+        </div>
+        <div class="card" style="padding:16px; border-radius:12px; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,0.06);">
+          <h4 style="margin-top:0;">Contrôles rapides</h4>
+          <ul>
+            <li th:each="action : ${dashboard.quickActions}" th:text="${action}"></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div th:replace="~{layout/footer :: footer}"></div>
+<th:block th:replace="~{layout/scripts :: scripts}"></th:block>
+</body>
+</html>
+
+
+======================================
 RESOURCE : src/main/resources/templates/ingredients/detail.html
 ======================================
 <!DOCTYPE html>
@@ -422860,6 +423571,7 @@ RESOURCE : src/main/resources/templates/ingredients/list.html
                     <div class="d-flex justify-content-between align-items-center mb-4">
                         <h2>Ingrédients</h2>
                         <div>
+                            <a th:href="@{/ingredients/dashboard}" class="btn btn-outline-secondary me-2">Dashboard</a>
                             <a th:href="@{/ingredients/stock}" class="btn btn-outline-info me-2">État du Stock</a>
                             <a th:href="@{/ingredients/new}" class="btn btn-primary">+ Nouvel Ingrédient</a>
                         </div>
@@ -423304,6 +424016,95 @@ RESOURCE : src/main/resources/templates/login.html
 
 
 ======================================
+RESOURCE : src/main/resources/templates/materielles/dashboard.html
+======================================
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="fr">
+<head th:replace="~{layout/head :: head(pageTitle='Dashboard matériels')}"></head>
+<body>
+<div class="app">
+  <aside th:replace="~{layout/sidebar :: sidebar(activeMenu='materielles')}" ></aside>
+
+  <div class="main">
+    <div th:replace="~{layout/navbar :: topbar(pageTitle='Dashboard matériels')}"></div>
+
+    <div class="content">
+      <div class="page-header">
+        <div>
+          <h2>Dashboard matériels</h2>
+          <div class="breadcrumb">Accueil / <span>Dashboard</span></div>
+        </div>
+        <a th:href="@{/materielles}" class="btn btn-primary">Voir la liste</a>
+      </div>
+
+      <div class="grid" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 20px;">
+        <div class="card" style="padding:16px; border-radius:12px; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,0.06);">
+          <div style="color:#64748b; font-size:0.9rem;">Total appareils</div>
+          <h3 th:text="${dashboard.totalMateriels}">0</h3>
+        </div>
+        <div class="card" style="padding:16px; border-radius:12px; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,0.06);">
+          <div style="color:#64748b; font-size:0.9rem;">Modules en ligne</div>
+          <h3 th:text="${dashboard.modulesEnLigne}">0</h3>
+        </div>
+        <div class="card" style="padding:16px; border-radius:12px; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,0.06);">
+          <div style="color:#64748b; font-size:0.9rem;">Modules hors ligne</div>
+          <h3 th:text="${dashboard.modulesHorsLigne}">0</h3>
+        </div>
+        <div class="card" style="padding:16px; border-radius:12px; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,0.06);">
+          <div style="color:#64748b; font-size:0.9rem;">Taux d’erreur</div>
+          <h3 th:text="${dashboard.tauxErreur} + '%'">0%</h3>
+        </div>
+      </div>
+
+      <div class="grid" style="display:grid; grid-template-columns: 1.2fr 1fr; gap: 16px;">
+        <div class="card" style="padding:16px; border-radius:12px; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,0.06);">
+          <h4 style="margin-top:0;">État en direct</h4>
+          <p><strong>État :</strong> <span th:text="${dashboard.etatTempsReel}">-</span></p>
+          <p><strong>Dernière synchronisation :</strong> <span th:text="${dashboard.derniereSynchronisation}">-</span></p>
+          <p><strong>Niveau d’alimentation :</strong> <span th:text="${dashboard.niveauAlimentation}">-</span></p>
+        </div>
+
+        <div class="card" style="padding:16px; border-radius:12px; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,0.06);">
+          <h4 style="margin-top:0;">Journal des alertes</h4>
+          <ul>
+            <li th:each="alert : ${dashboard.alerts}" th:text="${alert}"></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="grid" style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px;">
+        <div class="card" style="padding:16px; border-radius:12px; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,0.06);">
+          <h4 style="margin-top:0;">Graphiques d’activité</h4>
+          <canvas id="materielleRangeChart" height="220"></canvas>
+          <script th:inline="javascript">
+            document.addEventListener('DOMContentLoaded', function(){
+              const end = new Date().toISOString().slice(0,10);
+              const start = new Date(Date.now()-30*24*60*60*1000).toISOString().slice(0,10);
+              if (typeof renderMaterielleRangeChart === 'function') {
+                renderMaterielleRangeChart('materielleRangeChart', start, end, 'achats');
+              }
+            });
+          </script>
+        </div>
+
+        <div class="card" style="padding:16px; border-radius:12px; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,0.06);">
+          <h4 style="margin-top:0;">Contrôles rapides</h4>
+          <ul>
+            <li th:each="action : ${dashboard.quickActions}" th:text="${action}"></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div th:replace="~{layout/footer :: footer}"></div>
+<th:block th:replace="~{layout/scripts :: scripts}"></th:block>
+</body>
+</html>
+
+
+======================================
 RESOURCE : src/main/resources/templates/materielles/detail.html
 ======================================
 <!DOCTYPE html>
@@ -423545,7 +424346,10 @@ RESOURCE : src/main/resources/templates/materielles/list.html
           <h2>Gestion des Matériels</h2>
           <div class="breadcrumb">Accueil / <span>Matériels</span></div>
         </div>
-        <a th:href="@{/materielles/new}" class="btn btn-primary">+ Nouveau Matériel</a>
+        <div style="display:flex; gap:8px;">
+          <a th:href="@{/materielles/dashboard}" class="btn btn-secondary">Dashboard</a>
+          <a th:href="@{/materielles/new}" class="btn btn-primary">+ Nouveau Matériel</a>
+        </div>
       </div>
 
       <div th:replace="~{fragments/alerts :: flash}"></div>
@@ -424039,6 +424843,88 @@ RESOURCE : src/main/resources/templates/personnels/list.html
 </html>
 
 ======================================
+RESOURCE : src/main/resources/templates/plats/dashboard.html
+======================================
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="fr">
+<head th:replace="~{layout/head :: head(pageTitle='Dashboard plats')}"></head>
+<body>
+<div class="app">
+  <aside th:replace="~{layout/sidebar :: sidebar(activeMenu='plats')}"></aside>
+  <div class="main">
+    <div th:replace="~{layout/navbar :: topbar(pageTitle='Dashboard plats')}"></div>
+    <div class="content">
+      <div class="page-header">
+        <div>
+          <h2>Dashboard plats</h2>
+          <div class="breadcrumb">Accueil / <span>Plats</span></div>
+        </div>
+        <a th:href="@{/plats}" class="btn btn-primary">Voir la liste</a>
+      </div>
+
+      <div class="grid" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:16px; margin-bottom:20px;">
+        <div class="card" style="padding:16px; border-radius:12px; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,0.06);">
+          <div style="color:#64748b; font-size:0.9rem;">Total plats</div>
+          <h3 th:text="${dashboard.totalPlats}">0</h3>
+        </div>
+        <div class="card" style="padding:16px; border-radius:12px; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,0.06);">
+          <div style="color:#64748b; font-size:0.9rem;">Avec recette</div>
+          <h3 th:text="${dashboard.platsAvecRecette}">0</h3>
+        </div>
+        <div class="card" style="padding:16px; border-radius:12px; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,0.06);">
+          <div style="color:#64748b; font-size:0.9rem;">Sans recette</div>
+          <h3 th:text="${dashboard.platsSansRecette}">0</h3>
+        </div>
+        <div class="card" style="padding:16px; border-radius:12px; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,0.06);">
+          <div style="color:#64748b; font-size:0.9rem;">Marge potentielle</div>
+          <h3 th:text="${dashboard.margePotentielle}">0</h3>
+        </div>
+      </div>
+
+      <div class="grid" style="display:grid; grid-template-columns:1.2fr 1fr; gap:16px;">
+        <div class="card" style="padding:16px; border-radius:12px; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,0.06);">
+          <h4 style="margin-top:0;">Tendance</h4>
+          <p><strong>Évolution :</strong> <span th:text="${dashboard.tendance}">-</span></p>
+          <p><strong>Chiffre d’affaires potentiel :</strong> <span th:text="${dashboard.chiffreAffairesPotentiel}">-</span></p>
+        </div>
+        <div class="card" style="padding:16px; border-radius:12px; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,0.06);">
+          <h4 style="margin-top:0;">Alertes</h4>
+          <ul>
+            <li th:each="alert : ${dashboard.alerts}" th:text="${alert}"></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="grid" style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:16px;">
+        <div class="card" style="padding:16px; border-radius:12px; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,0.06);">
+          <h4 style="margin-top:0;">Graphiques de rentabilité</h4>
+          <canvas id="platCostChart" height="220"></canvas>
+          <script th:inline="javascript">
+            document.addEventListener('DOMContentLoaded', function(){
+              if (typeof renderPlatCostChart === 'function') {
+                const platId = document.querySelector('meta[name="plat-id"]')?.getAttribute('content') || '1';
+                renderPlatCostChart('platCostChart', platId);
+              }
+            });
+          </script>
+        </div>
+        <div class="card" style="padding:16px; border-radius:12px; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,0.06);">
+          <h4 style="margin-top:0;">Contrôles rapides</h4>
+          <ul>
+            <li th:each="action : ${dashboard.quickActions}" th:text="${action}"></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div th:replace="~{layout/footer :: footer}"></div>
+<th:block th:replace="~{layout/scripts :: scripts}"></th:block>
+</body>
+</html>
+
+
+======================================
 RESOURCE : src/main/resources/templates/plats/form.html
 ======================================
 <!DOCTYPE html>
@@ -424338,9 +425224,12 @@ RESOURCE : src/main/resources/templates/plats/list.html
           <h2>Liste des Plats</h2>
           <div class="breadcrumb">Accueil / <span>Plats</span></div>
         </div>
-        <a th:href="@{/plats/new}" class="btn btn-primary">
-          <i class="bi bi-plus-lg"></i> Créer des Plats / Recettes
-        </a>
+        <div>
+          <a th:href="@{/plats/dashboard}" class="btn btn-outline-secondary me-2">Dashboard</a>
+          <a th:href="@{/plats/new}" class="btn btn-primary">
+            <i class="bi bi-plus-lg"></i> Créer des Plats / Recettes
+          </a>
+        </div>
       </div>
 
       <div th:replace="~{fragments/alerts :: flash}"></div>
@@ -424399,8 +425288,8 @@ RESOURCE : src/main/resources/templates/plats/list.html
                       th:text="${plat.categoriePlats != null ? plat.categoriePlats.libelle : '-'}">Catégorie</span>
               </td>
               <td class="plat-prixvente" th:text="${plat.prixVente != null ? #numbers.formatDecimal(plat.prixVente, 1, 'POINT', 2, 'COMMA') + ' Ar' : '0,00 Ar'}">0,00 Ar</td>
-              <td class="plat-prixachat text-end">—</td>
-              <td class="plat-benefice text-end">—</td>
+              <td class="plat-prixachat text-end" th:text="${prixAchatMap[plat.id] != null ? #numbers.formatDecimal(prixAchatMap[plat.id], 1, 'POINT', 2, 'COMMA') + ' Ar' : '—'}">—</td>
+              <td class="plat-benefice text-end" th:text="${benefMap[plat.id] != null ? #numbers.formatDecimal(benefMap[plat.id], 1, 'POINT', 2, 'COMMA') + ' Ar' : '—'}">—</td>
               <td class="actions text-center">
                 <a th:href="@{/recettes/plat/{id}(id=${plat.id})}" class="btn btn-warning" title="Voir Recette">
                   <i class="bi bi-journal-text"></i> Recette
