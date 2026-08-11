@@ -128,6 +128,7 @@ com/gestion/restaurant/entity/clients/TypeClient.class
 com/gestion/restaurant/config/SecurityConfig.class
 com/gestion/restaurant/dto/clients/ClientRequestDto.class
 com/gestion/restaurant/RestaurantApplication.class
+com/gestion/restaurant/dto/materielles/MaterielDashboardDto.class
 com/gestion/restaurant/service/recette/RecetteService.class
 com/gestion/restaurant/config/DatabaseUrlConfig.class
 com/gestion/restaurant/dto/recette/RecetteRequestDto.class

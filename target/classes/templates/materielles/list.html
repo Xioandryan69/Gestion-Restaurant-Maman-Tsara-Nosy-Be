@@ -15,7 +15,10 @@
           <h2>Gestion des Matériels</h2>
           <div class="breadcrumb">Accueil / <span>Matériels</span></div>
         </div>
-        <a th:href="@{/materielles/new}" class="btn btn-primary">+ Nouveau Matériel</a>
+        <div style="display:flex; gap:8px;">
+          <a th:href="@{/materielles/dashboard}" class="btn btn-secondary">Dashboard</a>
+          <a th:href="@{/materielles/new}" class="btn btn-primary">+ Nouveau Matériel</a>
+        </div>
       </div>
 
       <div th:replace="~{fragments/alerts :: flash}"></div>

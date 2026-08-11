@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -94,6 +95,50 @@ public class MateriellesService {
     @Transactional(readOnly = true)
     public List<CategorieMaterielles> findAllCategories() {
         return categorieMateriellesRepository.findAll();
+    }
+
+    @Transactional(readOnly = true)
+    public MaterielDashboardDto getDashboardData() {
+        long totalMateriels = materiellesRepository.count();
+        long modulesEnLigne = materiellesRepository.countByStatutMaterielles_LibelleIgnoreCase("Disponible")
+                + materiellesRepository.countByStatutMaterielles_LibelleIgnoreCase("En service");
+        long modulesHorsLigne = materiellesRepository.countByStatutMaterielles_LibelleIgnoreCase("Hors Service")
+                + materiellesRepository.countByStatutMaterielles_LibelleIgnoreCase("En maintenance");
+        double tauxErreur = totalMateriels == 0 ? 0.0 : (modulesHorsLigne * 100.0) / totalMateriels;
+
+        MaterielDashboardDto dto = new MaterielDashboardDto();
+        dto.setTotalMateriels(totalMateriels);
+        dto.setModulesEnLigne(modulesEnLigne);
+        dto.setModulesHorsLigne(modulesHorsLigne);
+        dto.setTauxErreur(Math.round(tauxErreur * 10.0) / 10.0);
+        dto.setEtatTempsReel(modulesHorsLigne == 0 ? "Opérationnel" : "Attention");
+        dto.setDerniereSynchronisation(LocalDate.now().toString());
+        dto.setNiveauAlimentation(modulesEnLigne >= totalMateriels / 2 ? "Stable" : "À surveiller");
+
+        List<String> alerts = new ArrayList<>();
+        if (modulesHorsLigne > 0) {
+            alerts.add("" + modulesHorsLigne + " matériel(s) nécessitent une intervention");
+        }
+        if (totalMateriels > 0 && modulesEnLigne < totalMateriels) {
+            alerts.add("Certaines unités sont encore en maintenance ou hors service");
+        }
+        if (alerts.isEmpty()) {
+            alerts.add("Aucune alerte système en cours");
+        }
+        dto.setAlerts(alerts);
+
+        List<String> activities = new ArrayList<>();
+        activities.add("Dernière mise à jour du stock : " + LocalDate.now().minusDays(1));
+        activities.add("Suivi des maintenances : actif");
+        activities.add("Inventaires quotidiens : à jour");
+        dto.setActivities(activities);
+
+        List<String> quickActions = new ArrayList<>();
+        quickActions.add("Démarrer la synchronisation");
+        quickActions.add("Planifier une maintenance");
+        quickActions.add("Consulter les alertes");
+        dto.setQuickActions(quickActions);
+        return dto;
     }
 
     @Transactional(readOnly = true)

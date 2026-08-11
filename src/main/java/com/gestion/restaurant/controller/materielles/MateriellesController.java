@@ -34,7 +34,15 @@ public class MateriellesController {
         model.addAttribute("page", materiellesService.search(criteria, pageable));
         model.addAttribute("categories", materiellesService.findAllCategories());
         model.addAttribute("statuts", materiellesService.findAllStatuts());
+        model.addAttribute("selectedCategorie", criteria != null ? criteria.getIdCategorie() : null);
+        model.addAttribute("selectedStatut", criteria != null ? criteria.getIdStatut() : null);
         return "materielles/list";
+    }
+
+    @GetMapping("/dashboard")
+    public String dashboard(Model model) {
+        model.addAttribute("dashboard", materiellesService.getDashboardData());
+        return "materielles/dashboard";
     }
 
     @GetMapping("/new")

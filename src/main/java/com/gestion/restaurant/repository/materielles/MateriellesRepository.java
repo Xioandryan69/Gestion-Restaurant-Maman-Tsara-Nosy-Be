@@ -16,6 +16,12 @@ import java.util.Optional;
 @Repository
 public interface MateriellesRepository extends JpaRepository<Materielles, Long>, JpaSpecificationExecutor<Materielles> {
 
+    long countByStatutMateriellesLibelleIgnoreCase(String libelle);
+
+    default long countByStatutMaterielles_LibelleIgnoreCase(String libelle) {
+        return countByStatutMateriellesLibelleIgnoreCase(libelle);
+    }
+
     @EntityGraph(attributePaths = {"categorieMaterielles", "statutMaterielles"})
     Page<Materielles> findAll(Specification<Materielles> spec, Pageable pageable);
 
