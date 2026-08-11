@@ -1,34 +1,56 @@
-<div th:fragment="excelActions(importUrl, exportUrl, templateUrl)"
-     class="d-flex flex-wrap gap-2">
+<div th:fragment="excelActions(importUrl, exportUrl, templateUrl)" class="d-flex flex-wrap gap-2">
 
-    <form th:action="${importUrl}"
-          method="post"
-          enctype="multipart/form-data"
-          class="d-flex gap-2">
+    <!-- 1. Bouton qui ouvre la modale d'importation -->
+    <button type="button" 
+            class="btn btn-outline-primary" 
+            data-bs-toggle="modal" 
+            data-bs-target="#importExcelModal">
+        <i class="bi bi-upload"></i>
+        Importer
+    </button>
 
-        <input type="file"
-               name="file"
-               accept=".xlsx"
-               class="form-control"
-               required />
-
-        <button type="submit"
-                class="btn btn-outline-primary">
-            <i class="bi bi-upload"></i>
-            Importer
-        </button>
-    </form>
-
-    <a th:href="${exportUrl}"
-       class="btn btn-outline-success">
+    <!-- 2. Liens Exporter et Template -->
+    <a th:href="${exportUrl}" class="btn btn-outline-success">
         <i class="bi bi-download"></i>
         Exporter
     </a>
 
-    <a th:href="${templateUrl}"
-       class="btn btn-outline-secondary">
+    <a th:href="${templateUrl}" class="btn btn-outline-secondary">
         <i class="bi bi-file-earmark-excel"></i>
         Template
     </a>
+
+    <!-- 3. Modale isolée pour le formulaire d'import -->
+    <div class="modal fade" id="importExcelModal" tabindex="-1" aria-labelledby="importExcelModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                
+                <form th:action="${importUrl}" method="post" enctype="multipart/form-data">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="importExcelModalLabel">Importer un fichier Excel</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+                    </div>
+                    
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="excelFileInput" class="form-label">Sélectionner le fichier (.xlsx)</label>
+                            <input type="file"
+                                   id="excelFileInput"
+                                   name="file"
+                                   accept=".xlsx"
+                                   class="form-control"
+                                   required />
+                        </div>
+                    </div>
+                    
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                        <button type="submit" class="btn btn-primary">Valider l'import</button>
+                    </div>
+                </form>
+
+            </div>
+        </div>
+    </div>
 
 </div>

@@ -1,5 +1,5 @@
 ===== EXPORT COMPLET SPRING =====
-Date : mar. 11 août 2026 21:16:06 EAT
+Date : mar. 11 août 2026 21:39:46 EAT
 
 
 ======================================
@@ -8570,11 +8570,6 @@ to represent the company, product, or service to which they refer.**
 
 
 ======================================
-RESOURCE : src/main/resources/static/template_exel/personnels/.~lock.template_import_personnels_complet.xlsx#
-======================================
-,andrianandrainy,andrianandrainy-HP-EliteBook-830-G6,11.08.2026 20:40,file:///home/andrianandrainy/.config/libreoffice/4;
-
-======================================
 RESOURCE : src/main/resources/templates/caisse/form.html
 ======================================
 <!DOCTYPE html>
@@ -9775,38 +9770,60 @@ RESOURCE : src/main/resources/templates/fragments/alerts.html
 ======================================
 RESOURCE : src/main/resources/templates/fragments/excel-actions.html
 ======================================
-<div th:fragment="excelActions(importUrl, exportUrl, templateUrl)"
-     class="d-flex flex-wrap gap-2">
+<div th:fragment="excelActions(importUrl, exportUrl, templateUrl)" class="d-flex flex-wrap gap-2">
 
-    <form th:action="${importUrl}"
-          method="post"
-          enctype="multipart/form-data"
-          class="d-flex gap-2">
+    <!-- 1. Bouton qui ouvre la modale d'importation -->
+    <button type="button" 
+            class="btn btn-outline-primary" 
+            data-bs-toggle="modal" 
+            data-bs-target="#importExcelModal">
+        <i class="bi bi-upload"></i>
+        Importer
+    </button>
 
-        <input type="file"
-               name="file"
-               accept=".xlsx"
-               class="form-control"
-               required />
-
-        <button type="submit"
-                class="btn btn-outline-primary">
-            <i class="bi bi-upload"></i>
-            Importer
-        </button>
-    </form>
-
-    <a th:href="${exportUrl}"
-       class="btn btn-outline-success">
+    <!-- 2. Liens Exporter et Template -->
+    <a th:href="${exportUrl}" class="btn btn-outline-success">
         <i class="bi bi-download"></i>
         Exporter
     </a>
 
-    <a th:href="${templateUrl}"
-       class="btn btn-outline-secondary">
+    <a th:href="${templateUrl}" class="btn btn-outline-secondary">
         <i class="bi bi-file-earmark-excel"></i>
         Template
     </a>
+
+    <!-- 3. Modale isolée pour le formulaire d'import -->
+    <div class="modal fade" id="importExcelModal" tabindex="-1" aria-labelledby="importExcelModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                
+                <form th:action="${importUrl}" method="post" enctype="multipart/form-data">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="importExcelModalLabel">Importer un fichier Excel</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+                    </div>
+                    
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="excelFileInput" class="form-label">Sélectionner le fichier (.xlsx)</label>
+                            <input type="file"
+                                   id="excelFileInput"
+                                   name="file"
+                                   accept=".xlsx"
+                                   class="form-control"
+                                   required />
+                        </div>
+                    </div>
+                    
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                        <button type="submit" class="btn btn-primary">Valider l'import</button>
+                    </div>
+                </form>
+
+            </div>
+        </div>
+    </div>
 
 </div>
 
@@ -10367,11 +10384,11 @@ RESOURCE : src/main/resources/templates/ingredients/list.html
                     <div class="d-flex justify-content-between align-items-center mb-4">
                         <h2>Ingrédients</h2>
                         <div>
-                            <a th:href="@{/export/ingredients}" class="btn btn-outline-success me-2">Exporter</a>
+                            <a th:href="@{/ingredients/export}" class="btn btn-outline-success me-2">Exporter</a>
                             <a th:href="@{/ingredients/dashboard}" class="btn btn-outline-secondary me-2">Dashboard</a>
                             <a th:href="@{/ingredients/stock}" class="btn btn-outline-info me-2">État du Stock</a>
                             <a th:href="@{/ingredients/new}" class="btn btn-primary">+ Nouvel Ingrédient</a>
-                        </div>/ingredients/export
+                        </div>
                     </div>
                     <div th:replace="~{fragments/alerts :: flash}"></div>
 
@@ -10382,7 +10399,7 @@ RESOURCE : src/main/resources/templates/ingredients/list.html
                                     <h5 class="mb-1">Import Excel</h5>
                                     <p class="mb-0 text-muted">Importer ingrédients, catégories, statuts, unités, fournisseurs et mouvements.</p>
                                 </div>
-                                <form th:action="@{/import/ingredients}" method="post" enctype="multipart/form-data" class="d-flex gap-2 align-items-center">
+                                <form th:action="@{/ingredients/import}" method="post" enctype="multipart/form-data" class="d-flex gap-2 align-items-center">
                                     <input type="file" name="file" class="form-control" accept=".xlsx,.xls" required>
                                     <button type="submit" class="btn btn-success">Importer</button>
                                 </form>
