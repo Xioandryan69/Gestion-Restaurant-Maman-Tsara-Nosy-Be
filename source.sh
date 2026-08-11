@@ -58,7 +58,13 @@ find "$RESOURCE_DIR" -type f \
     ! -name "*.woff2" \
     ! -name "*.js" \
     ! -name "*.css" \
+    ! -name "*.scss" \
     ! -name "*.DS_Store" \
+    ! -name "*.map" \
+    ! -name "*.json" \
+    ! -name "*.yml" \
+    ! -name "*.ods" \
+    ! -name "*.xlsx" \
     | sort | while read file
 do
     echo "" >> "$OUTPUT_FILE"
