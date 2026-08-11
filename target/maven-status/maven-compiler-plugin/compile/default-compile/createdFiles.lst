@@ -9,6 +9,7 @@ com/gestion/restaurant/entity/materielles/HistoriqueMaterielles.class
 com/gestion/restaurant/service/excel/RestaurantExcelExchangeService$LabelGetter.class
 com/gestion/restaurant/entity/commandes/DetailsCommandes.class
 com/gestion/restaurant/entity/materielles/TypeMvtMaterielles.class
+com/gestion/restaurant/controller/excel/ImportController.class
 com/gestion/restaurant/service/importation/ingredients/IngredientsImportService.class
 com/gestion/restaurant/entity/ingredients/HistoriqueIngredients.class
 com/gestion/restaurant/controller/plats/PlatsController.class
