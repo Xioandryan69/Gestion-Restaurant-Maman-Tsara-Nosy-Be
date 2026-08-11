@@ -1,5 +1,5 @@
 ===== EXPORT COMPLET SPRING =====
-Date : mar. 11 août 2026 21:39:46 EAT
+Date : mar. 11 août 2026 22:00:25 EAT
 
 
 ======================================
@@ -430,7 +430,7 @@ public class StatsController {
         return ingredientsService.getIngredientMovementSummaryForYear(year);
     }
 
-    @GetMapping(" ")
+@GetMapping("/api/stats/plat/{id}/cost") // <-- Spécifie bien l'URL avec {id}
     public Map<String, Object> platCost(@PathVariable("id") String id) {
         Map<String, Object> m = new HashMap<>();
         try {
@@ -841,6 +841,127 @@ public class ExportController {
     @GetMapping("/ingredients")
     public void ingredients(HttpServletResponse response) throws IOException {
         ingredientsExport.exportIngredients(response);
+    }
+}
+
+======================================
+FILE : src/main/java/com/gestion/restaurant/controller/excel/ImportController.java
+======================================
+package com.gestion.restaurant.controller.excel;
+
+import com.gestion.restaurant.service.excel.RestaurantExcelExchangeService;
+import com.gestion.restaurant.service.importation.ingredients.IngredientsImportService;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+
+import java.io.IOException;
+
+@Controller
+@RequestMapping("/import")
+public class ImportController {
+
+    private final RestaurantExcelExchangeService excelService;
+    private final IngredientsImportService ingredientsImportService;
+
+    public ImportController(
+            RestaurantExcelExchangeService excelService,
+            IngredientsImportService ingredientsImportService) {
+
+        this.excelService = excelService;
+        this.ingredientsImportService = ingredientsImportService;
+    }
+
+    @PostMapping("/clients")
+    public String clients(
+            @RequestParam("file") MultipartFile file,
+            RedirectAttributes redirectAttributes) throws IOException {
+
+        var result = excelService.importClients(file);
+
+        redirectAttributes.addFlashAttribute(
+                "successMessage",
+                "Import clients terminé : " + result.total() + " ligne(s)."
+        );
+
+        return "redirect:/clients";
+    }
+
+    @PostMapping("/fournisseurs")
+    public String fournisseurs(
+            @RequestParam("file") MultipartFile file,
+            RedirectAttributes redirectAttributes) throws IOException {
+
+        var result = excelService.importFournisseurs(file);
+
+        redirectAttributes.addFlashAttribute(
+                "successMessage",
+                "Import fournisseurs terminé : " + result.total() + " ligne(s)."
+        );
+
+        return "redirect:/fournisseurs";
+    }
+
+    @PostMapping("/personnels")
+    public String personnels(
+            @RequestParam("file") MultipartFile file,
+            RedirectAttributes redirectAttributes) throws IOException {
+
+        var result = excelService.importPersonnels(file);
+
+        redirectAttributes.addFlashAttribute(
+                "successMessage",
+                "Import personnels terminé : " + result.total() + " ligne(s)."
+        );
+
+        return "redirect:/personnels";
+    }
+
+    @PostMapping("/caisse")
+    public String caisse(
+            @RequestParam("file") MultipartFile file,
+            RedirectAttributes redirectAttributes) throws IOException {
+
+        var result = excelService.importCaisse(file);
+
+        redirectAttributes.addFlashAttribute(
+                "successMessage",
+                "Import caisse terminé : " + result.total() + " ligne(s)."
+        );
+
+        return "redirect:/caisse";
+    }
+
+    @PostMapping("/plats")
+    public String plats(
+            @RequestParam("file") MultipartFile file,
+            RedirectAttributes redirectAttributes) throws IOException {
+
+        var result = excelService.importPlats(file);
+
+        redirectAttributes.addFlashAttribute(
+                "successMessage",
+                "Import plats terminé : " + result.total() + " ligne(s)."
+        );
+
+        return "redirect:/plats";
+    }
+
+    @PostMapping("/ingredients")
+    public String ingredients(
+            @RequestParam("file") MultipartFile file,
+            RedirectAttributes redirectAttributes) throws IOException {
+
+        var result = ingredientsImportService.importerExcel(file);
+
+        redirectAttributes.addFlashAttribute(
+                "successMessage",
+                "Import ingrédients terminé : " + result.total() + " ligne(s)."
+        );
+
+        return "redirect:/ingredients";
     }
 }
 
@@ -10384,11 +10505,11 @@ RESOURCE : src/main/resources/templates/ingredients/list.html
                     <div class="d-flex justify-content-between align-items-center mb-4">
                         <h2>Ingrédients</h2>
                         <div>
-                            <a th:href="@{/ingredients/export}" class="btn btn-outline-success me-2">Exporter</a>
+                            <a th:href="@{/export/ingredients}" class="btn btn-outline-success me-2">Exporter</a>
                             <a th:href="@{/ingredients/dashboard}" class="btn btn-outline-secondary me-2">Dashboard</a>
                             <a th:href="@{/ingredients/stock}" class="btn btn-outline-info me-2">État du Stock</a>
                             <a th:href="@{/ingredients/new}" class="btn btn-primary">+ Nouvel Ingrédient</a>
-                        </div>
+                        </div>/ingredients/export
                     </div>
                     <div th:replace="~{fragments/alerts :: flash}"></div>
 
@@ -10399,7 +10520,7 @@ RESOURCE : src/main/resources/templates/ingredients/list.html
                                     <h5 class="mb-1">Import Excel</h5>
                                     <p class="mb-0 text-muted">Importer ingrédients, catégories, statuts, unités, fournisseurs et mouvements.</p>
                                 </div>
-                                <form th:action="@{/ingredients/import}" method="post" enctype="multipart/form-data" class="d-flex gap-2 align-items-center">
+                                <form th:action="@{/import/ingredients}" method="post" enctype="multipart/form-data" class="d-flex gap-2 align-items-center">
                                     <input type="file" name="file" class="form-control" accept=".xlsx,.xls" required>
                                     <button type="submit" class="btn btn-success">Importer</button>
                                 </form>
