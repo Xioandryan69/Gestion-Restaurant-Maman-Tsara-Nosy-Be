@@ -75,6 +75,14 @@
             </div>
           </div>
 
+          <div class="field-group">
+            <label class="field-label">Bénéfice estimé</label>
+            <div>
+              <span class="badge bg-success text-dark fs-6"
+                    th:text="${commandeProfitTotal != null ? #numbers.formatDecimal(commandeProfitTotal, 1, 'POINT', 2, 'COMMA') + ' Ar' : '0,00 Ar'}">0,00 Ar</span>
+            </div>
+          </div>
+
         </div>
       </div>
 
@@ -91,16 +99,20 @@
             <tr>
               <th>Plat</th>
               <th class="text-end">Prix Unitaire</th>
+              <th class="text-end">Bénéfice Unitaire</th>
               <th class="text-center">Quantité</th>
               <th class="text-end">Montant Total</th>
+              <th class="text-end">Bénéfice Ligne</th>
             </tr>
           </thead>
           <tbody>
             <tr th:each="d : ${details}">
               <td class="fw-bold" th:text="${d.plat != null ? d.plat.nom : '-'}">Nom du plat</td>
               <td class="text-end" th:text="${d.prixUnitaire != null ? #numbers.formatDecimal(d.prixUnitaire, 1, 'POINT', 2, 'COMMA') + ' Ar' : '0,00 Ar'}">0,00 Ar</td>
+              <td class="text-end" th:text="${detailUnitProfit[d.id] != null ? #numbers.formatDecimal(detailUnitProfit[d.id], 1, 'POINT', 2, 'COMMA') + ' Ar' : '—'}">—</td>
               <td class="text-center" th:text="${d.quantite != null ? d.quantite : 0}">1</td>
               <td class="text-end fw-bold" th:text="${d.montant != null ? #numbers.formatDecimal(d.montant, 1, 'POINT', 2, 'COMMA') + ' Ar' : '0,00 Ar'}">0,00 Ar</td>
+              <td class="text-end fw-bold" th:text="${detailLineProfit[d.id] != null ? #numbers.formatDecimal(detailLineProfit[d.id], 1, 'POINT', 2, 'COMMA') + ' Ar' : '—'}">—</td>
             </tr>
             <tr th:if="${#lists.isEmpty(details)}">
               <td colspan="4" class="text-center text-muted py-4">Aucun plat associé à cette commande.</td>

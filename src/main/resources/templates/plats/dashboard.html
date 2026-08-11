@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="fr">
+<head th:replace="~{layout/head :: head(pageTitle='Dashboard plats')}"></head>
+<body>
+<div class="app">
+  <aside th:replace="~{layout/sidebar :: sidebar(activeMenu='plats')}"></aside>
+  <div class="main">
+    <div th:replace="~{layout/navbar :: topbar(pageTitle='Dashboard plats')}"></div>
+    <div class="content">
+      <div class="page-header">
+        <div>
+          <h2>Dashboard plats</h2>
+          <div class="breadcrumb">Accueil / <span>Plats</span></div>
+        </div>
+        <a th:href="@{/plats}" class="btn btn-primary">Voir la liste</a>
+      </div>
+
+      <div class="grid" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:16px; margin-bottom:20px;">
+        <div class="card" style="padding:16px; border-radius:12px; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,0.06);">
+          <div style="color:#64748b; font-size:0.9rem;">Total plats</div>
+          <h3 th:text="${dashboard.totalPlats}">0</h3>
+        </div>
+        <div class="card" style="padding:16px; border-radius:12px; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,0.06);">
+          <div style="color:#64748b; font-size:0.9rem;">Avec recette</div>
+          <h3 th:text="${dashboard.platsAvecRecette}">0</h3>
+        </div>
+        <div class="card" style="padding:16px; border-radius:12px; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,0.06);">
+          <div style="color:#64748b; font-size:0.9rem;">Sans recette</div>
+          <h3 th:text="${dashboard.platsSansRecette}">0</h3>
+        </div>
+        <div class="card" style="padding:16px; border-radius:12px; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,0.06);">
+          <div style="color:#64748b; font-size:0.9rem;">Marge potentielle</div>
+          <h3 th:text="${dashboard.margePotentielle}">0</h3>
+        </div>
+      </div>
+
+      <div class="grid" style="display:grid; grid-template-columns:1.2fr 1fr; gap:16px;">
+        <div class="card" style="padding:16px; border-radius:12px; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,0.06);">
+          <h4 style="margin-top:0;">Tendance</h4>
+          <p><strong>Évolution :</strong> <span th:text="${dashboard.tendance}">-</span></p>
+          <p><strong>Chiffre d’affaires potentiel :</strong> <span th:text="${dashboard.chiffreAffairesPotentiel}">-</span></p>
+        </div>
+        <div class="card" style="padding:16px; border-radius:12px; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,0.06);">
+          <h4 style="margin-top:0;">Alertes</h4>
+          <ul>
+            <li th:each="alert : ${dashboard.alerts}" th:text="${alert}"></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="grid" style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:16px;">
+        <div class="card" style="padding:16px; border-radius:12px; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,0.06);">
+          <h4 style="margin-top:0;">Graphiques de rentabilité</h4>
+          <canvas id="platCostChart" height="220"></canvas>
+          <script th:inline="javascript">
+            document.addEventListener('DOMContentLoaded', function(){
+              if (typeof renderPlatCostChart === 'function') {
+                const platId = document.querySelector('meta[name="plat-id"]')?.getAttribute('content') || '1';
+                renderPlatCostChart('platCostChart', platId);
+              }
+            });
+          </script>
+        </div>
+        <div class="card" style="padding:16px; border-radius:12px; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,0.06);">
+          <h4 style="margin-top:0;">Contrôles rapides</h4>
+          <ul>
+            <li th:each="action : ${dashboard.quickActions}" th:text="${action}"></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div th:replace="~{layout/footer :: footer}"></div>
+<th:block th:replace="~{layout/scripts :: scripts}"></th:block>
+</body>
+</html>

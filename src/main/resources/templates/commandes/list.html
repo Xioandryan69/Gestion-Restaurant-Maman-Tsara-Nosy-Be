@@ -32,6 +32,18 @@
       <div th:replace="~{fragments/alerts :: flash}"></div>
 
       <!-- Tableau des résultats -->
+      <div class="card mb-4" style="padding:16px; border-radius:12px; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,0.06);">
+        <h4 style="margin-top:0;">Évolution des ventes</h4>
+        <canvas id="commandesEvolutionChart" height="220"></canvas>
+        <script th:inline="javascript">
+          document.addEventListener('DOMContentLoaded', function(){
+            if (typeof renderCaisseYearPie === 'function') {
+              renderCaisseYearPie('commandesEvolutionChart', new Date().getFullYear());
+            }
+          });
+        </script>
+      </div>
+
       <div class="table-card mb-4">
         <table class="data-table">
           <thead>
@@ -41,6 +53,7 @@
               <th>Date</th>
               <th>Zone Livraison</th>
               <th class="text-end">Montant Total</th>
+              <th class="text-end">Bénéfice</th>
               <th class="text-center">Actions</th>
             </tr>
           </thead>
@@ -64,6 +77,7 @@
                   th:text="${c.montantTotal != null ? #numbers.formatDecimal(c.montantTotal, 1, 'POINT', 2, 'COMMA') + ' Ar' : '0,00 Ar'}">
                 45 000,00 Ar
               </td>
+              <td class="text-end fw-bold" th:text="${commandeProfitMap[c.id] != null ? #numbers.formatDecimal(commandeProfitMap[c.id], 1, 'POINT', 2, 'COMMA') + ' Ar' : '—'}">—</td>
               <td class="actions text-center">
                 <a th:href="@{/commandes/detail/{id}(id=${c.id})}" class="btn btn-secondary btn-sm" title="Voir détails">
                   <i class="bi bi-journal-text"></i>

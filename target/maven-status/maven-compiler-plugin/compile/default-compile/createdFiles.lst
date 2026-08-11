@@ -13,6 +13,7 @@ com/gestion/restaurant/controller/plats/PlatsController.class
 com/gestion/restaurant/entity/clients/Clients.class
 com/gestion/restaurant/repository/plats/PlatsRepository.class
 com/gestion/restaurant/service/personnels/PersonnelsService.class
+com/gestion/restaurant/dto/plats/PlatDashboardDto.class
 com/gestion/restaurant/dto/ingredients/IngredientMapper.class
 com/gestion/restaurant/dto/plats/PlatMultipleRequestDto.class
 com/gestion/restaurant/dto/ingredients/IngredientRequestDto.class
@@ -54,6 +55,7 @@ com/gestion/restaurant/entity/ingredients/Unite.class
 com/gestion/restaurant/service/caisse/CaisseService.class
 com/gestion/restaurant/dto/clients/ClientSearchCriteria.class
 com/gestion/restaurant/entity/ingredients/StatutIngredient.class
+com/gestion/restaurant/dto/ingredients/IngredientDashboardDto.class
 com/gestion/restaurant/repository/ingredients/IngredientsRepository.class
 com/gestion/restaurant/service/materielles/MateriellesService.class
 com/gestion/restaurant/repository/fournisseur/TypeFournisseursRepository.class

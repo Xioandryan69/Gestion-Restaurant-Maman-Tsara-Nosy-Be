@@ -30,7 +30,31 @@ public class PlatsController {
                        Model model) {
         model.addAttribute("page", platsService.search(criteria, pageable));
         model.addAttribute("categories", platsService.findAllCategories());
+        // compute prixAchat and benef per plat to provide server-side fallback for the list view
+        var page = platsService.search(criteria, pageable);
+        var prixAchatMap = new java.util.HashMap<Long, java.math.BigDecimal>();
+        var benefMap = new java.util.HashMap<Long, java.math.BigDecimal>();
+        for (var p : page.getContent()) {
+            if (p != null && p.getId() != null) {
+                try {
+                    java.math.BigDecimal pa = platsService.calculatePrixAchatPlat(p.getId());
+                    java.math.BigDecimal bf = platsService.calculateProfitPerUnit(p.getId());
+                    prixAchatMap.put(p.getId(), pa);
+                    benefMap.put(p.getId(), bf);
+                } catch (Exception ex) {
+                    // ignore per-item failures and leave map entries absent
+                }
+            }
+        }
+        model.addAttribute("prixAchatMap", prixAchatMap);
+        model.addAttribute("benefMap", benefMap);
         return "plats/list";
+    }
+
+    @GetMapping("/dashboard")
+    public String dashboard(Model model) {
+        model.addAttribute("dashboard", platsService.getDashboardData());
+        return "plats/dashboard";
     }
 
     @GetMapping("/new")

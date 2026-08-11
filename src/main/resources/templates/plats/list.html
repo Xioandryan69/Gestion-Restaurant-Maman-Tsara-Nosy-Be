@@ -24,9 +24,12 @@
           <h2>Liste des Plats</h2>
           <div class="breadcrumb">Accueil / <span>Plats</span></div>
         </div>
-        <a th:href="@{/plats/new}" class="btn btn-primary">
-          <i class="bi bi-plus-lg"></i> Créer des Plats / Recettes
-        </a>
+        <div>
+          <a th:href="@{/plats/dashboard}" class="btn btn-outline-secondary me-2">Dashboard</a>
+          <a th:href="@{/plats/new}" class="btn btn-primary">
+            <i class="bi bi-plus-lg"></i> Créer des Plats / Recettes
+          </a>
+        </div>
       </div>
 
       <div th:replace="~{fragments/alerts :: flash}"></div>
@@ -85,8 +88,8 @@
                       th:text="${plat.categoriePlats != null ? plat.categoriePlats.libelle : '-'}">Catégorie</span>
               </td>
               <td class="plat-prixvente" th:text="${plat.prixVente != null ? #numbers.formatDecimal(plat.prixVente, 1, 'POINT', 2, 'COMMA') + ' Ar' : '0,00 Ar'}">0,00 Ar</td>
-              <td class="plat-prixachat text-end">—</td>
-              <td class="plat-benefice text-end">—</td>
+              <td class="plat-prixachat text-end" th:text="${prixAchatMap[plat.id] != null ? #numbers.formatDecimal(prixAchatMap[plat.id], 1, 'POINT', 2, 'COMMA') + ' Ar' : '—'}">—</td>
+              <td class="plat-benefice text-end" th:text="${benefMap[plat.id] != null ? #numbers.formatDecimal(benefMap[plat.id], 1, 'POINT', 2, 'COMMA') + ' Ar' : '—'}">—</td>
               <td class="actions text-center">
                 <a th:href="@{/recettes/plat/{id}(id=${plat.id})}" class="btn btn-warning" title="Voir Recette">
                   <i class="bi bi-journal-text"></i> Recette

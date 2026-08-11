@@ -67,7 +67,7 @@ public class StatsController {
         return ingredientsService.getIngredientMovementSummaryForYear(year);
     }
 
-    @GetMapping("/api/stats/plats/{id}/cost")
+    @GetMapping(" ")
     public Map<String, Object> platCost(@PathVariable("id") String id) {
         Map<String, Object> m = new HashMap<>();
         try {

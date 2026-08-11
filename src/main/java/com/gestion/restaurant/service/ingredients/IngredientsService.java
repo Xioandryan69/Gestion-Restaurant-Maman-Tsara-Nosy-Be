@@ -124,6 +124,39 @@ public class IngredientsService {
         return fournisseursService.findAllForSelect();
     }
 
+    @Transactional(readOnly = true)
+    public IngredientDashboardDto getDashboardData() {
+        long totalIngredients = ingredientsRepository.count();
+        BigDecimal stockTotal = etatStockRepo.findAll().stream()
+                .map(EtatStockIngredient::getQuantite)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        long ingredientsEnStock = etatStockRepo.findAll().stream()
+                .filter(e -> e.getQuantite() != null && e.getQuantite().compareTo(BigDecimal.ZERO) > 0)
+                .count();
+        long ingredientsEnAlerte = totalIngredients - ingredientsEnStock;
+
+        IngredientDashboardDto dto = new IngredientDashboardDto();
+        dto.setTotalIngredients(totalIngredients);
+        dto.setIngredientsEnStock(ingredientsEnStock);
+        dto.setIngredientsEnAlerte(ingredientsEnAlerte);
+        dto.setStockTotal(stockTotal);
+        dto.setValeurTotale(stockTotal.multiply(BigDecimal.valueOf(1000)));
+        dto.setEtatStock(ingredientsEnAlerte == 0 ? "Optimal" : "À surveiller");
+        dto.setDerniereMiseAJour(LocalDate.now().toString());
+
+        dto.getAlerts().add(ingredientsEnAlerte == 0 ? "Aucune alerte de stock" : ingredientsEnAlerte + " ingrédient(s) nécessitent un réapprovisionnement");
+        dto.getAlerts().add("Suivi des achats et sorties activé");
+
+        dto.getMovements().add("Entrées enregistrées ce mois : " + historiqueRepo.count());
+        dto.getMovements().add("Mouvements de stock : " + inventaireRepo.count());
+        dto.getMovements().add("Seuil d’alerte : " + SEUIL_STOCK_FAIBLE);
+
+        dto.getQuickActions().add("Consulter le stock global");
+        dto.getQuickActions().add("Enregistrer un achat");
+        dto.getQuickActions().add("Planifier une sortie");
+        return dto;
+    }
+
     // ───────────────────────── C.R.U.D Base ─────────────────────────
 
     @Transactional

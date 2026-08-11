@@ -38,6 +38,12 @@ public class IngredientsController {
         return "ingredients/list";
     }
 
+    @GetMapping("/dashboard")
+    public String dashboard(Model model) {
+        model.addAttribute("dashboard", ingredientsService.getDashboardData());
+        return "ingredients/dashboard";
+    }
+
     @GetMapping("/new")
     public String showCreateForm(Model model) {
         populateFormLookups(model);

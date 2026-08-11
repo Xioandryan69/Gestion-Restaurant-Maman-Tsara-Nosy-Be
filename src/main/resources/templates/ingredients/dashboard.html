@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="fr">
+<head th:replace="~{layout/head :: head(pageTitle='Dashboard ingrédients')}"></head>
+<body>
+<div class="app">
+  <aside th:replace="~{layout/sidebar :: sidebar(activeMenu='ingredients')}"></aside>
+  <div class="main">
+    <div th:replace="~{layout/navbar :: topbar(pageTitle='Dashboard ingrédients')}"></div>
+    <div class="content">
+      <div class="page-header">
+        <div>
+          <h2>Dashboard ingrédients</h2>
+          <div class="breadcrumb">Accueil / <span>Ingrédients</span></div>
+        </div>
+        <a th:href="@{/ingredients}" class="btn btn-primary">Voir la liste</a>
+      </div>
+
+      <div class="grid" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:16px; margin-bottom:20px;">
+        <div class="card" style="padding:16px; border-radius:12px; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,0.06);">
+          <div style="color:#64748b; font-size:0.9rem;">Total ingrédients</div>
+          <h3 th:text="${dashboard.totalIngredients}">0</h3>
+        </div>
+        <div class="card" style="padding:16px; border-radius:12px; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,0.06);">
+          <div style="color:#64748b; font-size:0.9rem;">En stock</div>
+          <h3 th:text="${dashboard.ingredientsEnStock}">0</h3>
+        </div>
+        <div class="card" style="padding:16px; border-radius:12px; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,0.06);">
+          <div style="color:#64748b; font-size:0.9rem;">En alerte</div>
+          <h3 th:text="${dashboard.ingredientsEnAlerte}">0</h3>
+        </div>
+        <div class="card" style="padding:16px; border-radius:12px; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,0.06);">
+          <div style="color:#64748b; font-size:0.9rem;">Stock total</div>
+          <h3 th:text="${dashboard.stockTotal}">0</h3>
+        </div>
+      </div>
+
+      <div class="grid" style="display:grid; grid-template-columns:1.2fr 1fr; gap:16px;">
+        <div class="card" style="padding:16px; border-radius:12px; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,0.06);">
+          <h4 style="margin-top:0;">État du stock</h4>
+          <p><strong>État :</strong> <span th:text="${dashboard.etatStock}">-</span></p>
+          <p><strong>Dernière mise à jour :</strong> <span th:text="${dashboard.derniereMiseAJour}">-</span></p>
+          <p><strong>Valeur totale estimée :</strong> <span th:text="${dashboard.valeurTotale}">-</span></p>
+        </div>
+        <div class="card" style="padding:16px; border-radius:12px; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,0.06);">
+          <h4 style="margin-top:0;">Alertes</h4>
+          <ul>
+            <li th:each="alert : ${dashboard.alerts}" th:text="${alert}"></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="grid" style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:16px;">
+        <div class="card" style="padding:16px; border-radius:12px; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,0.06);">
+          <h4 style="margin-top:0;">Graphiques de mouvements</h4>
+          <canvas id="ingredientsYearChart" height="220"></canvas>
+          <script th:inline="javascript">
+            document.addEventListener('DOMContentLoaded', function(){
+              if (typeof renderIngredientsYearChart === 'function') {
+                renderIngredientsYearChart('ingredientsYearChart', new Date().getFullYear(), 8);
+              }
+            });
+          </script>
+        </div>
+        <div class="card" style="padding:16px; border-radius:12px; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,0.06);">
+          <h4 style="margin-top:0;">Contrôles rapides</h4>
+          <ul>
+            <li th:each="action : ${dashboard.quickActions}" th:text="${action}"></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div th:replace="~{layout/footer :: footer}"></div>
+<th:block th:replace="~{layout/scripts :: scripts}"></th:block>
+</body>
+</html>

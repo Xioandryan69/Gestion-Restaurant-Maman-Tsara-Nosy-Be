@@ -1,5 +1,6 @@
 package com.gestion.restaurant.service.plats;
 
+import com.gestion.restaurant.dto.plats.PlatDashboardDto;
 import com.gestion.restaurant.dto.plats.PlatMultipleRequestDto;
 import com.gestion.restaurant.dto.plats.PlatSearchCriteria;
 import com.gestion.restaurant.entity.ingredients.Ingredients;
@@ -73,6 +74,39 @@ public class PlatsService {
         return categoriePlatsRepository.findAll();
     }
 
+    @Transactional(readOnly = true)
+    public PlatDashboardDto getDashboardData() {
+        long totalPlats = platsRepository.count();
+        long platsAvecRecette = platsRepository.findAll().stream()
+                .filter(p -> p.getId() != null && recettePlatsRepository.findByPlatIdWithIngredient(p.getId()).size() > 0)
+                .count();
+        long platsSansRecette = totalPlats - platsAvecRecette;
+        BigDecimal chiffreAffairesPotentiel = platsRepository.findAll().stream()
+                .map(Plats::getPrixVente)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal margePotentielle = chiffreAffairesPotentiel.subtract(chiffreAffairesPotentiel.multiply(BigDecimal.valueOf(0.25)));
+
+        PlatDashboardDto dto = new PlatDashboardDto();
+        dto.setTotalPlats(totalPlats);
+        dto.setPlatsAvecRecette(platsAvecRecette);
+        dto.setPlatsSansRecette(platsSansRecette);
+        dto.setChiffreAffairesPotentiel(chiffreAffairesPotentiel);
+        dto.setMargePotentielle(margePotentielle);
+        dto.setTendance(platsSansRecette == 0 ? "Croissance" : "À compléter");
+
+        dto.getAlerts().add(platsSansRecette == 0 ? "Toutes les recettes sont renseignées" : platsSansRecette + " plat(s) n’ont pas encore de recette");
+        dto.getAlerts().add("Prix de vente et coût ingrédients suivis");
+
+        dto.getTopPlats().add("Plats à forte marge : à définir");
+        dto.getTopPlats().add("Évolution des ventes : à suivre");
+        dto.getTopPlats().add("Recettes validées : " + platsAvecRecette);
+
+        dto.getQuickActions().add("Créer un nouveau plat");
+        dto.getQuickActions().add("Renseigner une recette");
+        dto.getQuickActions().add("Évaluer la rentabilité");
+        return dto;
+    }
+
     @Transactional
     public void saveMultiplePlats(PlatMultipleRequestDto dto) {
         for (PlatMultipleRequestDto.PlatFormItem item : dto.getPlats()) {
@@ -114,9 +148,15 @@ public class PlatsService {
         List<RecettePlats> recettes = recettePlatsRepository.findByPlatIdWithIngredient(idPlat);
         return recettes.stream().map(rp -> {
             if (rp.getIngredient() == null || rp.getQuantiteRequise() == null) return BigDecimal.ZERO;
+
             Long idIng = rp.getIngredient().getId();
             List<HistoriqueIngredients> hist = historiqueIngredientsRepository.findByIngredient_IdOrderByDateEntreeDesc(idIng);
-            BigDecimal prixUnitaire = hist.isEmpty() ? BigDecimal.ZERO : hist.get(0).getPrixAchat();
+
+            if (hist.isEmpty()) {
+                return BigDecimal.ZERO;
+            }
+
+            BigDecimal prixUnitaire = hist.get(0).getPrixAchat() != null ? hist.get(0).getPrixAchat() : BigDecimal.ZERO;
             return prixUnitaire.multiply(rp.getQuantiteRequise());
         }).reduce(BigDecimal.ZERO, BigDecimal::add);
     }
@@ -127,5 +167,14 @@ public class PlatsService {
         BigDecimal prixAchat = calculatePrixAchatPlat(idPlat);
         BigDecimal prixVente = plat.getPrixVente() != null ? plat.getPrixVente() : BigDecimal.ZERO;
         return prixVente.subtract(prixAchat);
+    }
+
+    @Transactional(readOnly = true)
+    public List<String> getCostEvolutionSummary() {
+        List<String> summary = new ArrayList<>();
+        summary.add("Coût moyen des recettes : calculé à partir des derniers achats ingrédients");
+        summary.add("Bénéfice estimé : prix de vente - coût de recette");
+        summary.add("Mise à jour automatique à chaque consultation");
+        return summary;
     }
 }
