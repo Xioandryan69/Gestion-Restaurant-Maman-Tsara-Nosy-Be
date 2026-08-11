@@ -11,4 +11,5 @@ public interface TypeMvtIngredientRepository extends JpaRepository<TypeMvtIngred
     Optional<TypeMvtIngredient> findByLibelle(String libelle);
 
     Optional<TypeMvtIngredient> findByLibelleIgnoreCase(String libelle);
+    
 }

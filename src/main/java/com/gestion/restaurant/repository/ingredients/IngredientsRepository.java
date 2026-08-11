@@ -40,4 +40,5 @@ public interface IngredientsRepository extends JpaRepository<Ingredients, Long>,
             + "LEFT JOIN FETCH i.unite "
             + "WHERE i.id = :id")
     Optional<Ingredients> findByIdWithRelations(@Param("id") Long id);
+    Optional<Ingredients> findByNom(String nom);
 }

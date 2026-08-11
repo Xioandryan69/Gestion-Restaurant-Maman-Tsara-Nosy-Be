@@ -9,4 +9,5 @@ import java.util.List;
 @Repository
 public interface InventairesMateriellesRepository extends JpaRepository<InventairesMaterielles, Long> {
     List<InventairesMaterielles> findByMateriel_IdOrderByDateInventaireDesc(Long idMateriel);
+    List<InventairesMaterielles> findByMaterielId(Long idMateriel);
 }

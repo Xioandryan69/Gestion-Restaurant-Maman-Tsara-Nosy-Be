@@ -1,71 +1,78 @@
+<!-- FILE : src/main/resources/templates/ingredients/list.html -->
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" lang="fr"
-      th:with="pageTitle=${ 'Liste des ingredients'}">
+      th:with="pageTitle=${'Liste des ingrédients'}">
 <head th:replace="~{layout/head :: head(pageTitle=${pageTitle})}"></head>
 <body>
 
     <div class="app">
+        <!-- Sidebar globale avec l'onglet 'ingredients' actif -->
         <aside th:replace="~{layout/sidebar :: sidebar(activeMenu='ingredients')}"></aside>
+        
         <div class="main">
-        <!-- Topbar globale -->
-            <div th:replace="~{fragments/layout :: topbar('Gestion de la Caisse')}"></div>
-                <div class="content">
-                    <div class="d-flex justify-content-between align-items-center mb-4">
+            <!-- Topbar globale -->
+            <div th:replace="~{layout/navbar :: topbar(pageTitle=${pageTitle})}"></div>
+
+            <div class="content">
+                <!-- En-tête de la page -->
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div>
                         <h2>Ingrédients</h2>
-                        <div>
-                            <a th:href="@{/export/ingredients}" class="btn btn-outline-success me-2">Exporter</a>
-                            <a th:href="@{/ingredients/dashboard}" class="btn btn-outline-secondary me-2">Dashboard</a>
-                            <a th:href="@{/ingredients/stock}" class="btn btn-outline-info me-2">État du Stock</a>
-                            <a th:href="@{/ingredients/new}" class="btn btn-primary">+ Nouvel Ingrédient</a>
-                        </div>/ingredients/export
+                        <div class="breadcrumb">Accueil / <span>Ingrédients</span></div>
                     </div>
-                    <div th:replace="~{fragments/alerts :: flash}"></div>
+                    <div>
+                        <a th:href="@{/ingredients/dashboard}" class="btn btn-outline-secondary me-2">Dashboard</a>
+                        <a th:href="@{/ingredients/stock}" class="btn btn-outline-info me-2">État du Stock</a>
+                        <a th:href="@{/ingredients/new}" class="btn btn-primary">+ Nouvel Ingrédient</a>
+                    </div>
+                </div>
 
-                    <div class="card mb-4 shadow-sm">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-                                <div>
-                                    <h5 class="mb-1">Import Excel</h5>
-                                    <p class="mb-0 text-muted">Importer ingrédients, catégories, statuts, unités, fournisseurs et mouvements.</p>
-                                </div>
-                                <form th:action="@{/import/ingredients}" method="post" enctype="multipart/form-data" class="d-flex gap-2 align-items-center">
-                                    <input type="file" name="file" class="form-control" accept=".xlsx,.xls" required>
-                                    <button type="submit" class="btn btn-success">Importer</button>
-                                </form>
+                <!-- Section Import / Export Excel harmonisée avec le Fragment -->
+                <div class="card mb-4 shadow-sm">
+                    <div class="card-body">
+                        <h5 class="mb-3">Import / Export Excel</h5>
+                        <div th:replace="~{fragments/excel-actions :: excelActions(
+                            '/import/ingredients',
+                            '/export/ingredients',
+                            '/template_exel/ingredients/template_import_ingredients.xlsx'
+                        )}">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Messages Flash -->
+                <div th:replace="~{fragments/alerts :: flash}"></div>
+
+                <!-- Formulaire de recherche / filtrage -->
+                <div class="card mb-4 shadow-sm">
+                    <div class="card-body">
+                        <form th:action="@{/ingredients}" method="get" th:object="${criteria}" class="row g-3">
+                            <div class="col-md-4">
+                                <input type="text" th:field="*{nom}" class="form-control" placeholder="Nom de l'ingrédient...">
                             </div>
-                        </div>
+                            <div class="col-md-3">
+                                <select th:field="*{idCategorie}" class="form-select">
+                                    <option value="">-- Catégorie --</option>
+                                    <option th:each="cat : ${categories}" th:value="${cat.id}" th:text="${cat.libelle}"></option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <select th:field="*{idStatut}" class="form-select">
+                                    <option value="">-- Statut --</option>
+                                    <option th:each="st : ${statuts}" th:value="${st.id}" th:text="${st.libelle}"></option>
+                                </select>
+                            </div>
+                            <div class="col-md-2 d-grid">
+                                <button type="submit" class="btn btn-secondary">Filtrer</button>
+                            </div>
+                        </form>
                     </div>
+                </div>
 
-                    <!-- Formulaire de recherche / filtrage -->
-                    <div class="card mb-4 shadow-sm">
-                        <div class="card-body">
-                            <form th:action="@{/ingredients}" method="get" th:object="${criteria}" class="row g-3">
-                                <div class="col-md-4">
-                                    <input type="text" th:field="*{nom}" class="form-control" placeholder="Nom de l'ingrédient...">
-                                </div>
-                                <div class="col-md-3">
-                                    <select th:field="*{idCategorie}" class="form-select">
-                                        <option value="">-- Categorie --</option>
-                                        <option th:each="cat : ${categories}" th:value="${cat.id}" th:text="${cat.libelle}"></option>
-                                    </select>
-                                </div>
-                                <div class="col-md-3">
-                                    <select th:field="*{idStatut}" class="form-select">
-                                        <option value="">-- Statut --</option>
-                                        <option th:each="st : ${statuts}" th:value="${st.id}" th:text="${st.libelle}"></option>
-                                    </select>
-                                </div>
-                                <div class="col-md-2 d-grid">
-                                    <button type="submit" class="btn btn-secondary">Filtrer</button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-
-                    <!-- Table d'affichage -->
-                    <div class="table-responsive bg-white shadow-sm rounded">
-                        <table class="table table-hover align-middle mb-0">
-                            <thead class="table-dark">
+                <!-- Table d'affichage -->
+                <div class="table-responsive bg-white shadow-sm rounded">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-dark">
                             <tr>
                                 <th>ID</th>
                                 <th>Nom</th>
@@ -75,14 +82,14 @@
                                 <th>Statut</th>
                                 <th class="text-end">Actions</th>
                             </tr>
-                            </thead>
-                            <tbody>
+                        </thead>
+                        <tbody>
                             <tr th:each="ing : ${page.content}">
                                 <td th:text="${ing.id}">1</td>
                                 <td><strong th:text="${ing.nom}">Riz</strong></td>
                                 <td th:text="${ing.categorieLibelle != null ? ing.categorieLibelle : '-'}">Céréales</td>
                                 <td th:text="${ing.fournisseurNom != null ? ing.fournisseurNom : '-'}">Fournisseur A</td>
-                                <td th:text="${ing.uniteNom != null ? ing.uniteNom + ' (' + ing.uniteSymbole + ')' : '-'}">Kg</td>
+                                <td th:text="${ing.uniteNom != null ? ing.uniteNom + (ing.uniteSymbole != null ? ' (' + ing.uniteSymbole + ')' : '') : '-'}">Kg</td>
                                 <td>
                                     <span class="badge bg-info" th:text="${ing.statutLibelle}">Disponible</span>
                                 </td>
@@ -98,19 +105,16 @@
                             <tr th:if="${page == null or #lists.isEmpty(page.content)}">
                                 <td colspan="7" class="text-center text-muted py-4">Aucun ingrédient trouvé.</td>
                             </tr>
-                            </tbody>
-                        </table>
-                        <div th:replace="~{fragments/pagination :: pager(${page})}"></div>
-                    </div>
+                        </tbody>
+                    </table>
+                    <div th:replace="~{fragments/pagination :: pager(${page})}"></div>
                 </div>
-
             </div>
         </div>
     </div>
 
-
-<div th:replace="~{layout/footer :: footer}"></div>
-<th:block th:replace="~{layout/scripts :: scripts}"></th:block>
+    <div th:replace="~{layout/footer :: footer}"></div>
+    <th:block th:replace="~{layout/scripts :: scripts}"></th:block>
 
 </body>
 </html>

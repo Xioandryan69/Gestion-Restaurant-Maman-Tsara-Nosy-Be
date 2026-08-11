@@ -11,4 +11,5 @@ import java.util.Optional;
 public interface EtatStockMateriellesRepository extends JpaRepository<EtatStockMaterielles, Long> {
     List<EtatStockMaterielles> findByMateriel_IdOrderByDateEtatStockDesc(Long idMateriel);
     Optional<EtatStockMaterielles> findTopByMateriel_IdOrderByDateEtatStockDescIdDesc(Long idMateriel);
+    List<EtatStockMaterielles> findByMaterielId(Long idMateriel);
 }

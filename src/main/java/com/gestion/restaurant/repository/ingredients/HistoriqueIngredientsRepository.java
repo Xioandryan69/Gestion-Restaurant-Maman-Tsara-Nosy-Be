@@ -15,4 +15,5 @@ public interface HistoriqueIngredientsRepository extends JpaRepository<Historiqu
 
     @Query("SELECT h FROM HistoriqueIngredients h WHERE h.datePeremption IS NOT NULL AND h.datePeremption <= :date")
     List<HistoriqueIngredients> findLotsPerimes(@Param("date") LocalDate date);
+    List<HistoriqueIngredients> findByIngredientId(Long idIngredient);
 }

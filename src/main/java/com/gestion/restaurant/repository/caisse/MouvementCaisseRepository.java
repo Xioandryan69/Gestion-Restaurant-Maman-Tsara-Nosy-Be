@@ -9,6 +9,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -20,4 +22,8 @@ public interface MouvementCaisseRepository extends JpaRepository<MouvementCaisse
 
     @Query("SELECT m FROM MouvementCaisse m LEFT JOIN FETCH m.typeMouvement WHERE m.id = :id")
     Optional<MouvementCaisse> findByIdWithType(@Param("id") Long id);
+    List<MouvementCaisse> findByDateMouvementBetween(LocalDate start, LocalDate end);
+
+    @Query("SELECT m FROM MouvementCaisse m WHERE YEAR(m.dateMouvement) = :year")
+    List<MouvementCaisse> findByYear(@Param("year") int year);
 }

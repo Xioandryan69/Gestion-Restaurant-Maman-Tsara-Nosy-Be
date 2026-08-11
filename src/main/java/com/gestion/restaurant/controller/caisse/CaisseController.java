@@ -1,5 +1,7 @@
 package com.gestion.restaurant.controller.caisse;
 
+import jakarta.servlet.http.HttpServletRequest;
+
 import com.gestion.restaurant.dto.caisse.MouvementCaisseRequestDto;
 import com.gestion.restaurant.service.caisse.CaisseService;
 import jakarta.validation.Valid;
@@ -63,4 +65,5 @@ public class CaisseController {
         redirectAttributes.addFlashAttribute("successMessage", "Mouvement de caisse supprimé.");
         return "redirect:/caisse";
     }
+    
 }

@@ -20,4 +20,5 @@ public interface EtatStockIngredientRepository extends JpaRepository<EtatStockIn
             ORDER BY idingredient, dateetatstock DESC, id DESC
             """, nativeQuery = true)
     List<Object[]> findLatestQuantiteByIngredient();
+    List<EtatStockIngredient> findByIngredientId(Long idIngredient);
 }

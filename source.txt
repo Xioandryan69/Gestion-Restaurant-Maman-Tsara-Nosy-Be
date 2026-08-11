@@ -1,5 +1,5 @@
 ===== EXPORT COMPLET SPRING =====
-Date : mar. 11 août 2026 22:00:25 EAT
+Date : mar. 11 août 2026 23:04:09 EAT
 
 
 ======================================
@@ -953,7 +953,10 @@ public class ImportController {
     public String ingredients(
             @RequestParam("file") MultipartFile file,
             RedirectAttributes redirectAttributes) throws IOException {
-
+        if (file.isEmpty()) {
+        redirectAttributes.addFlashAttribute("errorMessage", "Veuillez sélectionner un fichier Excel valide.");
+        return "redirect:/ingredients";
+    }
         var result = ingredientsImportService.importerExcel(file);
 
         redirectAttributes.addFlashAttribute(
@@ -1090,14 +1093,7 @@ public class IngredientsController {
         return "ingredients/list";
     }
 
-    @PostMapping("/import")
-    public String importIngredients(@RequestParam("file") MultipartFile file,
-                                    RedirectAttributes redirectAttributes) throws IOException {
-        IngredientsImportService.ImportResult result = ingredientsImportService.importerExcel(file);
-        redirectAttributes.addFlashAttribute("successMessage",
-                "Import terminé: " + result.total() + " ligne(s) traitée(s)." );
-        return "redirect:/ingredients";
-    }
+
 
     @GetMapping("/export")
     public void exportIngredients(jakarta.servlet.http.HttpServletResponse response) throws IOException {
@@ -3701,6 +3697,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -3712,6 +3710,10 @@ public interface MouvementCaisseRepository extends JpaRepository<MouvementCaisse
 
     @Query("SELECT m FROM MouvementCaisse m LEFT JOIN FETCH m.typeMouvement WHERE m.id = :id")
     Optional<MouvementCaisse> findByIdWithType(@Param("id") Long id);
+    List<MouvementCaisse> findByDateMouvementBetween(LocalDate start, LocalDate end);
+
+    @Query("SELECT m FROM MouvementCaisse m WHERE YEAR(m.dateMouvement) = :year")
+    List<MouvementCaisse> findByYear(@Param("year") int year);
 }
 
 
@@ -3766,11 +3768,15 @@ FILE : src/main/java/com/gestion/restaurant/repository/clients/TypeClientReposit
 package com.gestion.restaurant.repository.clients;
 
 import com.gestion.restaurant.entity.clients.TypeClient;
+
+import java.util.Optional;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
 public interface TypeClientRepository extends JpaRepository<TypeClient, Long> {
+    Optional<TypeClient> findByLibelle(String libelle);
 }
 
 
@@ -3885,11 +3891,15 @@ FILE : src/main/java/com/gestion/restaurant/repository/fournisseur/TypeFournisse
 package com.gestion.restaurant.repository.fournisseur;
 
 import com.gestion.restaurant.entity.fournisseurs.TypeFournisseurs;
+
+import java.util.Optional;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
 public interface TypeFournisseursRepository extends JpaRepository<TypeFournisseurs, Long> {
+    Optional<TypeFournisseurs> findByLibelle(String libelle);
 }
 
 
@@ -3899,11 +3909,15 @@ FILE : src/main/java/com/gestion/restaurant/repository/ingredients/CategorieIngr
 package com.gestion.restaurant.repository.ingredients;
 
 import com.gestion.restaurant.entity.ingredients.CategorieIngredients;
+
+import java.util.Optional;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
 public interface CategorieIngredientsRepository extends JpaRepository<CategorieIngredients, Long> {
+    Optional<CategorieIngredients> findByLibelle(String libelle);
 }
 
 
@@ -3932,6 +3946,7 @@ public interface EtatStockIngredientRepository extends JpaRepository<EtatStockIn
             ORDER BY idingredient, dateetatstock DESC, id DESC
             """, nativeQuery = true)
     List<Object[]> findLatestQuantiteByIngredient();
+    List<EtatStockIngredient> findByIngredientId(Long idIngredient);
 }
 
 ======================================
@@ -3954,6 +3969,7 @@ public interface HistoriqueIngredientsRepository extends JpaRepository<Historiqu
 
     @Query("SELECT h FROM HistoriqueIngredients h WHERE h.datePeremption IS NOT NULL AND h.datePeremption <= :date")
     List<HistoriqueIngredients> findLotsPerimes(@Param("date") LocalDate date);
+    List<HistoriqueIngredients> findByIngredientId(Long idIngredient);
 }
 
 ======================================
@@ -4001,6 +4017,7 @@ public interface IngredientsRepository extends JpaRepository<Ingredients, Long>,
             + "LEFT JOIN FETCH i.unite "
             + "WHERE i.id = :id")
     Optional<Ingredients> findByIdWithRelations(@Param("id") Long id);
+    Optional<Ingredients> findByNom(String nom);
 }
 
 
@@ -4018,6 +4035,7 @@ import java.util.List;
 @Repository
 public interface InventaireIngredientRepository extends JpaRepository<InventaireIngredient, Long> {
     List<InventaireIngredient> findByIngredient_IdOrderByDateInventaireDesc(Long idIngredient);
+    List<InventaireIngredient> findByIngredientId(Long idIngredient);
 }
 
 ======================================
@@ -4026,11 +4044,15 @@ FILE : src/main/java/com/gestion/restaurant/repository/ingredients/StatutIngredi
 package com.gestion.restaurant.repository.ingredients;
 
 import com.gestion.restaurant.entity.ingredients.StatutIngredient;
+
+import java.util.Optional;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
 public interface StatutIngredientRepository extends JpaRepository<StatutIngredient, Long> {
+    Optional<StatutIngredient> findByLibelle(String libelle);
 }
 
 
@@ -4050,6 +4072,7 @@ public interface TypeMvtIngredientRepository extends JpaRepository<TypeMvtIngred
     Optional<TypeMvtIngredient> findByLibelle(String libelle);
 
     Optional<TypeMvtIngredient> findByLibelleIgnoreCase(String libelle);
+    
 }
 
 ======================================
@@ -4058,11 +4081,15 @@ FILE : src/main/java/com/gestion/restaurant/repository/ingredients/UniteReposito
 package com.gestion.restaurant.repository.ingredients;
 
 import com.gestion.restaurant.entity.ingredients.Unite;
+
+import java.util.Optional;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
 public interface UniteRepository extends JpaRepository<Unite, Long> {
+    Optional<Unite> findByNom(String nom);
 }
 
 ======================================
@@ -4071,6 +4098,9 @@ FILE : src/main/java/com/gestion/restaurant/repository/livraisons/ZoneLivraisonR
 package com.gestion.restaurant.repository.livraisons;
 
 import com.gestion.restaurant.entity.livraisons.ZonesLivraison;
+
+import java.util.Optional;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
@@ -4079,6 +4109,7 @@ import org.springframework.stereotype.Repository;
 public interface ZoneLivraisonRepository extends JpaRepository<ZonesLivraison, Long>, JpaSpecificationExecutor<ZonesLivraison> {
     boolean existsByLibelleIgnoreCase(String libelle);
     boolean existsByLibelleIgnoreCaseAndIdNot(String libelle, Long id);
+    Optional<ZonesLivraison> findByLibelle(String libelle);
 }
 
 ======================================
@@ -4111,6 +4142,7 @@ import java.util.Optional;
 public interface EtatStockMateriellesRepository extends JpaRepository<EtatStockMaterielles, Long> {
     List<EtatStockMaterielles> findByMateriel_IdOrderByDateEtatStockDesc(Long idMateriel);
     Optional<EtatStockMaterielles> findTopByMateriel_IdOrderByDateEtatStockDescIdDesc(Long idMateriel);
+    List<EtatStockMaterielles> findByMaterielId(Long idMateriel);
 }
 
 ======================================
@@ -4122,11 +4154,14 @@ import com.gestion.restaurant.entity.materielles.HistoriqueMaterielles;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Repository
 public interface HistoriqueMateriellesRepository extends JpaRepository<HistoriqueMaterielles, Long> {
     List<HistoriqueMaterielles> findByMateriel_IdOrderByDateEntreeDesc(Long idMateriel);
+    List<HistoriqueMaterielles> findByMaterielId(Long idMateriel);
+    List<HistoriqueMaterielles> findByDateEntreeBetween(LocalDate start, LocalDate end);
 }
 
 ======================================
@@ -4143,6 +4178,7 @@ import java.util.List;
 @Repository
 public interface InventairesMateriellesRepository extends JpaRepository<InventairesMaterielles, Long> {
     List<InventairesMaterielles> findByMateriel_IdOrderByDateInventaireDesc(Long idMateriel);
+    List<InventairesMaterielles> findByMaterielId(Long idMateriel);
 }
 
 ======================================
@@ -4154,11 +4190,14 @@ import com.gestion.restaurant.entity.materielles.MaintenanceMaterielles;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Repository
 public interface MaintenanceMateriellesRepository extends JpaRepository<MaintenanceMaterielles, Long> {
     List<MaintenanceMaterielles> findByMateriel_IdOrderByDateMaintenanceDesc(Long idMateriel);
+    List<MaintenanceMaterielles> findByMaterielId(Long idMateriel);
+    List<MaintenanceMaterielles> findByDateMaintenanceBetween(LocalDate start, LocalDate end);
 }
 
 ======================================
@@ -4244,6 +4283,7 @@ import java.util.List;
 @Repository
 public interface AbsencePersonnelsRepository extends JpaRepository<AbsencePersonnels, Long> {
     List<AbsencePersonnels> findByPersonnel_IdOrderByDateDebutDesc(Long idPersonnel);
+    List<AbsencePersonnels> findByPersonnelId(Long idPersonnel);
 }
 
 ======================================
@@ -10490,74 +10530,81 @@ RESOURCE : src/main/resources/templates/ingredients/form.html
 ======================================
 RESOURCE : src/main/resources/templates/ingredients/list.html
 ======================================
+<!-- FILE : src/main/resources/templates/ingredients/list.html -->
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" lang="fr"
-      th:with="pageTitle=${ 'Liste des ingredients'}">
+      th:with="pageTitle=${'Liste des ingrédients'}">
 <head th:replace="~{layout/head :: head(pageTitle=${pageTitle})}"></head>
 <body>
 
     <div class="app">
+        <!-- Sidebar globale avec l'onglet 'ingredients' actif -->
         <aside th:replace="~{layout/sidebar :: sidebar(activeMenu='ingredients')}"></aside>
+        
         <div class="main">
-        <!-- Topbar globale -->
-            <div th:replace="~{fragments/layout :: topbar('Gestion de la Caisse')}"></div>
-                <div class="content">
-                    <div class="d-flex justify-content-between align-items-center mb-4">
+            <!-- Topbar globale -->
+            <div th:replace="~{layout/navbar :: topbar(pageTitle=${pageTitle})}"></div>
+
+            <div class="content">
+                <!-- En-tête de la page -->
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div>
                         <h2>Ingrédients</h2>
-                        <div>
-                            <a th:href="@{/export/ingredients}" class="btn btn-outline-success me-2">Exporter</a>
-                            <a th:href="@{/ingredients/dashboard}" class="btn btn-outline-secondary me-2">Dashboard</a>
-                            <a th:href="@{/ingredients/stock}" class="btn btn-outline-info me-2">État du Stock</a>
-                            <a th:href="@{/ingredients/new}" class="btn btn-primary">+ Nouvel Ingrédient</a>
-                        </div>/ingredients/export
+                        <div class="breadcrumb">Accueil / <span>Ingrédients</span></div>
                     </div>
-                    <div th:replace="~{fragments/alerts :: flash}"></div>
+                    <div>
+                        <a th:href="@{/ingredients/dashboard}" class="btn btn-outline-secondary me-2">Dashboard</a>
+                        <a th:href="@{/ingredients/stock}" class="btn btn-outline-info me-2">État du Stock</a>
+                        <a th:href="@{/ingredients/new}" class="btn btn-primary">+ Nouvel Ingrédient</a>
+                    </div>
+                </div>
 
-                    <div class="card mb-4 shadow-sm">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-                                <div>
-                                    <h5 class="mb-1">Import Excel</h5>
-                                    <p class="mb-0 text-muted">Importer ingrédients, catégories, statuts, unités, fournisseurs et mouvements.</p>
-                                </div>
-                                <form th:action="@{/import/ingredients}" method="post" enctype="multipart/form-data" class="d-flex gap-2 align-items-center">
-                                    <input type="file" name="file" class="form-control" accept=".xlsx,.xls" required>
-                                    <button type="submit" class="btn btn-success">Importer</button>
-                                </form>
+                <!-- Section Import / Export Excel harmonisée avec le Fragment -->
+                <div class="card mb-4 shadow-sm">
+                    <div class="card-body">
+                        <h5 class="mb-3">Import / Export Excel</h5>
+                        <div th:replace="~{fragments/excel-actions :: excelActions(
+                            '/import/ingredients',
+                            '/export/ingredients',
+                            '/template_exel/ingredients/template_import_ingredients.xlsx'
+                        )}">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Messages Flash -->
+                <div th:replace="~{fragments/alerts :: flash}"></div>
+
+                <!-- Formulaire de recherche / filtrage -->
+                <div class="card mb-4 shadow-sm">
+                    <div class="card-body">
+                        <form th:action="@{/ingredients}" method="get" th:object="${criteria}" class="row g-3">
+                            <div class="col-md-4">
+                                <input type="text" th:field="*{nom}" class="form-control" placeholder="Nom de l'ingrédient...">
                             </div>
-                        </div>
+                            <div class="col-md-3">
+                                <select th:field="*{idCategorie}" class="form-select">
+                                    <option value="">-- Catégorie --</option>
+                                    <option th:each="cat : ${categories}" th:value="${cat.id}" th:text="${cat.libelle}"></option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <select th:field="*{idStatut}" class="form-select">
+                                    <option value="">-- Statut --</option>
+                                    <option th:each="st : ${statuts}" th:value="${st.id}" th:text="${st.libelle}"></option>
+                                </select>
+                            </div>
+                            <div class="col-md-2 d-grid">
+                                <button type="submit" class="btn btn-secondary">Filtrer</button>
+                            </div>
+                        </form>
                     </div>
+                </div>
 
-                    <!-- Formulaire de recherche / filtrage -->
-                    <div class="card mb-4 shadow-sm">
-                        <div class="card-body">
-                            <form th:action="@{/ingredients}" method="get" th:object="${criteria}" class="row g-3">
-                                <div class="col-md-4">
-                                    <input type="text" th:field="*{nom}" class="form-control" placeholder="Nom de l'ingrédient...">
-                                </div>
-                                <div class="col-md-3">
-                                    <select th:field="*{idCategorie}" class="form-select">
-                                        <option value="">-- Categorie --</option>
-                                        <option th:each="cat : ${categories}" th:value="${cat.id}" th:text="${cat.libelle}"></option>
-                                    </select>
-                                </div>
-                                <div class="col-md-3">
-                                    <select th:field="*{idStatut}" class="form-select">
-                                        <option value="">-- Statut --</option>
-                                        <option th:each="st : ${statuts}" th:value="${st.id}" th:text="${st.libelle}"></option>
-                                    </select>
-                                </div>
-                                <div class="col-md-2 d-grid">
-                                    <button type="submit" class="btn btn-secondary">Filtrer</button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-
-                    <!-- Table d'affichage -->
-                    <div class="table-responsive bg-white shadow-sm rounded">
-                        <table class="table table-hover align-middle mb-0">
-                            <thead class="table-dark">
+                <!-- Table d'affichage -->
+                <div class="table-responsive bg-white shadow-sm rounded">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-dark">
                             <tr>
                                 <th>ID</th>
                                 <th>Nom</th>
@@ -10567,14 +10614,14 @@ RESOURCE : src/main/resources/templates/ingredients/list.html
                                 <th>Statut</th>
                                 <th class="text-end">Actions</th>
                             </tr>
-                            </thead>
-                            <tbody>
+                        </thead>
+                        <tbody>
                             <tr th:each="ing : ${page.content}">
                                 <td th:text="${ing.id}">1</td>
                                 <td><strong th:text="${ing.nom}">Riz</strong></td>
                                 <td th:text="${ing.categorieLibelle != null ? ing.categorieLibelle : '-'}">Céréales</td>
                                 <td th:text="${ing.fournisseurNom != null ? ing.fournisseurNom : '-'}">Fournisseur A</td>
-                                <td th:text="${ing.uniteNom != null ? ing.uniteNom + ' (' + ing.uniteSymbole + ')' : '-'}">Kg</td>
+                                <td th:text="${ing.uniteNom != null ? ing.uniteNom + (ing.uniteSymbole != null ? ' (' + ing.uniteSymbole + ')' : '') : '-'}">Kg</td>
                                 <td>
                                     <span class="badge bg-info" th:text="${ing.statutLibelle}">Disponible</span>
                                 </td>
@@ -10590,19 +10637,16 @@ RESOURCE : src/main/resources/templates/ingredients/list.html
                             <tr th:if="${page == null or #lists.isEmpty(page.content)}">
                                 <td colspan="7" class="text-center text-muted py-4">Aucun ingrédient trouvé.</td>
                             </tr>
-                            </tbody>
-                        </table>
-                        <div th:replace="~{fragments/pagination :: pager(${page})}"></div>
-                    </div>
+                        </tbody>
+                    </table>
+                    <div th:replace="~{fragments/pagination :: pager(${page})}"></div>
                 </div>
-
             </div>
         </div>
     </div>
 
-
-<div th:replace="~{layout/footer :: footer}"></div>
-<th:block th:replace="~{layout/scripts :: scripts}"></th:block>
+    <div th:replace="~{layout/footer :: footer}"></div>
+    <th:block th:replace="~{layout/scripts :: scripts}"></th:block>
 
 </body>
 </html>

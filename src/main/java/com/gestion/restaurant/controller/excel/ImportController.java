@@ -104,7 +104,10 @@ public class ImportController {
     public String ingredients(
             @RequestParam("file") MultipartFile file,
             RedirectAttributes redirectAttributes) throws IOException {
-
+        if (file.isEmpty()) {
+        redirectAttributes.addFlashAttribute("errorMessage", "Veuillez sélectionner un fichier Excel valide.");
+        return "redirect:/ingredients";
+    }
         var result = ingredientsImportService.importerExcel(file);
 
         redirectAttributes.addFlashAttribute(

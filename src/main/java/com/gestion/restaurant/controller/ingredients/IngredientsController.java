@@ -48,14 +48,7 @@ public class IngredientsController {
         return "ingredients/list";
     }
 
-    @PostMapping("/import")
-    public String importIngredients(@RequestParam("file") MultipartFile file,
-                                    RedirectAttributes redirectAttributes) throws IOException {
-        IngredientsImportService.ImportResult result = ingredientsImportService.importerExcel(file);
-        redirectAttributes.addFlashAttribute("successMessage",
-                "Import terminé: " + result.total() + " ligne(s) traitée(s)." );
-        return "redirect:/ingredients";
-    }
+
 
     @GetMapping("/export")
     public void exportIngredients(jakarta.servlet.http.HttpServletResponse response) throws IOException {

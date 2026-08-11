@@ -8,4 +8,5 @@ import java.util.List;
 @Repository
 public interface AbsencePersonnelsRepository extends JpaRepository<AbsencePersonnels, Long> {
     List<AbsencePersonnels> findByPersonnel_IdOrderByDateDebutDesc(Long idPersonnel);
+    List<AbsencePersonnels> findByPersonnelId(Long idPersonnel);
 }

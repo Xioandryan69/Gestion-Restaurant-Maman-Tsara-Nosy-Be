@@ -9,4 +9,5 @@ import java.util.List;
 @Repository
 public interface InventaireIngredientRepository extends JpaRepository<InventaireIngredient, Long> {
     List<InventaireIngredient> findByIngredient_IdOrderByDateInventaireDesc(Long idIngredient);
+    List<InventaireIngredient> findByIngredientId(Long idIngredient);
 }
