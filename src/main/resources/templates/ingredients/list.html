@@ -13,12 +13,28 @@
                     <div class="d-flex justify-content-between align-items-center mb-4">
                         <h2>Ingrédients</h2>
                         <div>
+                            <a th:href="@{/ingredients/export}" class="btn btn-outline-success me-2">Exporter</a>
                             <a th:href="@{/ingredients/dashboard}" class="btn btn-outline-secondary me-2">Dashboard</a>
                             <a th:href="@{/ingredients/stock}" class="btn btn-outline-info me-2">État du Stock</a>
                             <a th:href="@{/ingredients/new}" class="btn btn-primary">+ Nouvel Ingrédient</a>
                         </div>
                     </div>
                     <div th:replace="~{fragments/alerts :: flash}"></div>
+
+                    <div class="card mb-4 shadow-sm">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                                <div>
+                                    <h5 class="mb-1">Import Excel</h5>
+                                    <p class="mb-0 text-muted">Importer ingrédients, catégories, statuts, unités, fournisseurs et mouvements.</p>
+                                </div>
+                                <form th:action="@{/ingredients/import}" method="post" enctype="multipart/form-data" class="d-flex gap-2 align-items-center">
+                                    <input type="file" name="file" class="form-control" accept=".xlsx,.xls" required>
+                                    <button type="submit" class="btn btn-success">Importer</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
 
                     <!-- Formulaire de recherche / filtrage -->
                     <div class="card mb-4 shadow-sm">

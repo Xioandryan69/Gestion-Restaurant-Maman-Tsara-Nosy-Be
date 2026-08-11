@@ -3,6 +3,8 @@ package com.gestion.restaurant.controller.ingredients;
 import com.gestion.restaurant.dto.ingredients.IngredientRequestDto;
 import com.gestion.restaurant.dto.ingredients.IngredientSearchCriteria;
 import com.gestion.restaurant.dto.ingredients.StockPageView;
+import com.gestion.restaurant.service.exportation.ingredients.IngredientsExport;
+import com.gestion.restaurant.service.importation.ingredients.IngredientsImportService;
 import com.gestion.restaurant.service.ingredients.IngredientsService;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Pageable;
@@ -12,9 +14,11 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
@@ -23,9 +27,15 @@ import java.time.LocalDate;
 public class IngredientsController {
 
     private final IngredientsService ingredientsService;
+    private final IngredientsImportService ingredientsImportService;
+    private final IngredientsExport ingredientsExport;
 
-    public IngredientsController(IngredientsService ingredientsService) {
+    public IngredientsController(IngredientsService ingredientsService,
+                                 IngredientsImportService ingredientsImportService,
+                                 IngredientsExport ingredientsExport) {
         this.ingredientsService = ingredientsService;
+        this.ingredientsImportService = ingredientsImportService;
+        this.ingredientsExport = ingredientsExport;
     }
 
     @GetMapping
@@ -36,6 +46,20 @@ public class IngredientsController {
         model.addAttribute("categories", ingredientsService.findAllCategories());
         model.addAttribute("statuts", ingredientsService.findAllStatuts());
         return "ingredients/list";
+    }
+
+    @PostMapping("/import")
+    public String importIngredients(@RequestParam("file") MultipartFile file,
+                                    RedirectAttributes redirectAttributes) throws IOException {
+        IngredientsImportService.ImportResult result = ingredientsImportService.importerExcel(file);
+        redirectAttributes.addFlashAttribute("successMessage",
+                "Import terminé: " + result.total() + " ligne(s) traitée(s)." );
+        return "redirect:/ingredients";
+    }
+
+    @GetMapping("/export")
+    public void exportIngredients(jakarta.servlet.http.HttpServletResponse response) throws IOException {
+        ingredientsExport.exportIngredients(response);
     }
 
     @GetMapping("/dashboard")
