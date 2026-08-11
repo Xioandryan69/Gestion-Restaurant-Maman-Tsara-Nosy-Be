@@ -1,5 +1,5 @@
 ===== EXPORT COMPLET SPRING =====
-Date : mar. 11 aoÃ»t 2026 16:55:20 EAT
+Date : mar. 11 aoÃ»t 2026 18:05:37 EAT
 
 
 ======================================
@@ -864,6 +864,8 @@ package com.gestion.restaurant.controller.ingredients;
 import com.gestion.restaurant.dto.ingredients.IngredientRequestDto;
 import com.gestion.restaurant.dto.ingredients.IngredientSearchCriteria;
 import com.gestion.restaurant.dto.ingredients.StockPageView;
+import com.gestion.restaurant.service.exportation.ingredients.IngredientsExport;
+import com.gestion.restaurant.service.importation.ingredients.IngredientsImportService;
 import com.gestion.restaurant.service.ingredients.IngredientsService;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Pageable;
@@ -873,9 +875,11 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
@@ -884,9 +888,15 @@ import java.time.LocalDate;
 public class IngredientsController {
 
     private final IngredientsService ingredientsService;
+    private final IngredientsImportService ingredientsImportService;
+    private final IngredientsExport ingredientsExport;
 
-    public IngredientsController(IngredientsService ingredientsService) {
+    public IngredientsController(IngredientsService ingredientsService,
+                                 IngredientsImportService ingredientsImportService,
+                                 IngredientsExport ingredientsExport) {
         this.ingredientsService = ingredientsService;
+        this.ingredientsImportService = ingredientsImportService;
+        this.ingredientsExport = ingredientsExport;
     }
 
     @GetMapping
@@ -897,6 +907,20 @@ public class IngredientsController {
         model.addAttribute("categories", ingredientsService.findAllCategories());
         model.addAttribute("statuts", ingredientsService.findAllStatuts());
         return "ingredients/list";
+    }
+
+    @PostMapping("/import")
+    public String importIngredients(@RequestParam("file") MultipartFile file,
+                                    RedirectAttributes redirectAttributes) throws IOException {
+        IngredientsImportService.ImportResult result = ingredientsImportService.importerExcel(file);
+        redirectAttributes.addFlashAttribute("successMessage",
+                "Import terminÃ©: " + result.total() + " ligne(s) traitÃ©e(s)." );
+        return "redirect:/ingredients";
+    }
+
+    @GetMapping("/export")
+    public void exportIngredients(jakarta.servlet.http.HttpServletResponse response) throws IOException {
+        ingredientsExport.exportIngredients(response);
     }
 
     @GetMapping("/dashboard")
@@ -4792,77 +4816,438 @@ public class DashboardService {
 
 
 ======================================
+FILE : src/main/java/com/gestion/restaurant/service/excel/RestaurantExcelExchangeService.java
+======================================
+package com.gestion.restaurant.service.excel;
+
+import com.gestion.restaurant.entity.caisse.MouvementCaisse;
+import com.gestion.restaurant.entity.caisse.TypeMouvementCaisse;
+import com.gestion.restaurant.entity.clients.Clients;
+import com.gestion.restaurant.entity.clients.TypeClient;
+import com.gestion.restaurant.entity.fournisseurs.Fournisseurs;
+import com.gestion.restaurant.entity.fournisseurs.TypeFournisseurs;
+import com.gestion.restaurant.entity.ingredients.CategorieIngredients;
+import com.gestion.restaurant.entity.ingredients.Ingredients;
+import com.gestion.restaurant.entity.personnels.Personnels;
+import com.gestion.restaurant.entity.personnels.RolePersonnels;
+import com.gestion.restaurant.entity.plats.CategoriePlats;
+import com.gestion.restaurant.entity.plats.Plats;
+import com.gestion.restaurant.repository.caisse.MouvementCaisseRepository;
+import com.gestion.restaurant.repository.caisse.TypeMouvementCaisseRepository;
+import com.gestion.restaurant.repository.clients.ClientsRepository;
+import com.gestion.restaurant.repository.clients.TypeClientRepository;
+import com.gestion.restaurant.repository.fournisseur.FournisseursRepository;
+import com.gestion.restaurant.repository.fournisseur.TypeFournisseursRepository;
+import com.gestion.restaurant.repository.ingredients.CategorieIngredientsRepository;
+import com.gestion.restaurant.repository.ingredients.IngredientsRepository;
+import com.gestion.restaurant.repository.personnels.PersonnelsRepository;
+import com.gestion.restaurant.repository.personnels.RolePersonnelsRepository;
+import com.gestion.restaurant.repository.plats.CategoriePlatsRepository;
+import com.gestion.restaurant.repository.plats.PlatsRepository;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellType;
+import org.apache.poi.ss.usermodel.DataFormatter;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.usermodel.WorkbookFactory;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.Resource;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.io.InputStream;
+import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.Locale;
+import java.util.Map;
+
+@Service
+@Transactional
+public class RestaurantExcelExchangeService {
+
+    public record ImportSummary(int importedRows, int duplicates, int sheetsProcessed) {
+        public int total() {
+            return importedRows + duplicates;
+        }
+    }
+
+    private final ClientsRepository clientsRepository;
+    private final TypeClientRepository typeClientRepository;
+    private final FournisseursRepository fournisseursRepository;
+    private final TypeFournisseursRepository typeFournisseursRepository;
+    private final PersonnelsRepository personnelsRepository;
+    private final RolePersonnelsRepository rolePersonnelsRepository;
+    private final CategoriePlatsRepository categoriePlatsRepository;
+    private final PlatsRepository platsRepository;
+    private final MouvementCaisseRepository mouvementCaisseRepository;
+    private final TypeMouvementCaisseRepository typeMouvementCaisseRepository;
+    private final CategorieIngredientsRepository categorieIngredientsRepository;
+    private final IngredientsRepository ingredientsRepository;
+
+    public RestaurantExcelExchangeService(ClientsRepository clientsRepository,
+                                          TypeClientRepository typeClientRepository,
+                                          FournisseursRepository fournisseursRepository,
+                                          TypeFournisseursRepository typeFournisseursRepository,
+                                          PersonnelsRepository personnelsRepository,
+                                          RolePersonnelsRepository rolePersonnelsRepository,
+                                          CategoriePlatsRepository categoriePlatsRepository,
+                                          PlatsRepository platsRepository,
+                                          MouvementCaisseRepository mouvementCaisseRepository,
+                                          TypeMouvementCaisseRepository typeMouvementCaisseRepository,
+                                          CategorieIngredientsRepository categorieIngredientsRepository,
+                                          IngredientsRepository ingredientsRepository) {
+        this.clientsRepository = clientsRepository;
+        this.typeClientRepository = typeClientRepository;
+        this.fournisseursRepository = fournisseursRepository;
+        this.typeFournisseursRepository = typeFournisseursRepository;
+        this.personnelsRepository = personnelsRepository;
+        this.rolePersonnelsRepository = rolePersonnelsRepository;
+        this.categoriePlatsRepository = categoriePlatsRepository;
+        this.platsRepository = platsRepository;
+        this.mouvementCaisseRepository = mouvementCaisseRepository;
+        this.typeMouvementCaisseRepository = typeMouvementCaisseRepository;
+        this.categorieIngredientsRepository = categorieIngredientsRepository;
+        this.ingredientsRepository = ingredientsRepository;
+    }
+
+    public void exportClients(HttpServletResponse response) throws IOException {
+        writeWorkbook(response, "clients.xlsx", workbook -> {
+            Sheet sheet = workbook.createSheet("Clients");
+            writeHeader(sheet, "nom", "prenom", "contact", "typeClient");
+            int rowIndex = 1;
+            for (Clients client : clientsRepository.findAll()) {
+                Row row = sheet.createRow(rowIndex++);
+                writeRow(row, client.getNom(), client.getPrenom(), client.getContact(),
+                        client.getTypeClient() != null ? client.getTypeClient().getLibelle() : "");
+            }
+        });
+    }
+
+    public void exportFournisseurs(HttpServletResponse response) throws IOException {
+        writeWorkbook(response, "fournisseurs.xlsx", workbook -> {
+            Sheet sheet = workbook.createSheet("Fournisseurs");
+            writeHeader(sheet, "typeFournisseurs", "nom", "prenom", "contact");
+            int rowIndex = 1;
+            for (Fournisseurs fournisseur : fournisseursRepository.findAllWithTypeList()) {
+                Row row = sheet.createRow(rowIndex++);
+                writeRow(row,
+                        fournisseur.getTypeFournisseurs() != null ? fournisseur.getTypeFournisseurs().getLibelle() : "",
+                        fournisseur.getNom(),
+                        fournisseur.getPrenom(),
+                        fournisseur.getContact());
+            }
+        });
+    }
+
+    public void exportPersonnels(HttpServletResponse response) throws IOException {
+        writeWorkbook(response, "personnels.xlsx", workbook -> {
+            Sheet sheet = workbook.createSheet("Personnels");
+            writeHeader(sheet, "rolePersonnel", "nom", "prenom", "contact", "dateEmbauche");
+            int rowIndex = 1;
+            for (Personnels personnel : personnelsRepository.findAll((root, query, cb) -> cb.conjunction(), org.springframework.data.domain.PageRequest.of(0, Integer.MAX_VALUE)).getContent()) {
+                Row row = sheet.createRow(rowIndex++);
+                writeRow(row,
+                        personnel.getRolePersonnels() != null ? personnel.getRolePersonnels().getLibelle() : "",
+                        personnel.getNom(),
+                        personnel.getPrenom(),
+                        personnel.getContact(),
+                        personnel.getDateEmbauche() != null ? personnel.getDateEmbauche().toString() : "");
+            }
+        });
+    }
+
+    public void exportCaisse(HttpServletResponse response) throws IOException {
+        writeWorkbook(response, "caisse.xlsx", workbook -> {
+            Sheet sheet = workbook.createSheet("Caisse");
+            writeHeader(sheet, "dateMouvement", "typeMouvement", "montant");
+            int rowIndex = 1;
+            for (MouvementCaisse mouvement : mouvementCaisseRepository.findAllWithType(org.springframework.data.domain.PageRequest.of(0, Integer.MAX_VALUE)).getContent()) {
+                Row row = sheet.createRow(rowIndex++);
+                writeRow(row,
+                        mouvement.getDateMouvement() != null ? mouvement.getDateMouvement().toString() : "",
+                        mouvement.getTypeMouvement() != null ? mouvement.getTypeMouvement().getLibelle() : "",
+                        mouvement.getMontant() != null ? mouvement.getMontant().toPlainString() : "0");
+            }
+        });
+    }
+
+    public void exportPlats(HttpServletResponse response) throws IOException {
+        writeWorkbook(response, "plats.xlsx", workbook -> {
+            Sheet sheet = workbook.createSheet("Plats");
+            writeHeader(sheet, "nom", "categoriePlats", "prixVente");
+            int rowIndex = 1;
+            for (Plats plat : platsRepository.findAll()) {
+                Row row = sheet.createRow(rowIndex++);
+                writeRow(row,
+                        plat.getNom(),
+                        plat.getCategoriePlats() != null ? plat.getCategoriePlats().getLibelle() : "",
+                        plat.getPrixVente() != null ? plat.getPrixVente().toPlainString() : "0");
+            }
+        });
+    }
+
+    public ImportSummary importClients(MultipartFile file) throws IOException {
+        return importSimple(file, "Clients", row -> {
+            String typeLabel = required(row, "typeclient", "type client");
+            TypeClient type = resolve(typeLabel, typeClientRepository.findAll(), TypeClient::new, t -> t.setLibelle(typeLabel.trim()), typeClientRepository::save, TypeClient::getLibelle);
+            Clients client = new Clients();
+            client.setNom(required(row, "nom"));
+            client.setPrenom(required(row, "prenom"));
+            client.setContact(required(row, "contact"));
+            client.setTypeClient(type);
+            return clientsRepository.save(client);
+        });
+    }
+
+    public ImportSummary importFournisseurs(MultipartFile file) throws IOException {
+        return importSimple(file, "Fournisseurs", row -> {
+            String typeLabel = required(row, "typefournisseurs", "type fournisseurs");
+            TypeFournisseurs type = resolve(typeLabel, typeFournisseursRepository.findAll(), TypeFournisseurs::new, t -> t.setLibelle(typeLabel.trim()), typeFournisseursRepository::save, TypeFournisseurs::getLibelle);
+            Fournisseurs fournisseur = new Fournisseurs();
+            fournisseur.setTypeFournisseurs(type);
+            fournisseur.setNom(required(row, "nom"));
+            fournisseur.setPrenom(required(row, "prenom"));
+            fournisseur.setContact(required(row, "contact"));
+            return fournisseursRepository.save(fournisseur);
+        });
+    }
+
+    public ImportSummary importPersonnels(MultipartFile file) throws IOException {
+        return importSimple(file, "Personnels", row -> {
+            String roleLabel = required(row, "rolepersonnel", "role personnel");
+            RolePersonnels role = resolve(roleLabel, rolePersonnelsRepository.findAll(), RolePersonnels::new, r -> r.setLibelle(roleLabel.trim()), rolePersonnelsRepository::save, RolePersonnels::getLibelle);
+            Personnels personnel = new Personnels();
+            personnel.setRolePersonnels(role);
+            personnel.setNom(required(row, "nom"));
+            personnel.setPrenom(required(row, "prenom"));
+            personnel.setContact(required(row, "contact"));
+            String date = required(row, "dateembauche", "date embauche");
+            personnel.setDateEmbauche(LocalDate.parse(date));
+            return personnelsRepository.save(personnel);
+        });
+    }
+
+    public ImportSummary importCaisse(MultipartFile file) throws IOException {
+        return importSimple(file, "Caisse", row -> {
+            TypeMouvementCaisse type = resolve(required(row, "typemouvement", "type mouvement"), typeMouvementCaisseRepository.findAll(), TypeMouvementCaisse::new, t -> t.setLibelle(required(row, "typemouvement", "type mouvement").trim()), typeMouvementCaisseRepository::save, TypeMouvementCaisse::getLibelle);
+            MouvementCaisse mouvement = new MouvementCaisse();
+            mouvement.setDateMouvement(LocalDate.parse(required(row, "datemouvement", "date mouvement")));
+            mouvement.setMontant(new BigDecimal(required(row, "montant")));
+            mouvement.setTypeMouvement(type);
+            return mouvementCaisseRepository.save(mouvement);
+        });
+    }
+
+    public ImportSummary importPlats(MultipartFile file) throws IOException {
+        return importSimple(file, "Plats", row -> {
+            CategoriePlats categorie = resolve(required(row, "categorieplats", "categorie plats"), categoriePlatsRepository.findAll(), CategoriePlats::new, c -> c.setLibelle(required(row, "categorieplats", "categorie plats").trim()), categoriePlatsRepository::save, CategoriePlats::getLibelle);
+            Plats plat = new Plats();
+            plat.setNom(required(row, "nom"));
+            plat.setCategoriePlats(categorie);
+            plat.setPrixVente(new BigDecimal(required(row, "prixvente", "prix vente")));
+            return platsRepository.save(plat);
+        });
+    }
+
+    public Resource template(String resourcePath) {
+        return new ClassPathResource(resourcePath);
+    }
+
+    private <T> ImportSummary importSimple(MultipartFile file, String sheetName, RowSaver<T> rowSaver) throws IOException {
+        try (InputStream inputStream = file.getInputStream(); Workbook workbook = WorkbookFactory.create(inputStream)) {
+            Sheet sheet = workbook.getSheet(sheetName);
+            if (sheet == null) {
+                throw new IllegalArgumentException("Feuille introuvable : " + sheetName);
+            }
+            int imported = 0;
+            int duplicates = 0;
+            for (Row row : sheet) {
+                if (row.getRowNum() == 0 || isRowEmpty(row)) {
+                    continue;
+                }
+                rowSaver.save(row);
+                imported++;
+            }
+            return new ImportSummary(imported, duplicates, 1);
+        }
+    }
+
+    private <T> T resolve(String label, Iterable<T> existing, Factory<T> factory, Setter<T> setter, Saver<T> saver, LabelGetter<T> getter) {
+        String normalized = normalize(label);
+        for (T item : existing) {
+            if (normalize(getter.get(item)).equals(normalized)) {
+                return item;
+            }
+        }
+        T created = factory.create();
+        setter.set(created);
+        return saver.save(created);
+    }
+
+    private void writeWorkbook(HttpServletResponse response, String filename, WorkbookWriter writer) throws IOException {
+        try (Workbook workbook = new XSSFWorkbook()) {
+            writer.write(workbook);
+            response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            response.setHeader("Content-Disposition", "attachment; filename=" + java.net.URLEncoder.encode(filename, StandardCharsets.UTF_8));
+            workbook.write(response.getOutputStream());
+            response.flushBuffer();
+        }
+    }
+
+    private void writeHeader(Sheet sheet, String... columns) {
+        Row row = sheet.createRow(0);
+        for (int i = 0; i < columns.length; i++) {
+            writeCell(row, i, columns[i]);
+        }
+    }
+
+    private void writeRow(Row row, String... values) {
+        for (int i = 0; i < values.length; i++) {
+            writeCell(row, i, values[i]);
+        }
+    }
+
+    private void writeCell(Row row, int index, String value) {
+        Cell cell = row.createCell(index, CellType.STRING);
+        cell.setCellValue(value != null ? value : "");
+    }
+
+    private boolean isRowEmpty(Row row) {
+        for (Cell cell : row) {
+            if (cell != null && !new DataFormatter().formatCellValue(cell).trim().isEmpty()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private String required(Row row, String... headers) {
+        String value = optional(row, headers);
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException("Valeur manquante pour: " + String.join(", ", headers));
+        }
+        return value.trim();
+    }
+
+    private String optional(Row row, String... headers) {
+        Row headerRow = row.getSheet().getRow(0);
+        if (headerRow == null) {
+            return null;
+        }
+        Map<String, Integer> indexes = new HashMap<>();
+        DataFormatter formatter = new DataFormatter();
+        for (Cell cell : headerRow) {
+            indexes.put(normalize(formatter.formatCellValue(cell)), cell.getColumnIndex());
+        }
+        for (String header : headers) {
+            Integer index = indexes.get(normalize(header));
+            if (index != null) {
+                return formatter.formatCellValue(row.getCell(index));
+            }
+        }
+        return null;
+    }
+
+    private String normalize(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.trim().toLowerCase(Locale.ROOT).replaceAll("\\s+", " ");
+    }
+
+    @FunctionalInterface
+    private interface RowSaver<T> {
+        T save(Row row);
+    }
+
+    @FunctionalInterface
+    private interface WorkbookWriter {
+        void write(Workbook workbook) throws IOException;
+    }
+
+    @FunctionalInterface
+    private interface Factory<T> { T create(); }
+    @FunctionalInterface
+    private interface Setter<T> { void set(T value); }
+    @FunctionalInterface
+    private interface Saver<T> { T save(T value); }
+    @FunctionalInterface
+    private interface LabelGetter<T> { String get(T value); }
+}
+
+======================================
 FILE : src/main/java/com/gestion/restaurant/service/exportation/ingredients/IngredientsExport.java
 ======================================
 package com.gestion.restaurant.service.exportation.ingredients;
 
-import java.io.FileOutputStream;
-import java.io.OutputStream;
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
+import com.gestion.restaurant.entity.ingredients.Ingredients;
+import com.gestion.restaurant.repository.ingredients.IngredientsRepository;
+import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import com.itextpdf.kernel.colors.ColorConstants;
-import com.itextpdf.kernel.pdf.PdfDocument;
-import com.itextpdf.kernel.pdf.PdfWriter;
-import com.itextpdf.layout.Document;
-import com.itextpdf.layout.element.Cell;
-import com.itextpdf.layout.element.Paragraph;
-import com.itextpdf.layout.element.Table;
-import com.itextpdf.layout.properties.TextAlignment;
-import com.itextpdf.layout.properties.UnitValue;
 
 import jakarta.servlet.http.HttpServletResponse;
-public class IngredientsExport {
-    
-
+import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 
 @Service
-public class ExportService {
+public class IngredientsExport {
 
-    // @Autowired
-    // private RaceRizeRepository raceRizRepository;
+    private final IngredientsRepository ingredientsRepository;
 
-    // @Autowired
-    // private HistoriquePrixRizRepository historiquePrixRizRepository;
+    public IngredientsExport(IngredientsRepository ingredientsRepository) {
+        this.ingredientsRepository = ingredientsRepository;
+    }
 
-    // @Autowired
-    // private ClientRepository clientRepository;
+    public void exportIngredients(HttpServletResponse response) throws IOException {
+        try (Workbook workbook = new XSSFWorkbook()) {
+            Sheet sheet = workbook.createSheet("Ingredients");
+            Row header = sheet.createRow(0);
+            createCell(header, 0, "nom");
+            createCell(header, 1, "categorieIngredients");
+            createCell(header, 2, "statutIngredients");
+            createCell(header, 3, "fournisseur");
+            createCell(header, 4, "unite");
 
-    // @Autowired
-    // private MouvementStockService mouvementStockService;
+            int rowIndex = 1;
+            for (Ingredients ingredient : ingredientsRepository.findAllWithRelationsList()) {
+                Row row = sheet.createRow(rowIndex++);
+                createCell(row, 0, ingredient.getNom());
+                createCell(row, 1, ingredient.getCategorieIngredients() != null ? ingredient.getCategorieIngredients().getLibelle() : "");
+                createCell(row, 2, ingredient.getStatutIngredient() != null ? ingredient.getStatutIngredient().getLibelle() : "");
+                createCell(row, 3, ingredient.getFournisseur() != null ? ingredient.getFournisseur().getNom() + " " + ingredient.getFournisseur().getPrenom() : "");
+                createCell(row, 4, ingredient.getUnite() != null ? ingredient.getUnite().getNom() : "");
+            }
 
-    // @Autowired
-    // private EtatRizRepository etatRizRepository;
+            for (int i = 0; i < 5; i++) {
+                sheet.autoSizeColumn(i);
+            }
 
-    /**
-     * Export Excel de l'etat du stock (toutes varietes / tous etats de riz) a une date donnee.
-     */
-    // /
-    //     Cell labelCell = new Cell()
-    //             .add(new Paragraph(label))
-    //             .setTextAlignment(TextAlignment.LEFT)
-    //             .setBorder(null);
-    //     table.addCell(labelCell);
+            response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            String filename = URLEncoder.encode("ingredients-export.xlsx", StandardCharsets.UTF_8).replace("+", "%20");
+            response.setHeader("Content-Disposition", "attachment; filename=" + filename);
 
-    //     Cell valueCell = new Cell()
-    //             .add(new Paragraph(value))
-    //             .setTextAlignment(TextAlignment.RIGHT)
-    //             .setBorder(null);
-    //     table.addCell(valueCell);
-    // }
-}
+            workbook.write(response.getOutputStream());
+            response.flushBuffer();
+        }
+    }
+
+    private void createCell(Row row, int columnIndex, String value) {
+        Cell cell = row.createCell(columnIndex);
+        cell.setCellValue(value != null ? value : "");
+    }
 }
 
 
@@ -4966,221 +5351,632 @@ FILE : src/main/java/com/gestion/restaurant/service/importation/ingredients/Ingr
 ======================================
 package com.gestion.restaurant.service.importation.ingredients;
 
-import java.io.InputStream;
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.List;
-
-import org.apache.poi.ss.usermodel.DataFormatter;
+import com.gestion.restaurant.entity.fournisseurs.Fournisseurs;
+import com.gestion.restaurant.entity.fournisseurs.TypeFournisseurs;
+import com.gestion.restaurant.entity.ingredients.CategorieIngredients;
+import com.gestion.restaurant.entity.ingredients.EtatStockIngredient;
+import com.gestion.restaurant.entity.ingredients.HistoriqueIngredients;
+import com.gestion.restaurant.entity.ingredients.Ingredients;
+import com.gestion.restaurant.entity.ingredients.InventaireIngredient;
+import com.gestion.restaurant.entity.ingredients.StatutIngredient;
+import com.gestion.restaurant.entity.ingredients.TypeMvtIngredient;
+import com.gestion.restaurant.entity.ingredients.Unite;
+import com.gestion.restaurant.repository.fournisseur.FournisseursRepository;
+import com.gestion.restaurant.repository.fournisseur.TypeFournisseursRepository;
+import com.gestion.restaurant.repository.ingredients.CategorieIngredientsRepository;
+import com.gestion.restaurant.repository.ingredients.EtatStockIngredientRepository;
+import com.gestion.restaurant.repository.ingredients.HistoriqueIngredientsRepository;
+import com.gestion.restaurant.repository.ingredients.IngredientsRepository;
+import com.gestion.restaurant.repository.ingredients.InventaireIngredientRepository;
+import com.gestion.restaurant.repository.ingredients.StatutIngredientRepository;
+import com.gestion.restaurant.repository.ingredients.TypeMvtIngredientRepository;
+import com.gestion.restaurant.repository.ingredients.UniteRepository;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellType;
-import org.apache.poi.ss.usermodel.DateUtil;
+import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.gestion.restaurant.repository.ingredients.*;
+import java.io.IOException;
+import java.io.InputStream;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.Locale;
+import java.util.Map;
 
+@Service
+@Transactional
 public class IngredientsImportService {
-    @Autowired
-    private CategorieIngredientsRepository categorieIngredientsRepository;
-    @Autowired
-    private IngredientsRepository ingredientsRepository;
-    @Autowired
-    private HistoriqueIngredientsRepository historiqueIngredientsRepository;
-    @Autowired
-    private EtatStockIngredientRepository etatstockIngredientsRepository;
-    @Autowired
-    private UniteRepository unitesRepository;
-    @Autowired
-    private StatutIngredientRepository statutIngredientsRepository;
-    @Autowired
-    private TypeMvtIngredientRepository typeMvtIngredientRepository;
-    @Autowired
-    private InventaireIngredientRepository inventaireIngredientRepository;
 
-    public void importerExcelIngredients(MultipartFile file) throws Exception {
+    public record ImportResult(int categories, int statuts, int unites, int typesFournisseurs,
+                               int fournisseurs, int ingredients, int etatsStock,
+                               int inventaires, int historiques) {
+        public int total() {
+            return categories + statuts + unites + typesFournisseurs + fournisseurs + ingredients + etatsStock + inventaires + historiques;
+        }
+    }
 
-        try (InputStream is = file.getInputStream(); Workbook workbook = new XSSFWorkbook(is)) {
+    private final CategorieIngredientsRepository categorieIngredientsRepository;
+    private final IngredientsRepository ingredientsRepository;
+    private final HistoriqueIngredientsRepository historiqueIngredientsRepository;
+    private final EtatStockIngredientRepository etatStockIngredientRepository;
+    private final UniteRepository uniteRepository;
+    private final StatutIngredientRepository statutIngredientRepository;
+    private final TypeMvtIngredientRepository typeMvtIngredientRepository;
+    private final InventaireIngredientRepository inventaireIngredientRepository;
+    private final FournisseursRepository fournisseursRepository;
+    private final TypeFournisseursRepository typeFournisseursRepository;
 
-            Sheet summarySheet = workbook.getSheet("RÃ©sumÃ© Approvisionnement");
-            if (summarySheet == null) {
-                throw new IllegalArgumentException("La feuille 'RÃ©sumÃ© Approvisionnement' est introuvable.");
+    public IngredientsImportService(CategorieIngredientsRepository categorieIngredientsRepository,
+                                    IngredientsRepository ingredientsRepository,
+                                    HistoriqueIngredientsRepository historiqueIngredientsRepository,
+                                    EtatStockIngredientRepository etatStockIngredientRepository,
+                                    UniteRepository uniteRepository,
+                                    StatutIngredientRepository statutIngredientRepository,
+                                    TypeMvtIngredientRepository typeMvtIngredientRepository,
+                                    InventaireIngredientRepository inventaireIngredientRepository,
+                                    FournisseursRepository fournisseursRepository,
+                                    TypeFournisseursRepository typeFournisseursRepository) {
+        this.categorieIngredientsRepository = categorieIngredientsRepository;
+        this.ingredientsRepository = ingredientsRepository;
+        this.historiqueIngredientsRepository = historiqueIngredientsRepository;
+        this.etatStockIngredientRepository = etatStockIngredientRepository;
+        this.uniteRepository = uniteRepository;
+        this.statutIngredientRepository = statutIngredientRepository;
+        this.typeMvtIngredientRepository = typeMvtIngredientRepository;
+        this.inventaireIngredientRepository = inventaireIngredientRepository;
+        this.fournisseursRepository = fournisseursRepository;
+        this.typeFournisseursRepository = typeFournisseursRepository;
+    }
+
+    public ImportResult importerExcel(MultipartFile file) throws IOException {
+        try (InputStream inputStream = file.getInputStream(); Workbook workbook = WorkbookFactory.create(inputStream)) {
+            Map<String, CategorieIngredients> categories = indexCategories();
+            Map<String, StatutIngredient> statuts = indexStatuts();
+            Map<String, Unite> unites = indexUnites();
+            Map<String, TypeFournisseurs> typesFournisseurs = indexTypesFournisseurs();
+            Map<String, Fournisseurs> fournisseurs = indexFournisseurs();
+            Map<String, TypeMvtIngredient> typesMvt = indexTypesMvt();
+            Map<String, Ingredients> ingredients = indexIngredients();
+
+            int importedCategories = importCategories(workbook.getSheet("CategoriesIngredients"), categories);
+            int importedStatuts = importStatuts(workbook.getSheet("StatutsIngredients"), statuts);
+            int importedUnites = importUnites(workbook.getSheet("Unites"), unites);
+            int importedTypesFournisseurs = importTypesFournisseurs(workbook.getSheet("TypesFournisseurs"), typesFournisseurs);
+            int importedFournisseurs = importFournisseurs(workbook.getSheet("Fournisseurs"), typesFournisseurs, fournisseurs);
+            int importedIngredients = importIngredients(workbook.getSheet("Ingredients"), categories, statuts, fournisseurs, unites, ingredients);
+            int importedEtatsStock = importEtatsStock(workbook.getSheet("EtatsStockIngredients"), ingredients);
+            int importedInventaires = importInventaires(workbook.getSheet("InventairesIngredients"), ingredients, typesMvt);
+            int importedHistoriques = importHistoriques(workbook.getSheet("HistoriquesIngredients"), ingredients);
+
+            return new ImportResult(importedCategories, importedStatuts, importedUnites, importedTypesFournisseurs,
+                    importedFournisseurs, importedIngredients, importedEtatsStock, importedInventaires, importedHistoriques);
+        }
+    }
+
+    public Resource getTemplateImportIngredients() {
+        return new ClassPathResource("static/template_exel/ingredients/template_import_ingredients.xlsx");
+    }
+
+    private int importCategories(Sheet sheet, Map<String, CategorieIngredients> existing) {
+        return importSimpleSheet(sheet, existing, row -> {
+            String libelle = requiredString(row, "libelle", "nom");
+            return createCategory(libelle, existing);
+        });
+    }
+
+    private int importStatuts(Sheet sheet, Map<String, StatutIngredient> existing) {
+        return importSimpleSheet(sheet, existing, row -> {
+            String libelle = requiredString(row, "libelle", "nom");
+            return createStatut(libelle, existing);
+        });
+    }
+
+    private int importUnites(Sheet sheet, Map<String, Unite> existing) {
+        return importSimpleSheet(sheet, existing, row -> {
+            String nom = requiredString(row, "nom");
+            String symbole = optionalString(row, "symbole");
+            String key = normalize(nom);
+            Unite unite = existing.get(key);
+            if (unite == null) {
+                unite = new Unite();
+                unite.setNom(nom.trim());
+                unite.setSymbole(symbole);
+                unite = uniteRepository.save(unite);
+                existing.put(key, unite);
+            } else if (symbole != null && !symbole.isBlank()) {
+                unite.setSymbole(symbole.trim());
+                unite = uniteRepository.save(unite);
+                existing.put(key, unite);
             }
+            return unite;
+        });
+    }
 
-            // La ligne 0 est l'en-tÃªte, les donnÃ©es sont Ã  la ligne 1
-            Row rowMere = summarySheet.getRow(1);
-            if (rowMere == null) {
-                throw new IllegalArgumentException(
-                        "Le fichier Excel ne contient aucune donnÃ©e d'approvisionnement parent.");
+    private int importTypesFournisseurs(Sheet sheet, Map<String, TypeFournisseurs> existing) {
+        return importSimpleSheet(sheet, existing, row -> {
+            String libelle = requiredString(row, "libelle", "nom");
+            return createTypeFournisseur(libelle, existing);
+        });
+    }
+
+    private int importFournisseurs(Sheet sheet, Map<String, TypeFournisseurs> types, Map<String, Fournisseurs> existing) {
+        if (sheet == null) {
+            return 0;
+        }
+        int imported = 0;
+        for (Row row : sheet) {
+            if (row.getRowNum() == 0 || isRowEmpty(row)) {
+                continue;
             }
+            String typeLibelle = requiredString(row, "typefournisseurs", "type_fournisseurs");
+            String nom = requiredString(row, "nom");
+            String prenom = optionalString(row, "prenom");
+            String contact = optionalString(row, "contact");
 
-            // ApprovisionnementMere mere = new ApprovisionnementMere();
-
-            // String dateStr = rowMere.getCell(1).getStringCellValue();
-            // mere.setDateApprovisionnement(LocalDate.parse(dateStr));
-
-            // double prixTransportDouble = rowMere.getCell(2).getNumericCellValue();
-            // mere.setPrixTransport(BigDecimal.valueOf(prixTransportDouble));
-
-            // SourceApprovisionnement source = new SourceApprovisionnement();
-            // String fournisseurNomComplet = rowMere.getCell(3).getStringCellValue(); //
-            // "Rakoto Be"
-            // source.setNom(fournisseurNomComplet);
-            // source.setContact(rowMere.getCell(4).getStringCellValue());
-            // source.setLieu(rowMere.getCell(5).getStringCellValue());
-            // source = sourceApprovisionnementService.save(source);
-            // mere.setSourceApprovisionnement(source);
-
-            // Sheet sheetFille = workbook.getSheet("DÃ©tails Articles (Fille)");
-            // if (sheetFille == null) {
-            // throw new IllegalArgumentException("La feuille 'DÃ©tails Articles (Fille)' est
-            // introuvable.");
-            // }
-
-            // List<ApprovisionnementFille> listeFilles = new ArrayList<>();
-
-            // for (int i = 1; i <= sheetFille.getLastRowNum(); i++) {
-            // Row rowFille = sheetFille.getRow(i);
-            // if (rowFille == null) {
-            // continue;
-            // }
-
-            // ApprovisionnementFille fille = new ApprovisionnementFille();
-            // fille.setApprovisionnementMere(mere);
-
-            // String libelleRiz = rowFille.getCell(2).getStringCellValue();
-            // RaceRiz raceRiz = raceRizRepository.findByLibelleIgnoreCase(libelleRiz)
-            // .orElseThrow(() -> new RuntimeException("Variete de riz introuvable : " +
-            // libelleRiz));
-
-            // if (rowFille.getCell(5) != null) {
-            // raceRiz.setPuVente(BigDecimal.valueOf(rowFille.getCell(5).getNumericCellValue()));
-            // }
-
-            // fille.setRaceRiz(raceRiz);
-
-            // double quantite = rowFille.getCell(3).getNumericCellValue();
-            // fille.setQuantite(BigDecimal.valueOf(quantite));
-
-            // double puAchat = rowFille.getCell(4).getNumericCellValue();
-            // fille.setPuAchat(BigDecimal.valueOf(puAchat));
-
-            // listeFilles.add(fille);
-
-            // }
-
-            // ApprovisionnementMere savedMere = approvisionnementMereRepository.save(mere);
-            // for (ApprovisionnementFille fille : listeFilles) {
-            // fille.setApprovisionnementMere(savedMere);
-            // approvisionnementFilleRepository.save(fille);
-            // }
-            // }
-
-        }
-
-    }
-
-    private int getInt(Cell cell) {
-        if (cell == null) {
-            throw new RuntimeException("Cellule vide alors qu'un nombre entier Ã©tait attendu");
-        }
-        switch (cell.getCellType()) {
-            case NUMERIC:
-                return (int) cell.getNumericCellValue();
-            case STRING:
-                String value = cell.getStringCellValue().trim();
-                if (value.isEmpty()) {
-                    throw new RuntimeException("Cellule vide alors qu'un nombre entier Ã©tait attendu");
-                }
-                return Integer.parseInt(value);
-            default:
-                throw new RuntimeException("Type de cellule non supportÃ© pour un entier : " + cell.getCellType());
-        }
-    }
-
-    private double getDouble(Cell cell) {
-        if (cell == null) {
-            throw new RuntimeException("Cellule vide alors qu'un nombre dÃ©cimal Ã©tait attendu");
-        }
-        switch (cell.getCellType()) {
-            case NUMERIC:
-                return cell.getNumericCellValue();
-            case STRING:
-                String value = cell.getStringCellValue().trim().replace(",", ".");
-                if (value.isEmpty()) {
-                    throw new RuntimeException("Cellule vide alors qu'un nombre dÃ©cimal Ã©tait attendu");
-                }
-                return Double.parseDouble(value);
-            default:
-                throw new RuntimeException("Type de cellule non supportÃ© pour un nombre : " + cell.getCellType());
-        }
-    }
-
-    private LocalDate getLocalDate(Cell cell) {
-        if (cell == null) {
-            throw new RuntimeException("Cellule vide alors qu'une date Ã©tait attendue");
-        }
-        if (cell.getCellType() == CellType.NUMERIC && DateUtil.isCellDateFormatted(cell)) {
-            return cell.getLocalDateTimeCellValue().toLocalDate();
-        }
-        if (cell.getCellType() == CellType.STRING) {
-            String value = cell.getStringCellValue().trim();
-            return LocalDate.parse(value); // format attendu : AAAA-MM-JJ
-        }
-        throw new RuntimeException("Type de cellule non supportÃ© pour une date : " + cell.getCellType());
-    }
-
-    public Resource getTemplateImportPaymentFactures() {
-        return new ClassPathResource("static/template_exel/facture/template_import_payment_factures.xlsx");
-    }
-        private boolean isRowEmpty(Row row) {
-        if (row == null) {
-            return true;
-        }
-        for (int c = row.getFirstCellNum(); c < row.getLastCellNum(); c++) {
-            Cell cell = row.getCell(c);
-            if (cell != null && cell.getCellType() != CellType.BLANK
-                    && !cell.toString().trim().isEmpty()) {
-                return false;
+            TypeFournisseurs type = createTypeFournisseur(typeLibelle, types);
+            String key = normalize(type.getLibelle() + "|" + nom + "|" + defaultString(prenom));
+            Fournisseurs fournisseur = existing.get(key);
+            if (fournisseur == null) {
+                fournisseur = new Fournisseurs();
+                fournisseur.setTypeFournisseurs(type);
+                fournisseur.setNom(nom.trim());
+                fournisseur.setPrenom(defaultString(prenom));
+                fournisseur.setContact(defaultString(contact));
+                fournisseur = fournisseursRepository.save(fournisseur);
+                existing.put(key, fournisseur);
+                imported++;
             }
         }
-        return true;
+        return imported;
     }
 
+    private int importIngredients(Sheet sheet,
+                                  Map<String, CategorieIngredients> categories,
+                                  Map<String, StatutIngredient> statuts,
+                                  Map<String, Fournisseurs> fournisseurs,
+                                  Map<String, Unite> unites,
+                                  Map<String, Ingredients> existing) {
+        if (sheet == null) {
+            return 0;
+        }
+        int imported = 0;
+        for (Row row : sheet) {
+            if (row.getRowNum() == 0 || isRowEmpty(row)) {
+                continue;
+            }
+            String nom = requiredString(row, "nom");
+            String categorieLibelle = requiredString(row, "categorieingredients", "categorie ingredients");
+            String statutLibelle = requiredString(row, "statutingredients", "statut ingredients");
+            String fournisseurLibelle = requiredString(row, "fournisseur");
+            String uniteLibelle = requiredString(row, "unite");
 
-    private String getString(Cell cell) {
+            CategorieIngredients categorie = createCategory(categorieLibelle, categories);
+            StatutIngredient statut = createStatut(statutLibelle, statuts);
+            Unite unite = resolveUnite(uniteLibelle, unites);
+            Fournisseurs fournisseur = resolveFournisseur(fournisseurLibelle, fournisseurs);
+
+            String key = normalize(nom + "|" + categorie.getLibelle() + "|" + statut.getLibelle() + "|" + fournisseur.getNom() + " " + fournisseur.getPrenom() + "|" + unite.getNom());
+            Ingredients ingredient = existing.get(key);
+            if (ingredient == null) {
+                ingredient = new Ingredients();
+                ingredient.setNom(nom.trim());
+                ingredient.setCategorieIngredients(categorie);
+                ingredient.setStatutIngredient(statut);
+                ingredient.setFournisseur(fournisseur);
+                ingredient.setUnite(unite);
+                ingredient = ingredientsRepository.save(ingredient);
+                existing.put(key, ingredient);
+                imported++;
+            }
+        }
+        return imported;
+    }
+
+    private int importEtatsStock(Sheet sheet, Map<String, Ingredients> ingredients) {
+        if (sheet == null) {
+            return 0;
+        }
+        int imported = 0;
+        Map<String, EtatStockIngredient> seen = new HashMap<>();
+        for (Row row : sheet) {
+            if (row.getRowNum() == 0 || isRowEmpty(row)) {
+                continue;
+            }
+            String ingredientNom = requiredString(row, "ingredient", "nomingredient");
+            LocalDate dateEtatStock = requiredDate(row, "dateetatstock", "date etat stock");
+            BigDecimal quantite = requiredDecimal(row, "quantite");
+            Ingredients ingredient = resolveIngredient(ingredientNom, ingredients);
+            String key = normalize(ingredient.getNom() + "|" + dateEtatStock + "|" + quantite.toPlainString());
+            if (seen.containsKey(key)) {
+                continue;
+            }
+            EtatStockIngredient state = new EtatStockIngredient();
+            state.setIngredient(ingredient);
+            state.setDateEtatStock(dateEtatStock);
+            state.setQuantite(quantite);
+            etatStockIngredientRepository.save(state);
+            seen.put(key, state);
+            imported++;
+        }
+        return imported;
+    }
+
+    private int importInventaires(Sheet sheet, Map<String, Ingredients> ingredients, Map<String, TypeMvtIngredient> typesMvt) {
+        if (sheet == null) {
+            return 0;
+        }
+        int imported = 0;
+        Map<String, InventaireIngredient> seen = new HashMap<>();
+        for (Row row : sheet) {
+            if (row.getRowNum() == 0 || isRowEmpty(row)) {
+                continue;
+            }
+            String ingredientNom = requiredString(row, "ingredient", "nomingredient");
+            LocalDate dateInventaire = requiredDate(row, "dateinventaire", "date inventaire");
+            BigDecimal quantite = requiredDecimal(row, "quantite");
+            String typeMvtLibelle = requiredString(row, "typemvtingredient", "type mvt ingredient");
+
+            Ingredients ingredient = resolveIngredient(ingredientNom, ingredients);
+            TypeMvtIngredient typeMvtIngredient = resolveTypeMvt(typeMvtLibelle, typesMvt);
+            String key = normalize(ingredient.getNom() + "|" + dateInventaire + "|" + quantite.toPlainString() + "|" + typeMvtIngredient.getLibelle());
+            if (seen.containsKey(key)) {
+                continue;
+            }
+            InventaireIngredient inventaire = new InventaireIngredient();
+            inventaire.setIngredient(ingredient);
+            inventaire.setDateInventaire(dateInventaire);
+            inventaire.setQuantite(quantite);
+            inventaire.setTypeMvtIngredient(typeMvtIngredient);
+            inventaireIngredientRepository.save(inventaire);
+            seen.put(key, inventaire);
+            imported++;
+        }
+        return imported;
+    }
+
+    private int importHistoriques(Sheet sheet, Map<String, Ingredients> ingredients) {
+        if (sheet == null) {
+            return 0;
+        }
+        int imported = 0;
+        Map<String, HistoriqueIngredients> seen = new HashMap<>();
+        for (Row row : sheet) {
+            if (row.getRowNum() == 0 || isRowEmpty(row)) {
+                continue;
+            }
+            String ingredientNom = requiredString(row, "nomingredient", "ingredient");
+            LocalDate dateEntree = requiredDate(row, "dateentree", "date entree");
+            LocalDate datePeremption = optionalDate(row, "dateperemption", "date peremption");
+            BigDecimal quantite = requiredDecimal(row, "quantite");
+            BigDecimal prixAchat = requiredDecimal(row, "prixachat", "prix achat");
+
+            Ingredients ingredient = resolveIngredient(ingredientNom, ingredients);
+            String key = normalize(ingredient.getNom() + "|" + dateEntree + "|" + defaultString(datePeremption) + "|" + quantite.toPlainString() + "|" + prixAchat.toPlainString());
+            if (seen.containsKey(key)) {
+                continue;
+            }
+            HistoriqueIngredients historique = new HistoriqueIngredients();
+            historique.setIngredient(ingredient);
+            historique.setDateEntree(dateEntree);
+            historique.setDatePeremption(datePeremption);
+            historique.setQuantite(quantite);
+            historique.setPrixAchat(prixAchat);
+            historiqueIngredientsRepository.save(historique);
+            seen.put(key, historique);
+            imported++;
+        }
+        return imported;
+    }
+
+    private <T> int importSimpleSheet(Sheet sheet, Map<String, T> existing, RowImporter<T> importer) {
+        if (sheet == null) {
+            return 0;
+        }
+        int imported = 0;
+        for (Row row : sheet) {
+            if (row.getRowNum() == 0 || isRowEmpty(row)) {
+                continue;
+            }
+            T entity = importer.importRow(row);
+            if (entity != null) {
+                imported++;
+            }
+        }
+        return imported;
+    }
+
+    private CategorieIngredients createCategory(String libelle, Map<String, CategorieIngredients> existing) {
+        String key = normalize(libelle);
+        CategorieIngredients categorie = existing.get(key);
+        if (categorie == null) {
+            categorie = new CategorieIngredients();
+            categorie.setLibelle(libelle.trim());
+            categorie = categorieIngredientsRepository.save(categorie);
+            existing.put(key, categorie);
+        }
+        return categorie;
+    }
+
+    private StatutIngredient createStatut(String libelle, Map<String, StatutIngredient> existing) {
+        String key = normalize(libelle);
+        StatutIngredient statut = existing.get(key);
+        if (statut == null) {
+            statut = new StatutIngredient();
+            statut.setLibelle(libelle.trim());
+            statut = statutIngredientRepository.save(statut);
+            existing.put(key, statut);
+        }
+        return statut;
+    }
+
+    private TypeFournisseurs createTypeFournisseur(String libelle, Map<String, TypeFournisseurs> existing) {
+        String key = normalize(libelle);
+        TypeFournisseurs type = existing.get(key);
+        if (type == null) {
+            type = new TypeFournisseurs();
+            type.setLibelle(libelle.trim());
+            type = typeFournisseursRepository.save(type);
+            existing.put(key, type);
+        }
+        return type;
+    }
+
+    private Unite resolveUnite(String label, Map<String, Unite> existing) {
+        Unite unite = existing.get(normalize(label));
+        if (unite != null) {
+            return unite;
+        }
+        for (Unite candidate : uniteRepository.findAll()) {
+            if (normalize(candidate.getNom()).equals(normalize(label)) || normalize(candidate.getSymbole()).equals(normalize(label))) {
+                existing.put(normalize(candidate.getNom()), candidate);
+                return candidate;
+            }
+        }
+        throw new IllegalArgumentException("UnitÃ© introuvable : " + label);
+    }
+
+    private Fournisseurs resolveFournisseur(String label, Map<String, Fournisseurs> existing) {
+        String normalized = normalize(label);
+        Fournisseurs fournisseur = existing.get(normalized);
+        if (fournisseur != null) {
+            return fournisseur;
+        }
+        for (Fournisseurs candidate : fournisseursRepository.findAllWithTypeList()) {
+            String fullName = candidate.getNom() + " " + defaultString(candidate.getPrenom());
+            if (normalize(fullName).equals(normalized) || normalize(candidate.getNom()).equals(normalized)) {
+                existing.put(normalize(fullName), candidate);
+                return candidate;
+            }
+        }
+        throw new IllegalArgumentException("Fournisseur introuvable : " + label);
+    }
+
+    private TypeMvtIngredient resolveTypeMvt(String label, Map<String, TypeMvtIngredient> existing) {
+        TypeMvtIngredient type = existing.get(normalize(label));
+        if (type != null) {
+            return type;
+        }
+        for (TypeMvtIngredient candidate : typeMvtIngredientRepository.findAll()) {
+            if (normalize(candidate.getLibelle()).equals(normalize(label))) {
+                existing.put(normalize(candidate.getLibelle()), candidate);
+                return candidate;
+            }
+        }
+        TypeMvtIngredient created = new TypeMvtIngredient();
+        created.setLibelle(label.trim());
+        created = typeMvtIngredientRepository.save(created);
+        existing.put(normalize(created.getLibelle()), created);
+        return created;
+    }
+
+    private Ingredients resolveIngredient(String label, Map<String, Ingredients> existing) {
+        Ingredients ingredient = existing.get(normalize(label));
+        if (ingredient != null) {
+            return ingredient;
+        }
+        for (Ingredients candidate : ingredientsRepository.findAllWithRelationsList()) {
+            if (normalize(candidate.getNom()).equals(normalize(label))) {
+                existing.put(normalize(candidate.getNom()), candidate);
+                return candidate;
+            }
+        }
+        throw new IllegalArgumentException("IngrÃ©dient introuvable : " + label);
+    }
+
+    private Map<String, CategorieIngredients> indexCategories() {
+        Map<String, CategorieIngredients> map = new LinkedHashMap<>();
+        for (CategorieIngredients categorie : categorieIngredientsRepository.findAll()) {
+            map.put(normalize(categorie.getLibelle()), categorie);
+        }
+        return map;
+    }
+
+    private Map<String, StatutIngredient> indexStatuts() {
+        Map<String, StatutIngredient> map = new LinkedHashMap<>();
+        for (StatutIngredient statut : statutIngredientRepository.findAll()) {
+            map.put(normalize(statut.getLibelle()), statut);
+        }
+        return map;
+    }
+
+    private Map<String, Unite> indexUnites() {
+        Map<String, Unite> map = new LinkedHashMap<>();
+        for (Unite unite : uniteRepository.findAll()) {
+            map.put(normalize(unite.getNom()), unite);
+            map.putIfAbsent(normalize(unite.getSymbole()), unite);
+        }
+        return map;
+    }
+
+    private Map<String, TypeFournisseurs> indexTypesFournisseurs() {
+        Map<String, TypeFournisseurs> map = new LinkedHashMap<>();
+        for (TypeFournisseurs type : typeFournisseursRepository.findAll()) {
+            map.put(normalize(type.getLibelle()), type);
+        }
+        return map;
+    }
+
+    private Map<String, Fournisseurs> indexFournisseurs() {
+        Map<String, Fournisseurs> map = new LinkedHashMap<>();
+        for (Fournisseurs fournisseur : fournisseursRepository.findAllWithTypeList()) {
+            String fullName = fournisseur.getNom() + " " + defaultString(fournisseur.getPrenom());
+            map.put(normalize(fullName), fournisseur);
+            map.putIfAbsent(normalize(fournisseur.getNom()), fournisseur);
+        }
+        return map;
+    }
+
+    private Map<String, TypeMvtIngredient> indexTypesMvt() {
+        Map<String, TypeMvtIngredient> map = new LinkedHashMap<>();
+        for (TypeMvtIngredient typeMvtIngredient : typeMvtIngredientRepository.findAll()) {
+            map.put(normalize(typeMvtIngredient.getLibelle()), typeMvtIngredient);
+        }
+        return map;
+    }
+
+    private Map<String, Ingredients> indexIngredients() {
+        Map<String, Ingredients> map = new LinkedHashMap<>();
+        for (Ingredients ingredient : ingredientsRepository.findAllWithRelationsList()) {
+            map.put(normalize(ingredient.getNom()), ingredient);
+        }
+        return map;
+    }
+
+    private String requiredString(Row row, String... candidates) {
+        for (String candidate : candidates) {
+            String value = optionalString(row, candidate);
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        throw new IllegalArgumentException("Valeur obligatoire manquante pour les colonnes: " + String.join(", ", candidates));
+    }
+
+    private String optionalString(Row row, String columnName) {
+        Cell cell = getCellByHeader(row, columnName);
         if (cell == null) {
             return null;
         }
         return new DataFormatter().formatCellValue(cell).trim();
     }
 
-    private BigDecimal getBigDecimal(Cell cell) {
+    private LocalDate requiredDate(Row row, String... candidates) {
+        for (String candidate : candidates) {
+            Cell cell = getCellByHeader(row, candidate);
+            if (cell != null) {
+                return parseDate(cell);
+            }
+        }
+        throw new IllegalArgumentException("Date obligatoire manquante pour les colonnes: " + String.join(", ", candidates));
+    }
+
+    private LocalDate optionalDate(Row row, String... candidates) {
+        for (String candidate : candidates) {
+            Cell cell = getCellByHeader(row, candidate);
+            if (cell != null) {
+                String value = new DataFormatter().formatCellValue(cell).trim();
+                if (!value.isBlank()) {
+                    return parseDate(cell);
+                }
+            }
+        }
+        return null;
+    }
+
+    private BigDecimal requiredDecimal(Row row, String... candidates) {
+        for (String candidate : candidates) {
+            Cell cell = getCellByHeader(row, candidate);
+            if (cell != null) {
+                return parseDecimal(cell);
+            }
+        }
+        throw new IllegalArgumentException("Nombre obligatoire manquant pour les colonnes: " + String.join(", ", candidates));
+    }
+
+    private Cell getCellByHeader(Row row, String headerName) {
+        Row headerRow = row.getSheet().getRow(0);
+        if (headerRow == null) {
+            return null;
+        }
+        Map<String, Integer> headers = new HashMap<>();
+        DataFormatter formatter = new DataFormatter();
+        for (Cell headerCell : headerRow) {
+            headers.put(normalize(formatter.formatCellValue(headerCell)), headerCell.getColumnIndex());
+        }
+        Integer index = headers.get(normalize(headerName));
+        return index == null ? null : row.getCell(index);
+    }
+
+    private boolean isRowEmpty(Row row) {
+        if (row == null) {
+            return true;
+        }
+        for (Cell cell : row) {
+            if (cell != null && cell.getCellType() != CellType.BLANK && !new DataFormatter().formatCellValue(cell).trim().isEmpty()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private LocalDate parseDate(Cell cell) {
+        if (cell == null) {
+            return null;
+        }
+        if (cell.getCellType() == CellType.NUMERIC && org.apache.poi.ss.usermodel.DateUtil.isCellDateFormatted(cell)) {
+            return cell.getLocalDateTimeCellValue().toLocalDate();
+        }
+        String value = new DataFormatter().formatCellValue(cell).trim();
+        if (value.isBlank()) {
+            return null;
+        }
+        return LocalDate.parse(value);
+    }
+
+    private BigDecimal parseDecimal(Cell cell) {
         if (cell == null) {
             return BigDecimal.ZERO;
         }
-        switch (cell.getCellType()) {
-            case NUMERIC:
-                return BigDecimal.valueOf(cell.getNumericCellValue());
-            case STRING:
-                return new BigDecimal(cell.getStringCellValue().trim());
-            default:
-                throw new IllegalStateException("Type de cellule salaire invalide : " + cell.getCellType());
+        if (cell.getCellType() == CellType.NUMERIC) {
+            return BigDecimal.valueOf(cell.getNumericCellValue());
         }
+        String value = new DataFormatter().formatCellValue(cell).trim().replace(',', '.');
+        if (value.isBlank()) {
+            return BigDecimal.ZERO;
+        }
+        return new BigDecimal(value);
     }
 
-}
+    private String normalize(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.trim().toLowerCase(Locale.ROOT).replaceAll("\\s+", " ");
+    }
 
+    private String defaultString(String value) {
+        return value == null ? "" : value.trim();
+    }
+
+    private String defaultString(LocalDate value) {
+        return value == null ? "" : value.toString();
+    }
+
+    @FunctionalInterface
+    private interface RowImporter<T> {
+        T importRow(Row row);
+    }
+}
 
 ======================================
 FILE : src/main/java/com/gestion/restaurant/service/ingredients/IngredientsService.java
@@ -421866,6 +422662,75 @@ input[type="color"] { width: 40px; height: 40px; padding: 2px; border-radius: $r
 
 
 ======================================
+RESOURCE : src/main/resources/static/templates/ingredients/Ingredient-Maman-Tsara-template.ods
+======================================
+PK    ©i]…l9Š.   .      mimetypeapplication/vnd.oasis.opendocument.spreadsheetPK    ©i]               Configurations2/accelerator/PK    ©i]               Configurations2/images/Bitmaps/PK    ©i]               Configurations2/toolpanel/PK    ©i]               Configurations2/floater/PK    ©i]               Configurations2/statusbar/PK    ©i]               Configurations2/toolbar/PK    ©i]               Configurations2/progressbar/PK    ©i]               Configurations2/popupmenu/PK    ©i]               Configurations2/menubar/PK  ©i]            
+   styles.xmlİ[ërÛ¸şß§à(ÓN;SšÙ¤Úòt“MoIÚIÒöçD‚à eç‰ºÏ‘+®¼“¢ËëTÉ8Î98÷ A_İÜeØ¹…”!’_Ï‚3æÀ<"1ÊÓëÙ??½q³›õ¯®H’ ®bí2˜s—ñ{™#„s¶*(dbp5Çæ+b«d­x´"Ì­èª+³RjõxÄØœ_Ï¶œ+ÏÛï÷gûù¡©÷éƒ'i.‡wÜ³Ü)cÜÇúşÜK½pàŞ"¸a%î¶<ë•–Ë¥§¨–5&ÙÀÔ'8\x+`–›E|ªûš»îxBh6UZòÖe3À·>-¼w‚¨~¼{kùu6§j3¹¯é#„”ê¤€æ°Ñ9÷ô÷Ê³©šîvâF$+Dalp[é~Të"i™hŒòÏÃ‰–Ô2ÑìG]
+|OòÔ,‰F-‰ ÊÉ+ÖbG±bŠ#b(g^p”å,åDy›pÑ´ì·„ìòX÷Š¼+ E’°[5f¨ÇMµêäº”Ìui^ÙsP˜·4“dz‰	¹°Ô	DêÇklé)¦z§ê’¼İê†ÆtOŸÇuYZğ;/<
+By™ŒÛtr*nÓNˆ¶€NNŠbndTnrJAKw9˜*,yë²˜QÜ}j3Ô§ÌwÙÒÉ¹ËA§Â±Í~™¿^Kq3æ¢\ )V5i=‘¬-¦óÙÚ®œ	«f"èÆ0Âl}¥í(‡ı]ª½½EÂ)ç#ÈÅ#jÁ²fß_Ï~
+ÂşĞâÓƒ3§1µäwS˜?±=b¬ÁQ ‰ÅãP¤:Ê7í=áD)s^ıõoÎÇWƒ¶µ§wÏ8ÌÇº×ğä r,¬˜ÍJo(ïf\o ¬71LÀ›m•Ù«ZĞ Æ3Ë^ 
+R
+Š­[ˆJ„”#±Ó$Á-f!…#ÆA.Wy¬QV…NÂtWP:P~	Ñd†¾Èùü‚«1òtR1”P5‰NæTØüæÃ¬=­+ºä½T1J–Q«ÑD«ÉÒ¾l-Å¨´„Wï»Š%ˆbx7X-õ%{¯%u‹Ú&”¤¿¼WĞ“Ú)ùV‰EQ™ló½‘1QĞŒSòYÚƒ‰À¿óóËp>säê&@	ã’ò2\&Q¢ò³S¹¤Ğûôœ¸ò»a[“½+ª“Aî
+'ü³¹(š>â}IÔÊ}—XPİŒÄ¢
+¥ªÖÆ*U–!ØqÂ
+ ËÅhV€‹-°³»<â;UÊ^Ñ€HÆ¹ÌÊ¡»¡ˆÍˆ	Šøˆ]õd£<†r‰Ç5‰´C{€,ão;ŠU9íój¼»vºb×!£¨”›äpºFéUHõ\÷×UÇã½ £dZQ’|¬Úİ> »1äb1t?Cš«Èiºæ˜îÔö¾†ÿÿÚM[±¬äèZzåÍš„ß&Æ´²Ï[ËÈagJÉAwJa‡*|êséqğ©KzMx­Ùf`åKŠøÀ!1§ì§ò¡‚ÛÔ7‚‚šŠˆŒbW ¢"Åtj›üã§_Îÿú3û)ôŠ¡ü™à¯ÿ¶ê¿A˜hÖX©ı³°DÁ=‚rh±¢‚İ¦% NÄ'òEŸ›R[ˆÒ-·½Ó"3ŒÑ„ˆå³W ’´.ÖÕ†7„sùØ¢KÁ0á}ãTk7„Ü‹D©Z!Ú""xœ=Çéw¼½Û›cv/}`÷àmğã!^¯Ó7CĞî!›æÇ>éY…`¹ôQĞœİòg-&Ç|ËP®Nu©‹QŠ8:”‚9‘µıûJşÙ#ÂÓ±²ª·ÜàşÏ˜´¥(ÿ,pÅM·ˆ3Ø¿j; aÍWŸv…çf¡Çô3¨œĞàjxo oCp<XÇz¦:Q¹n¨vÊ]Ïjúç.ki`ö’><É¢4tÊñ@¢ÍÂcÖ`Ä
+îİ‡U¶¶êø¹hG´J½Äª³}=!”áx(Ãï4”áX({‰ÍİáäP~v<?ì™f{ßs’íÊéƒ†o@ôYìÅvyÜÜÉEUÉ”ä »ìr*Ëa‡Æ¹¤†Cª#4–Kÿì¥€&Gí&_şùf¬«ÏôĞ¾!„ç§ïIÖ$®Öúƒ8ÀÕ©£»˜ÒË®2Ó!ê^X§ïš¾¯Ê5–yWŒ¢”/Ğ†ÓœtzYÌÁEd8Zš&‡ô#|Ç¾W°ú!ñQ¶·«(ÒpuºZ¹¼;Àé€wœÖ6UO‹Ú§
+Ãrù°0ü ¼d N‚(RgÉ!ø7PO†gáè”úô}_ÌN„D}&çœÈ¾í@õÇH>‹{~ëÁ`ø~ñXœ=5Ã‘GO“‰cJµöá”¥zD N–&PÇ,¿!Pµí3Ô|4Pó§T¬>Gjš÷ â÷,±GQÛ§nñ«Ï)şTŒ†d‡î)ñöyíáZ»ñÑ7fŸz™Ôl‚º˜CÇ(œ½MWòÕˆ¼Rq|'ô¹¯ÇãëÙ»@Œa7ƒÛĞÿ"-Õ÷Å|3hîµ–¿ë×.:î¬Á÷m(l1+¶W,œìåt§½a1,£Û‘«`eL]x¤ºÜau@!KÇÎ`æşü°`×ÒùåLœ·Á|§h<o.„ØmÁh¹ŒÆƒª/»‚aÀ1Ámõ¸£›H8*šŒÉÆîàXlT«v¼9X½¥Ú¹zíJ‚U8Š\K8xm]Å0BpAÙõLÔDíBiœúàë&ùúŠ+ …ìxÃ¼wEÌz˜º—­Í×a0uù¦Z*¶Äm•f,!D¾ãÑ\G¤öâÚ?{ya.•`¦‚bîš›ƒö¢¹9Z]XÛ—Ô¼a‹Œ)Oo¥¹mo™Ø4Çëä`BîÂÿ£ÜÕŸ^gÕÃëÚæŞ¼u eü`a…z®¾üS§Æ!š*…2é8úüëèy†ëpM{ƒPj`ååkqfPÎ4vi^ï‚€Óæ¯¯Ôoæ_¶…Ps¯onn®¼ö )ZAh%^f±y€éì§mğe‡XuKCÿ!İ6_¤‡á×5­6Ö±ÖNÕÈÏkç¸µ^';‡öÁü>ÃH¾ÂN¾ô7
+Sù§´ı¡)ÔŞú·úq\gÕß×‰]CccHõgËŠpë«úÅ±úqMlœ’É½x'_rğÃK×_¸¨Pß÷Ô_ß7VHÆõïk°ğÂ÷Wêoit_q6íû.*Ö&Ç«¨·×Ëe]@ıòîõ#•×ÿ[ëÿPKÎ•z'²	  %9  PK  ©i]               manifest.rdfÍ“Ínƒ0„ï<…eÎØ@/r(Ê¹jŸÀ5†X/òšŞ¾“VQ¤ªêŸÔã®F3ß´›íaÈ‹²¨ÁT4c)%ÊHhµé+:».¹¥Û:ÚØ¶+šñjƒ¥Ÿ*ºwn*9_–…-7lÏ³¢(xšó<O¼"ÁÕ8qHÆ´	Biõä|9Îâ	fWQtë y÷ =‹İ:© ²
+a¶R½‡¶ ‘@	LÊ„tƒºNKÅ3–óQ9Á¡íâÇ`½Óƒ¢<`ğ+ÏØŞˆ¦å^à½°î\ƒß|•hzîczuÓÅñß#”`œ2îOê»;yÿçş.Ïÿâ¯´vDl@Î£gúç´òUG¯PK´÷hÒ  ƒ  PK  ©i]               content.xmlİYÛn7}ïW*Ğ7Š–d#¶*;(œMcE}¥–³+Â\rCruùû÷®µVY²œôE¶È33‡sãĞ¿ßÄr°c…V×Ãñèl8 h.Tt=üçóoärøşæ‡¹CÀŒë A9håğç ¥•%,~c.S’5ÓÌ
+;S,;sÁL' JÙÙS™Yf7_¬ºëáÒ¹dFéz½­§#m"úùoê÷ˆƒ£%:2œË}èÉÙÙ”F”3ÇÈJÀúÇRb³tñ^‰ñÕÕÍv+¨ªÇôßû»‡`	1#BYÇT µÿºTµ‰m~BóíÌuÜ©VèĞ
+m#×79ºoº¯´Ç6ecæ–>¾¤÷¸™}Üß•ø<½úZ+’±aOk]™ó9¢ôÎ9Í¿×'ëkic%	5f{œ`¢.dÛèú ÕµLj)Ôcwâùİ*Ğ†­i|F=¦Á$8È$`2¨”×Ğ$52ñ€‚pKÇ£qU^^Ë­p—‰ªêTñ¼vsÿÁ&#ü“™ØlGCÓoÖmeïXgà¦´«ù|UØµ,ë°Š¡Ü¤²É0ô‡sìŠf fûÚòXl·M¢ÜLyñ)oÊšÄàyA$Ú¸f•o
+Sx_Lµö-FófµN:Jß®¢Ş±]E¥,™éå¼“">½s„µlÇàX_amÊJı‚j)|ŞĞĞT©Òx¦w2à}÷¤dB’÷‹±&±mØKçê
+ÉÆ¸0Ş”³A~ƒXZ-„8#@8ÒŞÌsbÕò ÿîy\ï2sÑà)¼Ä09Jh,äözøK´ı¹…Ë‡ƒÕO"Px0ìuv-¬İA$Âx=­˜YÍÒÃÔşÔNgÆ·|<ÜvrkûÛZñqØ}€S,B¹kğÑXÒ®¸ë,uLO•ÙçÎ™=®Œü³2Ån!ÓXKÉæ"I0eÁ8vêÙÂ {$Àö„
+½éRc_îg”ÉhrqÄÿCÜ&§â6]Œß=Ûôt~»z7y·óÓùmü,j¦+İŒ^·xáJ“T¾å— ¢%¶ş³Ñù…7~˜ojèÄ‰˜IÒ”v&…ş¼ÛÏ»\Œñ* CÉ%>@ÈRéZ‡j(¿¹°‰dÛ‚O¡ÍO³8¦XsÔ$q‹§Tig­Í·õ•@ÆíÀİÌsÓ~^LeÖà‰ç-–¬j¡PœH¶ ‰O§I‹$sŒw¬5‚W¾1ıMµµ’Ìp[{=ßÌ>`î5ä`€‹üq•od§"uv„‹ìİÍ[áã<$ )ISÆˆöÖ9yÓWĞY=Ÿi
+¨Å€%Ààˆòâ“`í1é»ÅõUc“)·MiÁ(åseÏ*ò;ÉÒñœ¿Ïi[ûñíİ¢o"m|¬óğ¤s©{+ë8<…#¤ÆNj9Uø~?h‘¶rpw¥»£üŠµNµW×Z:ËëÅE}Êòª=rÒ`ãË	|X²¨œÔò—”)÷Z™öQù?
+2ašİã[NµVÏ¿‡ôoÔ&}şÖÁşöøØFıêıÊõì/-Ÿß…uxõ~Iá¤úâ{Èô·lÔÊ8m¾y³8ño“ÿ}%Fl~	–ìuå³7ßc¿í¼éÎ+±üÖş¯ãÍPK –ğâş  ¶  PK  ©i]               meta.xmlSËnÛ0¼÷+6W‰"©‡MH
+CO)Z ›!“•M¹_=—½i‡3»;Cª¸=uğ®UÖ”ˆD1
+À+•iJô°ûnĞmõ¥°OOJ —VtG0><‚¯ƒAjZŞ8)u‰~{â÷}õ,²®Á4n°¬}¾(è¿¢E1ŠKÔ9Ãmİª–›ú-÷‚Û˜uåòi­¹–â2êÔ9=’ƒ†QÔb¼rÏZ™çk›‘ív‹§Ó•j­½Ç-f¿«Ïõ…=UÿkaÉn2±|¿	œ¡jMwôZ“cá ö#ÒƒŠÆ4ãMHÈ¤<M9M"’2–Ó˜å¾¢(¤àŸ¤'Œ“<Êr2hÛx¥ÍSA*?\|(;7õª~îHş=M-3>¿—‰¿BC[‘ì¹—Ôú¡Eë•&Ü×¡°ñ%JĞ
+ĞzÅH¾€öğ„_áá¥s†µ¬«îÕÁÁ)S<$E£<¢7÷Êtçıã&ÛgIğ†±?9;6Ä	oî:¥eH¯üîŠğµß¡úPKc¯Çæ  L  PK  ©i]               settings.xmlí[ßSâH~¿¿ÂÊ»‚èZJ)[ˆzp§+EĞ»Û·!i`ŠÉtnfB`ÿú$`)&BFkkóIf¾îétİó#ç_Û›ƒù…uxP·ö€;èR>¹°†7û§Ö×Öç8Sš.:\íKPJ7‘{º;—Mù˜êàM$’Ê&'È¦ršè_wk>oİŒ…%wŒòÙ…5UÊoÖja„G(&µÃ³³³ZütİŸFØ‰fqãF½~\K®ŸZÇWy[2Vlõÿ™i¬ÖÚëá·ÎWcI~ö©/²ÍŞêv$ìÂÒ*7çÂ'«Yiı^öy¤’´!úÖú¡Zúú!åÊjÕÏk¯A¶¾…±2ƒüuÕ4úğ¨qr´3|èdšªúñ—F^ô}øû”»° wS„éï(î£ıE,óèaÏİPR*¡ÀjEîp¸•¦è†C¢íñ¢/»\+¢¤­Ğ™õøD€K!²Ú»céB¢è£¤JÃ¿i–Ïm÷·ÿ+ÑÛ¢s°}FÕ€ğ	l¾‰)Šâj¯.9„Ö°ƒ,ÿŞ·\*Y£^¢Rè•üÑj”ôW¶è#aÁ&jâ½¢6 ˆ"ıMô“‚àöÃ?İ$‘"Â­–îhc‚;„…º×9nÌ0¼…	q–Y²Æ„É‚Â`[ƒ[Êá¹
+QÌˆê çà(lNü¾0 ¦7áÚz—:ÍÚcâ.`Š²hhXæëzC`ÊÍ·sMÁw©Ô£§ÿP6ÁW_|EğÁWÿ™ßãs}—PñŒàóL(s0|Á‰YÅğÃW_1|Åğå0<-›×s/4mÍë'¯W¼^ñzÅë¿/¯g=×ëóRa¼’Ÿ±U¶¢SÌ4]óC¿`ÂlG c#"27jNOÏ*‚Ø• "±'öD;>Ü=óÆúËòÙ(Âÿ†Êô
+/`DŞ1Ë±£yÌĞt„ÚA†"µâjœ5_
+–G/\Ç€áWF¿$"u#uª«Æ.‘ö@iJ3 zOŞ*bs{éI2sÈ.BâhêjÛ°È>š†¯yÄĞEÒÇûÂ¢d8Ä‘:[ ë1%ûçÆ$@"²'!õzA&İ„O‰ì
+o#—Î©,yõ
+<]ù¢®“À·TÚK]6
+äôG¶—V5éo^“®N»¤7 ògJn‚D¹Í¹¦6Ó®Ó×•­úGÂ`ÜÕ÷ÙR¿RqE1 (ìæèª2ù´8|gJq´›tĞóÈˆ6J¯¨¯½¸mI	×sê«(ÈäëXL4ó‚ŞÄŞ!~cğ[íë`¬{»®±±¬[ué§‘0ìqA0’áúÒÓu·­AètwÕï•¸tÖ“W«ã¦¶pCÅäß xÖı€;*ˆùÙˆ ©Ã?ª¾1^„ë:föà»:_Ü¡›Áä·_o‘¸m¨‰Ã€æq®ñM_¤/PÕrcô‰âF §½%Ø\í.Q×Tx"áäø’r"–yT®fMyàÅY“Mæ0œŞˆj öŒà“îy‡¡4á;¿öÒ™á5E“Kg¦—[“qätÑ\Òü"ë‚¤šíÄ·Vs¹­¾&Ør§Zg¾ì4Òº€2Q]ÚîzÑ/ r)Ÿ±eıù‡¿riŸQ€|úÙä\ÊgOŞm÷.s¤öêC°ZÖ'r­ŸPKsÔ@Ú  d7  PK    ©i]¶¡1  1     Thumbnails/thumbnail.png‰PNG
+
+   IHDR     Í   o‚_ï   PLTE$'1!#%-%5$(12# - ,$5 5%#""$(,*&",-."*3$.;+/2+299-"71-777.A2E%6H+>R5<D-AU2@L?@A;BL6GX7Kb=RiA-D1A. H7&G<3Q=*@?@GA;U@-VE5bL9iR=EDD@LXIQZSMH]SIWXXBVkEZrT]fLby[cjXgxgVFfWHbYNmUAlXEl]Oe]Us\GjaYxaLxfWjjjfltkqytniwqlvuvRjƒZq‰]w‘eu…e|“v{‚k–l„›z‚Šv†–m‡¡vŒ£{’§ƒkU‰rZ‘w^ƒsc‡ykŒwcyc‹yhƒ|v‘w`“{c”~hpŠy™‚j“„t“‡|œ†rˆq™Š{£‡m¢y¨“{³˜~‰ˆ†‡”‡‘š“Œ…œ‘ˆ••“†•¥†œ³’š¢•¨™¤Š¢¹™£­—¨¹«˜„¢›”¤šª’²œ†¦ ›©¢›¹£Œ¸¨–§¦§£¬µ¥±¾«°·ª²º±ª£³­©¹®¢¼²¥º³¬³¶¸¦À–¬Ãœ²È¥µÅ¡¶Ë£¹Î©µÁª¸Å«¼Ì¦½Ó´¼Å´¾Éº¾Â¬ÃÙºÂÊ¸ÈÖºĞßºÎà¼ÒæÃ­—É³œÆµ¢À¶®Æ¹¬Èµ¢Î¹¥Ê¼­Å¼´Ô½¤ÉÂºÕÁ­ØÉ¸âÎ¹æÓ¼ÃÃÂÁÆËÃÈÏÉÄÀÌËÊÂËÓÃÎØÅÑÜÌĞÓÊÔÜÔÍÄĞÏÍØÎÃÚÒÊÓÔÔÖ×ØÖÙİİÖÑÚØÕÛÛÛÂÔäÄÙéÌÖàÎØàÊÜëÃÛğÕÜâÏáòÚâê×æõßóÿäÕÄâØÍêÙÃëÛÉãÜÕñŞÇîàÏêãÚôáË÷éØÿòİâääæçèçèéìéåëëëåíóãîøëîğéõûôíåıöéóóóòöø÷úôôüşùõñşüôşşş·î  ìIDATxÚíÙ{tå€ñÙl¶Xe-$`8[ä"„#´@B¸ß±Ò’À	" B­Gj¥ĞpQĞKJTh@<‚’T.¶1Z[P	´z0AK,É—yû~³!&•6äç9Gö2óÍüæûfY-¡+:‹S ]¡@§Ï\òK?yôØî;«/ùõö©²úÅšİ²|Ï%¾6wağëŸ|ìƒ+èë®¹¦å³Õ-}!ôóbGP)Ûoª~ü–Û¿y»•roLÍ×Wõ7.Âóë·¾ŞŒaçáêÇjÿhûÜ7ï-(İS%!«îĞkl¥F‹­a_dÇ¯¿´kê2Mµ²NºÇÊíğKYÙç’Ş”®c¿í53b.¢vwê…/|0¬ ¬ìn×ûŸW½ù„¼ê§õÑ
+÷ºoÛ[qd­Ô(q`İÓû,q/O^½Häøˆ¸N«ÄNY;ªõ”ŠÑ“‚õÙn¡µÑü˜¿H*n‹‹+û}aÉåöıqqs‚zaGŞ™ü…”&ÅwzDìéOÄg}’¬oé×W×ÚnF¤Wm©"w’ndÔ0}q\ïÇCİÕ^
+“ƒ²²wÜ°Ë‰”¿ˆ-Û=&In|\ßİ5‘0Hÿ8·¶r¦¥Ç÷R¿¸>»å7ÖëGën{k–P ù—Fw*Ğõ©ÛM«Ó$em·L³¥¡%:¤øNReÌsr.4ôÂ´—zG/0[É’âœ×|ÕJÏUÉå…½ãûèæuƒO9CO­Hy¡¿M{Lìì×IçÑÒxçHõ ô,|êÿB$=+´ß{âÌCu€²­ä7îw}dû-µòÄ×êñ¥î­´©Ğ½õb:k~ëÙj÷Óî’Ğr“Œl÷ÂÈ	rwØ¦\_Ã#Ò¥Ïî\}Æ×2­x«7xÔ=¹è.o‰t&Ë¬äüû¬¤{Ì®yîö’–¼Iº,Z¾Aº·{‰§£d7”l×ª}	±rÂİñ‰\kA *vOáíÕ²¼æ’3ùùù²{|ÉQkò¾©ŞòWÃGÿ'Û”€g]¡{|qÀ%Ó\“vı¼¡^RS
+û›ão™vøÏá‹öõŒ‘“aEéÖDi:EÛå›¡oµ†æÏ´Ş+´ÆŸ™í}~g·A5ùx×˜İ…æ(ÂJlN±_ÅèĞıùÇ¬>kWXY‘iGLŞ5³AI¡kÕ®¤V²L$tB—*w ]§ÿ¶qşÎ¶Ã. r‘€{ó+.=´‘Ä7AÄ§ëE›)õJlïü8”C•Š4H¦uĞsù¢^6^ñé–gºÊ_ÑıÊ´ñuÚA_ï»Ó 9#òl8iéëõ<%¶Ù¦£Kì0õŠ‘l¯t™(òYø–€Sé5Hz¤Ê6s¨Ÿ×œøó#Ã¯¼GÏH…Ş5…o±=ëdYcA‘ëÄ³AÌšª›ÿØ*Ÿ¦#>ªkªÇ®÷9éŞ²µa¹ØMÆ‰oAÀ]¯ŠmV‰ØæL¯3#×Ï u—¸‘æ¸}wH¤Jï•‰?ÑIo=çl12ï¤YVNK¶‹ı¹üLOÃ§áï5£î>Ašè>Í»õ™:@f¼ˆÍ³ëâÁÆ:±»Ü©¨ë³ Œ9O}©mto÷sş­æÑÑÍ¼§"tğ¯º‚Ë¼Ás²ØkvhNx/Wt‹h÷8³Ä-¾V$ğÃ¯ëÙ0G9| ÈlKŸõt.t;÷ ìÆ_Fı(ºE[k£sêHÏ€=*¼ÅèÚ„\ŞÍÚ¢ÓEì»ZtŠÖ_¯V 3ƒ"×«“î<«@®ò^%ˆüƒD-€Ï«{³6ê)Ñó*¾ÌcVó¶­¯oX¾Í«çÖ—iŞZÚ-L—îZï,İÇêı°Ç‰ÈªúQ÷‡ºÚ*P¦Ìt7ºGì_†·N+DyÍlşWÕÒıJi×°Nu> s:<›ßX7=£4ÕVÕ£lİí9‘ı{Nº§TJ¯Î! ‚ƒE§ÎÌôÿ‹dËìk A=;—½[VifĞbç’Ùè\[ÓBG9Ë[|ğ@™n¢Ä6)hÄ”ÓE‡+CÓ2¤øXÛF5–¸2ç
+ë’*z>ïkø”º gó! 
+šk¦Nybgsòœå»ıtÑ¡2s¹êxÆIÓÌÏ¬‚CNUÊ63§¢2ÅcÖÿ½ó";×:è_”ƒĞXñäU7@cœ~²¿ë=½l–´iWÙD@——×k é6Ó=C.Xâô:	Dn|M}s[Õİ‡€&×(Ğäfı³¢IêÇ:*ÌŠÕ%]/«ı«Í“‘®ò×ÍP‡ßìŒLf˜Ë5·Ø\ƒËœ=°ÖëåªëÄ 3ãtêüé­“Ö™ÔC×êŠœà	w€vè‡]«¿C”Y¥í¨;POg¾o€²u¼fm°«–¸Qúùò¨ëÈï”m»µÎ¹^z¬]3èØo×‡lwhèz¯4@æ­+ŞÔË,¬¼Ğ½º^"2ƒêŞŞz(U¢òN,4ëß‚Bıà"¼8aˆs G­u'Sœ‰±Ä|tğëÎ Ğ=Sú7š{kƒCWPh­ÏÇ¸«½#¸ûQ§¸5¼`±5>8Û•2]7ÛœÔÏ{D½s“ÂşèìPïÛßsê‡„!fİÓ%N¯m—@×ö¢‹¼wN’k½Şu3’šµ7@…îÁ¾Øê”öÈÓÖĞŒøjœ²¥V§ddL¹íkõüJkôˆäf±g~ÚêÙî¾éÂCæC‚³ÄY%'<ıªfĞÇ¾µ‰	Ú´Êèï`>$Ìr¥¤ëĞ·6ĞÍë%ìkµi†+-£YíºÎ—Íú<Ô5¦\‡3Éß&Öú1—é¤ŠÈ;éî›1¢Á‘­VrF·˜ó`wi•‘ä™èìwjØ¤ôëÆ×AÇW….İs+üz™æê?x×¨äš7ë÷>ğ˜?m“ùl“’²Ç^²É—vFv¦Œ6íÏÈÕ\{¹şIzëÎÕÿ?”Êyş9zY“QeGF±Şpvä›í­ğ§éÈì%ş¬ƒOÈñ]'¦'/ÒK+Gß³ãy92GöO÷Ï­õíÅñŒÛRVé‡”½şÇugƒûçVš_÷I;µö°óèòbÙ©CªÌ9#K­ˆÊ“œæé~s/8îßı÷yòŸR5t³_É	½uMŠQíû…hÅ<ÿÃúè¹ùşÕW;–ë¡î(0o+Ípx¯SGu|º³ÒéÉ{vî–œwÍ×c’W}ÿßÅÍæ|ˆ¸ğ_ÍuKzX—¸ÔË4ªwz—è÷Ñû]œ¹ìàw¹é`ÕæÎUıı¬ó/~ıë'¾æm½xáşìZ`úûS®­U¯®¬óú`Í¯Hìº_›œ­õüùÿ¾¬:ŞZ¯½¥Aô5wß^ğ‚sQiŞUë™‹Ÿ®³Õ,Úù#ú~%TÛAûûŸA"Eo_Úí­rßË8ªÒ¿•‰\±3ˆøÿAÿG6@\£ @ @@@D D D @ @ @@D D D @ @@@D D @ @ @@@D D D @ @ @@D D Ä) ˆ ˆ "€ "€ "€ €   ˆ ˆ ˆ "€ "€ € €   ˆ ˆ "€ "€ "€ € €  ˆ ˆ ˆ "€ "€ "€ €   ˆ ˆ ˆ "€ "€ € €   N@@D D @ @ @@@D D D @ @ @@D D D @ @@@D D @ @ @@@D D D @ @ q
+ "€ "€ € €  ˆ ˆ ˆ "€ "€ "€ €   ˆ ˆ ˆ "€ "€ € €   ˆ ˆ "€ "€ "€ € €  ˆ ˆ ˆ "€ "€ "€ €   ˆ ˆ ˆS D D D @ @@@D D @ @ @@@D D D @ @ @@D D D @ @@@D D @ @ @@@œ€ €   ˆ ˆ.Kÿı‚šúÌé    IEND®B`‚PK  ©i]               META-INF/manifest.xml­“AnÃ E÷9…Å¶2¤í¦Bq²¨Ô¤ fpğ€`ˆ’Û[qâªŠKÙ1ÌğşŸ/±ÙzW!&ë±a¯|Í*ÀÖk‹]Ã¾÷_õÛmW›^¡5HN‡ª¼Ãt-–#J¯’MUIR+} Ô¾Í= É¿órTºV3ïì‚vN7vrŸQ+*Ó!8ˆvh)'½1¶9#ŒJÛUu[ÁXuç›“«ƒ¢CÃÄ]_·@[UÓ9@ÃTÎ¶£!qDÍÇø|uB¥Ó€˜XbåÓ£±]#=½‰-¤Œ¼$À³åíœ°L<ÑÙA@wd©¤+†ö"ìtÇ£6ìS¦^k”­işéŞÔÓ¡	ˆÊo{~ÒûCîPY—MG°»#b{ÕúEe#şıøí/PKm´€Q2  ,  PK     ©i]…l9Š.   .                    mimetypePK     ©i]                         T   Configurations2/accelerator/PK     ©i]                            Configurations2/images/Bitmaps/PK     ©i]                         Ë   Configurations2/toolpanel/PK     ©i]                           Configurations2/floater/PK     ©i]                         9  Configurations2/statusbar/PK     ©i]                         q  Configurations2/toolbar/PK     ©i]                         §  Configurations2/progressbar/PK     ©i]                         á  Configurations2/popupmenu/PK     ©i]                           Configurations2/menubar/PK   ©i]Î•z'²	  %9  
+             O  styles.xmlPK   ©i]´÷hÒ  ƒ               9  manifest.rdfPK   ©i] –ğâş  ¶               x  content.xmlPK   ©i]c¯Çæ  L               ¯  meta.xmlPK   ©i]sÔ@Ú  d7               ‚  settings.xmlPK     ©i]¶¡1  1               ¿  Thumbnails/thumbnail.pngPK   ©i]m´€Q2  ,               &*  META-INF/manifest.xmlPK      e  ›+    
+
+======================================
+RESOURCE : src/main/resources/static/templates/ingredients/Ingredient-Maman-Tsara-template.xlsx
+======================================
+PK  Eq]               xl/_rels/workbook.xml.rels½”AjÃ0E÷9…˜}-ÛIÓR,g
+Ù¶é„=¶LlIH“¶¹}Õ¦4Ñ…ñJÌ—æÿ‡¦Ø|={Gç;£dI
+ueêN·ŞöÏw°)Åö’Â¯:ëYèÑ^€"²OœûJá }b,êpÓ7H
+¥k¹•ÕA¶Èó4]s7ö€òÊ“íjnWgÀö'‹ÿñ6MÓU¸5Õq@M7"8…^†ÒµH~Ê³˜%Áøm†|JO§ıâ\Çâ—SÆwğ
+‘.R€û>¢±š&ÁÜÏ³ŒÁ¬g†YÅ`&Y%Ö¯äÂOîXş…Yüj3”_PKTDŠEö   P  PK  Eq]               xl/workbook.xmlSÛnÛ0}ßWzO|Éei§ÈÜ°uCÓµÏ²MÇZdÉ“˜K7ìßGËI–uE°[R‡‡‡ääz_IoÆ
+­bvæÊt.Ô*f_çó,r•s©Äì,»¾›ì´Y§Z¯=z¯lÌJÄzìû6+¡â¶«kPd)´©8ÒÑ¬|[à¹-°’~C¿âB±alşC…ÈàFg›
+¶ $GboKQ[6BÂS›ÇëúWD;á2cşôDû‹ñR­7õœ¼cVpi-õîsú2¤Œ¸”ÌË9Bxô.Ah$O
+C—ÍÅ“€ıcoñNñC+är™-eÌĞlÑˆ(Šì-Ë²ê‘§öx¹*×»˜Q‰^Îö;·}9–TÀaoÔ?ŞİX•³Qx1yúĞ³A@Ï
+a,º …S&[ x1ë5Yúg¹šWO9A©?ä‚ª`¾dXäŞ5’}+¬H%Ñ6cA³Èì9Ä-yÚ%êl½8aE°ú¯±jK¯¹0°x“XïØà5Ø°H5û¾7‰õ/`vGÁ¨°uš@0äŸè"±ÃF}Å'ÄŒ$;ØOmx8ß€DNÅéAØÀÂ?Ztëaf¤¦ı?s#Ej 74ÌÛ³Ÿï‡Ñ0£N4{0¼t>ôúƒÎüv>§In’«ù/ ‡:¦/ié[4Tí(–/$ñ¾¦™£ä“WûwÌücïOPK0±´Ø4  X  PK  Eq]               xl/theme/theme1.xmlİ•MoÛ0†ïû‚î«â¸	Ò N1,v(°C¶İ™¶ÕH²!©íòï§ÈNâ¯¡Ã0`è|‰H=|EŠŒ½ºÿ¡$yFcE©İL(AÍËTè<¡ß¾nß/(±t
+²Ô˜Ğ#Zz¿~·‚¥+P!ñáÚ.!¡…sÕ’1Ë½ìMY¡ö{Yi8ošœ¥^¼¬’l:™Ì™¡io~'¾Ì2ÁqSò'…ÚÕ"%8Ÿº-De)Ñ |_H×ç$?I<EØ“ƒK³ã!óš}{ƒ­€ô~¬É÷¥!Ï :	eë» Ò¹,<× éaúšŞ´Ör=½  ç¾”áÙÑâIÜ°-¨^äÏï Ë·ôãqŒ=ıøÊßø…§{ú·W~6àùİ¿ÜIª—ó~EØáTH¡£7gú‚d¥ü<ŠÏf,ö~¥Xk|êxí:ÃÔš#¥Ùz 4×Ï¨&îXaÜsŒ II%/¶ „<ú)á‹Î7ót4,Z1|„ïOdÚ¾ÉíŸE²^âJè7ZÅ5qÖnTh›jBÊ;J|°¡H[J‘n½3»ŒEUø%Š—Úêıs6,Kê®E^:g§«ƒÊ¿i|oıRUiB­Î)™ûÏw&se¬Û€-êÂIu‡”phš÷“~›Ê¬9˜eÈİ/<WÓïÕ"£»fc™íóíÿ9¿ıÂXçoËö³gıPKö°ñ‚  Ñ  PK  Eq]               xl/styles.xmlíXOOÛ0½ïSX¾$%˜Ò ÆÔi—	"!M;˜ÄI,ü'²]høôû9NÓ„Â&u‡©'Û/¿÷üòì¨v“‹•àè‘jÃ”œáè(ÄˆÊLåL–3|»˜<ÃÈX"sÂ•¤3ÜPƒ/Ò‰±§7¥‚43\Y[
+“UTs¤j*áI¡´ †ºL­)É#	LÂpÂ$N¹saÊÔRZ°ÑCÈ7ßr §1F^îJå`å+•Tƒ4	:4)”ÜèÄØibÑ#á ºrIõãKÍ¼BAã'­¤'î@÷†Ş6.ÆyÊ{ Mjb-ÕrÔõMÉJXj/ÓÖı¥ºÔ¤‰&'BÛÀ¼÷Jç°µ†Ëê!”3R*Iøm=Ãá†âú¢äLNÂš••k­ª'b­ĞYsÜÔ^¹ïÀôåüÆíÓ»bóö!ˆ®Ší}%Ûlç½ëz¥n@êš7såD¬^ÒøÜ–Œ KÎJ)è‹Âk­,Ílû™µpšu!ª”fÏ í°ì¶µû*-Ëäß#KWö‡²Ä«€§'Mê€}ˆLæíÄğÌTšÉ‡…š³ş1ÄT÷6WÙÍ×&+–uP¬ŠI…›œ¢]sê|¾j“Zoƒ÷cfr0ó†™¿­ƒ™ƒ™ƒ™ƒ™ƒ™]ÌÄÇûôKG{å&Ş+7“}rsşŸÍÃã»?ÌÎñÑ®ÇøU±í|èç­¿ƒ3}ĞE9¸ õ±Nñ Eîª9Ãßİ›’»_2n™ô£`›p¥„ ëúèdD8~“€~†¿zÒtDš¾JZjMeÖôœÓ'şg4×ÙˆwúïšêÖ §œ(şê»	›¿GÒßPKŒO†ƒ  c  PK  Eq]               xl/worksheets/sheet1.xml­VMoÛ8½ï¯tèikYJœ¯Ê.²v¼] ƒ:İ{£EÊ"BqT’²ãüú’’,ÛÁ"(6KŞÌ¼GÎ$ıüRŠ`Ã”æ Ça<†“P.×ãğûÓüãUhC$%$‡;¦ÃÏ“ßÒ-¨g]0fzÆT7Q¤³‚•D bwrP%1¸TëHWŠê>*E”‡QI¸=Âzä9ÏØ²ºdÒxÅ1˜¾.x¥[´ú.<ªÈKmóé¥8ó;^|~‚WòL†Ü2(›ÔN«¼®ê|QÉ¯!Å#,uÃ­RIVfï©²$ê¹®>"v…L­¸àfç
+'©ÃTAÎ…aê+P9'B3Ü«Èš-™ù^¹}óhh·£I5ORÊQ›Y X>oã›»Øz8‡¿9ÛêŞ{ ØÎ1¿ZİÂ9ãŸŠÓ{.Zªã7ØNA|A.ğ˜ö7şaHZkP|]`†÷,7¤!«%,3Œ„YÔF`”å®\è(ËI-ŒÍãjíLyJË§@L¨lŒ)ÂÖ™õı\œ‡Á+@¹Ìˆ@–’dØ[?¸Ï­–Ï{²ƒÚñ‚÷oˆ»öj­ ­Éâ­J®ËoEì5l²‚ÖóÙÌ.úkÿi :Ep¯Ì÷ß[mæîÈ ÖÈÂNMyÅƒÑÙ(]$£'”å³¤ãv2À6ñŠr´–†lğDß³èïêÛ0‚¯/:H`’"©ÚıZz©tOÁ¬ÖÊ&3/QÁ)eòÍ°.fI^z|réÚì¬D–ì¦ÀËÁµcèÿyÖ„<{+äh_9Q|±¾ëC&©‚m€Ç/n{^ºX{Ê’ğŞÿ¡‹RVmÃÙÃ¬~¬Ñº™Óhcl<ş8õˆ=¦§É¡ÇìÔãìĞãîÔã¼óˆ›ö¸x²*Å¥YTnv	ìÚû®²Şw”cv¶NLPü¤!bŠc…©ô8ÏN7"ß¿µæX¸¾3\^]šf´_âmu³u”\v¨Ş
+ÊõÖNášİ 0½uÔµæºÂ†P1µä¯x¸®‘8ß|\#q-»½ÁÍ²»²a`!ÊÅ¡°•O“¬OŒâX¬›©ã°eáØjV‚dÏ·’ş(¸é¦@€´×q3l<S(ípÖ¶gJfã*ml§{¨ËóçºÖl~l>–bVq¼9¶Vƒ½%ƒŠ[MİñlÍGåy:Iãğ÷i¶æ¥w›ı™¤@©Ÿ-“¤¬>Mİï‡Ÿ5˜OO8Õtğ€ë”Dşî›¸ßsnqâ·i´G±€>—_´ŒîıÑ¡6PiÔ¯—İ?`“PK¾Æ¶ò  Ä	  PK  Eq]               xl/worksheets/sheet2.xmlVKoÛ8¾ï¯ tèikÙj4©¬"uêm´êtì)‹ÅaIÊNòë;¤®‹EPlqføÍÌ79}÷PI²çÆ
+P‹h6™F„«˜P»EôínõòMD¬£ŠQ	Š/¢Gn£wÙ_éÌ½-9w”]D¥sú2m^òŠÚ	h®PS€©¨Ã£ÙÅVNY¸TÉ8™NÏâŠ
+5—æ9P"ç××W®1\R‡áÛRhÛ¡=°gá1C˜jÏ(ÄëFÓãÍ^ŸàU"7`¡p“ª6´Ó,/â‹£<LògH³9¦º¾RIVåÏÉ²¢æ¾Ö/[#S[!…{	GYğo)„tÜ|†E.¨´ušîø†»o:èİÜ¢ SÇY·—³”	¬‡Œ^,¢«Ùåræ-‚Á¿‚ìè™Ø+Œ¯–ÔvpAøìF(RgêVøK‘lÓ±â?¤u#v%FxÃ×C:ºİpÉsÇÙ‘›uí$zÙ<V[=ã­¥ó1 ?0|!/"åù”ˆ	ÚûXr)}É½í'tpö:"O Õ&§YJ’éèü%\ÿUêù¼¡P^pş¦¨õ£µ¸÷";õU
+ix~5õcØFŠÒ=o¢AÊGçæ*±?BEšrÄ}ÆÏ]mV¡e°Ö-ÈÂwÁ\‰qÍ&óWóÙü,™÷<aY>rO:ª“	®‰',G'iÉ††è¾çíC@czhò‹hã¹¦f©ÁZx¦kë jŒzƒÿR0ÆU¯h¬ÿ' VORm‡ÉÒÜ»ó•µÁ/[”î³yï1Ò¼µxjqvl±<µ8ï-bÌ«Ë»IT¡ÜZ‡UFJlw\?Ãxì†ÑøU‚#Úõj	F<rT.q?r3j|\òNä§Š¸™óÏÔì:–a€¦“ó7çóvª†#¶]xIÌ“óşƒÌoÁ!Õ¿Ó”aj€ÀÎq¿cj­¹Ùˆ'lï$®™¢0a÷t­ØûŞ‹ˆ‡X›à‡ÁAİ•\­1[¬¶˜lx9,"Æ*pf¶’æ÷WŠ}/…ë×ÁWÁhuä8AK¨ü[ÆúáWGä^k±ˆ^ùĞ:VIZø*…kò_…¬	EÌ+·Æ®zñš±û¡ƒ³kÖ^ö‚Vúí2|¿øQƒ{{‡×’/¸L¿BEÕßÍ~itÁl–„Ÿ«4P<`ËúmEÂóm@m¡Òxœ%ûÿÙOPKı’Ëš  _  PK  Eq]               xl/worksheets/sheet3.xmlVQsÚ8~¿_áñCŸ®Ó„Ôv'åÚ™´dJz¹7aÉXYëJ2„üú[I¶1¡s“)`­Ößî~ŸvEòá©Á)ÍA¦a<‡“9P.·iøıaùö:´!’’¥áéğCöG²õ¨KÆL€ R§aiL}E:/YEôj&q§ UƒKµt­¡î¥JD“ñø2ª—¡G¸Q¯Á€¢à9[@ŞTL¢˜ Ó×%¯u‡öD_…GÙc©]>ƒ~§Ç‹/Îğ*+ĞP˜QU›Úy•³hvRç“šüR<ÅRwÜ*5éÀªü5UVD=6õ[Ä®‘©Ü\Áa–8ü{\¦¾ E‘"4Ã½šlÙš™ïµÛ7p†n;Ê’¨}9K(G=lfbEŞÆ7‹Øz8‡8ÛëÁs KØ/1¿FİÁ9ãßŠÓ;.ZjZã7ØÏA|B.ğ˜7şeHZgP|[b†w¬0=¤!›5,7Œ„Y5F`”õ¡Ú€è(+H#ŒÍãêì;L9¥åS &Ô6Æœ	‘†ã0È­ïgpyÏ Õ:'YšLÆƒõW÷úK«åó q¼`ÿq×¶ÖàÑš,îØªäÊ°üÖÄ¶a›E´î˜Ï)¬ı«şéñrD½ÃçN›¥;2¨uË²ğƒSSb^ñhúnO/'Ó'”å³¤ãöd„câåè,-Ùà‰¾c;&Ğß%4´a__t’@– ©Ú}[z©õ@Á¼Ñª63/QÉ)eò—a]ÌŠ<¥!ÊSqé~µ9X‰,ÙmÓÑìÂ1ä#û@Éû ÏBÜöIö±õ¿HÂ{ÿ!.şYyXµw‹ñ´óÀ—5ZwÙuíl‚­Ç_ç³Sù¹ÇÕ©ÇâÜ#÷.–ŞIã¹¨—fU»i”Ø‘8!¼=vïKN‘^+Pü¤!b#œ©²xŸoD~}!jË1°p=>]]_MÛÆ?.±3Ü=6\õgÕøÕNéË  0ƒuÔÁ¦Ææ«™Zóg<;3dÎ7ºkZ7»ni—}{„…X)‡Â^>”L®°Z<Šc±îşJÃ”Q„c[oÉo%ıQrÓOÜ o«ÁtË±ÉçPÙ‹PÛù$OÈ]Ô<ßÙÔ:V–jnUr3Á×¿tU”2/Í’+}Õ›W”~Üy– ¥~2goHU¿Ÿ»ï7?0ïğNĞÁWœ÷ß "òO?ıs‹'îç6‰(Ğçò[€v îùŞ¡¶PI4¬—ıß—ì?PKÌCßÎ  	  PK  Eq]               xl/worksheets/sheet4.xmlVKoÛ8¾ï¯tèikYJ4©ä"kÇÛiÔéØ-RŠÃ’”ä×ïzºAsHÄ™á73ß<˜ôãc%‚=Ó†ƒÌÂx2&s \î²ğûıêíû00–HJH–…OÌ„ç¤Ğ¦dÌ M–Öª«(2yÉ*b& ˜DMº"z¥¡şR%¢d:=*ÂeØ \é×`@Qğœ-!¯+&m¢™ Ã7%W¦C{¤¯Â£š0Õ.QˆËFÓãÅïNğ*k0PØIUÚi–—ÑåQ:ù=¤x†©î¹«TÒUùk²¬ˆ~¨Õ[ÄVÈÔ–nŸ|Âá<õøw:(¸°LŠE.ˆ0uŠìØ†ÙïÊëí=Ü¡ SGó4j/ÏSÊ±.²@³"¯ã«›ØYxƒ8;˜Ñw`J8¬0¾ZÓÁyáßšÓ[.J­®[á78,@|B.°MÇŠ’Ö	4ß•á-+liÉvÃË-£ã{ëÚ
+t²yª¶ z Ê
+RëB@w ;ù#ÎBéè	Ê¹X0!²p‡Aîl?#şù»0x¨69HR’LGç¯şú¯RGç-y‚ÚÓ‚ã7E­›¬-Àƒ9Ü©+’ÏÂÑ«ˆ›Â6Š0 (İ³&š›8š»ùé+â”}Åôø»+ÎÊ÷»åyøÁ©-1²x2;›Å³ódÖ3…uùÄë¨N&¸'±¤­ 4Tß²=hï#ËĞC“at@Ï’X2O5¬†ãº6ªÆ¨w1ø/9¥LöŠÆúòÑ`ıQÆuH×ö¹swşŒ·ÀË¥ûù,öiŞZüujÇÇ&‹L’c“å©ÉÅ±ÅÍ g½I„ôtô5|)Í¥]+¿ƒÇ×Ø0f»aÄ~•à¨wM_‚æÏ -Ü³Lô¸ÇÂòüT5ûâÑ;…ÄéäâıÅ¬Îáˆıë›YrÑÿ`·`±b/iJ?ı@`Gç¨ßUµÂQLoø3ÎÉ%2×Œ£-¿Ãºn}‡ƒXkï‡ÂAŞ—L®1[lÍ1YÿÈd¡m5á8|[Aò‡kI”Üök1À'e´‚rœÄTîµ2n‹È#r—Šgá™­cuä ¸«’ß£Mş+Ÿu@yQ óÒ®¸6ƒ«^¼¦ôf?Â<J›õ9C*õaá¿ùYƒıp‹Û_q)ƒŠÈ?›EÕè¼Yœø?×i4 8À&–ßtk/ğßwµ…J£q–xìÿÇ˜ÿPK}9Ç¬  §  PK  Eq]               xl/sharedStrings.xml“AK1…ïşŠ»M+¢Rv·HQèAª? ìNwƒ›I:3YÚoV=Iê1ÉûòŞ˜jsò£š€Ø¬õj±Ô
+°Ã¾ÖïoÏ×Z±Xììj}Ö›æªb•QäZ"qm·xË‹óË!·’Ô¶ã@ühn–Ë;ã­C­ÚP²í½V	İ1ÁöûâV7»¦ú2Ys´möÎ¿0ĞºÁà+#MefÍº­è9ØaOĞ9@á"p/V’\JB"tÌˆU‘[)²É»Üü)—ØKh?Šˆc²(¥iÜ…“™ãìpÊzë¨ÌBÎ^&ùOo‚2“Yş
+>J^€"$’;=¶ƒı•Çämh>PK>*„û  K  PK  Eq]               _rels/.rels­’ÏJ1‡ï}Š{w¶Dd³½ˆĞ›H}€˜Ìşa7™0u}{ƒZ©¥I~óÍ7CšİfõŠœGŠFoªZ+Œü{£Ÿ÷ë½kWÍ#ÎVJ$cÊªÔÄlô ’n²0Ø\QÂX^:â`¥¹‡dİd{„m]_ÿdèöˆ©öŞhŞûV‡÷„—°©ëF‡wä^F9ÑâW¢-÷(F/3¼OÏDSU N»l/wù{N(Ö[±àˆq¸T³Œ˜¿u<¹‡r?ç„®şs9¸Fş¼’MéËhÕÀÑ'h? PKfª‚·à   ;  PK  Eq]               docProps/core.xmlR]OÂ0}÷W,}ßº‚ i¶‘¨áI£oµ»ŒêÚ5mağïí66Pyğí{NÏıj2ßË2Ø±¢R)"QŒP¼Ê…*Rô²Z„3XÇTÎÊJAŠ`Ñ<»J¸¦¼2ğh*Æ	°7R–r¢sšblù$³‘W(O®+#™óĞX3şÅ
+À£8b	åÌ1Ü†zpDGËœ–zkÊÖ çJ œÅ$"ø¤u`¤½ø eÎ”R¸ƒ†‹ÒÔ{+a]×Q=n¥¾‚ß–Ïí¨¡PÍª8 ,96B¹æ ¼íÊõÌëøî~µ@Ù(MÃx²":™ĞÑõ{‚½o»¸2YÃ€s°Üíü;òGÂã’©bë­M¸xj%Cª9eÉ¬[ú£¯ä·ïq!×w$¹4¥dLÉÍÙH½A[ÙÀN4/#mÑ6]ÛíÇ'p×4 ;áJèÒ}øç?fßPK;#ˆ$d  Û  PK  Eq]               docProps/app.xmlMoÂ0†ïûUÄµIu€P´iÚ	i;th·*K\ÈÔ|¨IQù÷ g|²_[í—­'Óg‚v¶F%.PV:¥í®F_Í{¾DYˆÂ*Ñ;5:B@kşÄ>çaˆB–6Ôh£_äŒ8µmêtn0"¦rØ×uZÂ›“£	-Š9)‚U r¢quˆB•“§ûÂ¶9úÄã¬ã{3rKEßh¼\$ıZ±ï{-EL–ğşàã¼ƒĞ
+S¼Àt¶ÑvœÚïå¼WÙİD›øIE‹Ùë¨{•SFîq'ööâ6/Ÿq‘â<ğ¯1r3–ÿPK¬JÅü     PK  Eq]               [Content_Types].xmlÍUİOÂ0ç¯Xúj¶cÌ~<*‰ølêzÛ*[Û´á¿÷Z” ò!(/kÖ»ßÇ]ÚkÚŸ6u4c…’é$mÌ²ÌÈóğ>¾"ı^+Î4Øs¥ÍHåœ¾¦Ôæ4Ì&JƒÄH¡LÃşš’j–X	´Ûn_Ò\IÒÅÎs^z×.º›âö\á$º™çy©Œ0­k‘3‡aê£t-Î@m· '’¯¸‹?%ˆ9¶ÚmVĞ²\¯Ìï¯G¼iX	Ä<b»à˜q¬Á:­é‹/†¾+3zUj” ¥äÈåm^–ÜOM…È«|Ü $±Ú ã¶ph>¬IÃ„Ü¡ïğÁüÛ9ØC Ù!hİ¬{ìré/Z –†åğz¿›Xğïé£{">ÎOÄÇÅ?ù°3ÀŸœÁñ{ôºÌ½ÍÇ|ıÅğA§£´Å'ÂÀşå~éyt¬‘ŒÛïàB©î/ø¡ÏÿÔn¥4¼˜½PK¦«¥v  `  PK   Eq]TDŠEö   P                   xl/_rels/workbook.xml.relsPK   Eq]0±´Ø4  X               >  xl/workbook.xmlPK   Eq]ö°ñ‚  Ñ               ¯  xl/theme/theme1.xmlPK   Eq]ŒO†ƒ  c                 xl/styles.xmlPK   Eq]¾Æ¶ò  Ä	               Ì  xl/worksheets/sheet1.xmlPK   Eq]ı’Ëš  _                 xl/worksheets/sheet2.xmlPK   Eq]ÌCßÎ  	               ä  xl/worksheets/sheet3.xmlPK   Eq]}9Ç¬  §               ø  xl/worksheets/sheet4.xmlPK   Eq]>*„û  K               ê  xl/sharedStrings.xmlPK   Eq]fª‚·à   ;               ?  _rels/.relsPK   Eq];#ˆ$d  Û               X  docProps/core.xmlPK   Eq]¬JÅü                  û  docProps/app.xmlPK   Eq]¦«¥v  `               5  [Content_Types].xmlPK      R  ì    
+
+======================================
 RESOURCE : src/main/resources/templates/caisse/form.html
 ======================================
 <!DOCTYPE html>
@@ -423571,12 +424436,28 @@ RESOURCE : src/main/resources/templates/ingredients/list.html
                     <div class="d-flex justify-content-between align-items-center mb-4">
                         <h2>IngrÃ©dients</h2>
                         <div>
+                            <a th:href="@{/ingredients/export}" class="btn btn-outline-success me-2">Exporter</a>
                             <a th:href="@{/ingredients/dashboard}" class="btn btn-outline-secondary me-2">Dashboard</a>
                             <a th:href="@{/ingredients/stock}" class="btn btn-outline-info me-2">Ã‰tat du Stock</a>
                             <a th:href="@{/ingredients/new}" class="btn btn-primary">+ Nouvel IngrÃ©dient</a>
                         </div>
                     </div>
                     <div th:replace="~{fragments/alerts :: flash}"></div>
+
+                    <div class="card mb-4 shadow-sm">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                                <div>
+                                    <h5 class="mb-1">Import Excel</h5>
+                                    <p class="mb-0 text-muted">Importer ingrÃ©dients, catÃ©gories, statuts, unitÃ©s, fournisseurs et mouvements.</p>
+                                </div>
+                                <form th:action="@{/ingredients/import}" method="post" enctype="multipart/form-data" class="d-flex gap-2 align-items-center">
+                                    <input type="file" name="file" class="form-control" accept=".xlsx,.xls" required>
+                                    <button type="submit" class="btn btn-success">Importer</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
 
                     <!-- Formulaire de recherche / filtrage -->
                     <div class="card mb-4 shadow-sm">
