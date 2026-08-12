@@ -1,5 +1,5 @@
 ===== EXPORT COMPLET SPRING =====
-Date : mer. 12 août 2026 12:15:02 EAT
+Date : mer. 12 août 2026 18:16:30 EAT
 
 
 ======================================
@@ -1040,6 +1040,20 @@ public String materielles(
     );
 
     return "redirect:/materielles";
+}
+@PostMapping("/zones-livraison")
+public String zonesLivraison(
+        @RequestParam("file") MultipartFile file,
+        RedirectAttributes redirectAttributes) throws IOException {
+
+    var result = excelService.importZonesLivraison(file);
+
+    redirectAttributes.addFlashAttribute(
+            "successMessage",
+            "Import zones de livraison terminé : " + result.total() + " ligne(s)."
+    );
+
+    return "redirect:/zones-livraison";
 }
 }
 
@@ -2977,7 +2991,7 @@ public class Ingredients {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, length = 100)
+    @Column(nullable = false, length = 255)
     private String nom;
 
     @ManyToOne
@@ -3584,7 +3598,7 @@ public class Plats {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, length = 100)
+    @Column(nullable = false, length = 255)
     private String nom;
 
     @ManyToOne
@@ -9286,7 +9300,7 @@ to represent the company, product, or service to which they refer.**
 
 
 ======================================
-RESOURCE : src/main/resources/static/template_exel/zone-livraison/.~lock.template_import_zones_livraison.xlsx#
+RESOURCE : src/main/resources/static/template_exel/zones-livraison/.~lock.template_import_zones_livraison.xlsx#
 ======================================
 ,andrianandrainy,andrianandrainy-HP-EliteBook-830-G6,12.08.2026 12:14,file:///home/andrianandrainy/.config/libreoffice/4;
 
