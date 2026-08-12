@@ -122,6 +122,7 @@ com/gestion/restaurant/repository/personnels/FichePaieRepository.class
 com/gestion/restaurant/repository/ingredients/CategorieIngredientsRepository.class
 com/gestion/restaurant/entity/fournisseurs/TypeFournisseurs.class
 com/gestion/restaurant/dto/ingredients/IngredientMovementSummaryDTO.class
+com/gestion/restaurant/service/admin/DatabaseMaintenanceService.class
 com/gestion/restaurant/dto/fournisseurs/FournisseurRequestDto.class
 com/gestion/restaurant/repository/ingredients/EtatStockIngredientRepository.class
 com/gestion/restaurant/repository/commandes/DetailsCommandesRepository.class
@@ -155,6 +156,7 @@ com/gestion/restaurant/entity/personnels/Personnels.class
 com/gestion/restaurant/specification/personnels/PersonnelsSpecification.class
 com/gestion/restaurant/service/importation/ingredients/IngredientsImportService$ImportResult.class
 com/gestion/restaurant/repository/recettes/RecettePlatsRepository.class
+com/gestion/restaurant/controller/admin/AdminMaintenanceController.class
 com/gestion/restaurant/entity/ingredients/EtatStockIngredient.class
 com/gestion/restaurant/controller/caisse/CaisseController.class
 com/gestion/restaurant/controller/ingredients/StockController.class

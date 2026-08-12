@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="fr"
+      th:with="pageTitle='Maintenance Base de Données'">
+<head th:replace="~{layout/head :: head(pageTitle=${pageTitle})}"></head>
+<body>
+
+<div class="app">
+  <aside th:replace="~{layout/sidebar :: sidebar(activeMenu='admin-maintenance')}"></aside>
+
+  <div class="main">
+    <div th:replace="~{layout/navbar :: topbar(pageTitle=${pageTitle})}"></div>
+
+    <div class="content">
+
+      <div class="page-header">
+        <div>
+          <h2>Maintenance Base de Données</h2>
+          <div class="breadcrumb">Accueil / <span>Maintenance</span></div>
+        </div>
+        <a th:href="@{/plats}" class="btn btn-outline-secondary">&larr; Retour</a>
+      </div>
+
+      <div th:replace="~{fragments/alerts :: flash}"></div>
+
+      <div class="alert alert-danger" role="alert" style="border:2px solid #dc3545;">
+        <strong><i class="bi bi-exclamation-triangle-fill"></i> Zone dangereuse</strong> —
+        Ces actions modifient la base de données <u>de production</u> et sont
+        <strong>irréversibles</strong>. Assure-toi d'avoir une sauvegarde récente
+        avant de continuer.
+      </div>
+
+      <div class="form-grid cols-1">
+
+        <!-- Vider toutes les tables -->
+        <div class="form-card mb-4" style="border-left:4px solid #dc3545;">
+          <h3 class="form-section-title">Vider la base (TRUNCATE)</h3>
+          <p>
+            Supprime <strong>toutes les données</strong> des
+            <strong th:text="${#lists.size(tables)}">0</strong> table(s) suivante(s)
+            et remet leurs compteurs d'ID à zéro :
+          </p>
+          <p class="text-muted" style="font-size:0.9rem;">
+            <span th:each="t, iter : ${tables}">
+              <span th:text="${t}">table</span><span th:if="${!iter.last}">, </span>
+            </span>
+          </p>
+
+          <form th:action="@{/admin/maintenance/truncate}" method="post"
+                onsubmit="return confirm('Dernière confirmation : cette action va EFFACER TOUTES LES DONNÉES de la base en production. Continuer ?');">
+            <div class="field-group">
+              <label class="field-label">
+                Tape <code th:text="${motCleTruncate}">SUPPRIMER</code> pour confirmer
+              </label>
+              <input type="text" name="confirmation" class="form-control"
+                     autocomplete="off" required
+                     th:placeholder="${motCleTruncate}"/>
+            </div>
+            <div class="form-footer">
+              <button type="submit" class="btn btn-danger">
+                <i class="bi bi-trash3-fill"></i> Vider toutes les tables
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Reset des séquences uniquement -->
+        <div class="form-card mb-4" style="border-left:4px solid #fd7e14;">
+          <h3 class="form-section-title">Remettre les compteurs (ID) à 0</h3>
+          <p>
+            Ne supprime aucune donnée : remet uniquement les séquences (auto-increment)
+            à leur valeur de départ. À utiliser normalement juste après un vidage, ou
+            sur une base déjà vide — sinon les prochains enregistrements peuvent entrer
+            en conflit avec des ID existants.
+          </p>
+
+          <form th:action="@{/admin/maintenance/reset-sequences}" method="post"
+                onsubmit="return confirm('Remettre toutes les séquences (ID) à 0 ?');">
+            <div class="field-group">
+              <label class="field-label">
+                Tape <code th:text="${motCleResetSeq}">RESET</code> pour confirmer
+              </label>
+              <input type="text" name="confirmation" class="form-control"
+                     autocomplete="off" required
+                     th:placeholder="${motCleResetSeq}"/>
+            </div>
+            <div class="form-footer">
+              <button type="submit" class="btn btn-warning">
+                <i class="bi bi-arrow-counterclockwise"></i> Reset des compteurs
+              </button>
+            </div>
+          </form>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div th:replace="~{layout/footer :: footer}"></div>
+<th:block th:replace="~{layout/scripts :: scripts}"></th:block>
+
+</body>
+</html>
