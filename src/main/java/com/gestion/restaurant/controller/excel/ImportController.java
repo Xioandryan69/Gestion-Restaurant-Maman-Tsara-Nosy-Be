@@ -117,4 +117,35 @@ public class ImportController {
 
         return "redirect:/ingredients";
     }
+
+
+    @PostMapping("/commandes")
+public String commandes(
+        @RequestParam("file") MultipartFile file,
+        RedirectAttributes redirectAttributes) throws IOException {
+
+    var result = excelService.importCommandes(file);
+
+    redirectAttributes.addFlashAttribute(
+            "successMessage",
+            "Import commandes terminé : " + result.total() + " ligne(s)."
+    );
+
+    return "redirect:/commandes";
+}
+
+@PostMapping("/materielles")
+public String materielles(
+        @RequestParam("file") MultipartFile file,
+        RedirectAttributes redirectAttributes) throws IOException {
+
+    var result = excelService.importMaterielles(file);
+
+    redirectAttributes.addFlashAttribute(
+            "successMessage",
+            "Import matériels terminé : " + result.total() + " ligne(s)."
+    );
+
+    return "redirect:/materielles";
+}
 }

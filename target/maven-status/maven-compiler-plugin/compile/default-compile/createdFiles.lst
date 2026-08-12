@@ -132,6 +132,7 @@ com/gestion/restaurant/repository/ingredients/TypeMvtIngredientRepository.class
 com/gestion/restaurant/dto/caisse/MouvementCaisseRequestDto.class
 com/gestion/restaurant/repository/materielles/MaintenanceMateriellesRepository.class
 com/gestion/restaurant/entity/caisse/TypeMouvementCaisse.class
+com/gestion/restaurant/config/ThymeleafModelAttributes.class
 com/gestion/restaurant/dto/materielles/MaterielSearchCriteria.class
 com/gestion/restaurant/exception/GlobalExceptionHandler.class
 com/gestion/restaurant/controller/recette/RecetteController.class
