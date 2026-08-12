@@ -23,7 +23,17 @@
           <h2>Mise à Jour / État du Stock</h2>
           <div class="breadcrumb">Accueil / <span>Stocks</span></div>
         </div>
-        <a th:href="@{/stocks/new}" class="btn btn-primary">Ajuster le Stock</a>
+          <a th:href="@{/stocks/new}" class="btn btn-primary">Ajuster le Stock</a>
+          <div class="card mb-4">
+            <div class="card-body">
+              <h5 class="mb-3">Import / Export Excel</h5>
+              <div th:replace="~{fragments/excel-actions :: excelActions(
+                  '/import/stocks',
+                  '/export/stocks',
+                  '/template_exel/stocks/template_import_stocks.xlsx'
+              )}"></div>
+            </div>
+          </div>
       </div>
 
       <div class="table-card">

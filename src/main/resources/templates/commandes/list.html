@@ -24,9 +24,19 @@
           <h2>Suivi des Commandes</h2>
           <div class="breadcrumb">Accueil / <span>Commandes</span></div>
         </div>
-        <a th:href="@{/commandes/new}" class="btn btn-primary">
+          <a th:href="@{/commandes/new}" class="btn btn-primary">
           <i class="bi bi-plus-lg"></i> Nouvelle Commande
         </a>
+          <div class="card mb-4">
+            <div class="card-body">
+              <h5 class="mb-3">Import / Export Excel</h5>
+              <div th:replace="~{fragments/excel-actions :: excelActions(
+                  '/import/commandes',
+                  '/export/commandes',
+                  '/template_exel/commandes/template_import_commandes.xlsx'
+              )}"></div>
+            </div>
+          </div>
       </div>
 
       <div th:replace="~{fragments/alerts :: flash}"></div>

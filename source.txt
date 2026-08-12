@@ -1,5 +1,5 @@
 ===== EXPORT COMPLET SPRING =====
-Date : mar. 11 août 2026 23:04:09 EAT
+Date : mer. 12 août 2026 09:21:16 EAT
 
 
 ======================================
@@ -359,6 +359,25 @@ public class SecurityConfig {
 
 
 ======================================
+FILE : src/main/java/com/gestion/restaurant/config/ThymeleafModelAttributes.java
+======================================
+package com.gestion.restaurant.config;
+
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.web.bind.annotation.ControllerAdvice;
+import org.springframework.web.bind.annotation.ModelAttribute;
+
+@ControllerAdvice
+public class ThymeleafModelAttributes {
+
+    @ModelAttribute("request")
+    public HttpServletRequest httpServletRequest(HttpServletRequest request) {
+        return request;
+    }
+}
+
+
+======================================
 FILE : src/main/java/com/gestion/restaurant/controller/api/StatsController.java
 ======================================
 package com.gestion.restaurant.controller.api;
@@ -480,6 +499,8 @@ FILE : src/main/java/com/gestion/restaurant/controller/caisse/CaisseController.j
 ======================================
 package com.gestion.restaurant.controller.caisse;
 
+import jakarta.servlet.http.HttpServletRequest;
+
 import com.gestion.restaurant.dto.caisse.MouvementCaisseRequestDto;
 import com.gestion.restaurant.service.caisse.CaisseService;
 import jakarta.validation.Valid;
@@ -543,6 +564,7 @@ public class CaisseController {
         redirectAttributes.addFlashAttribute("successMessage", "Mouvement de caisse supprimé.");
         return "redirect:/caisse";
     }
+    
 }
 
 
@@ -9494,9 +9516,19 @@ RESOURCE : src/main/resources/templates/commandes/list.html
           <h2>Suivi des Commandes</h2>
           <div class="breadcrumb">Accueil / <span>Commandes</span></div>
         </div>
-        <a th:href="@{/commandes/new}" class="btn btn-primary">
+          <a th:href="@{/commandes/new}" class="btn btn-primary">
           <i class="bi bi-plus-lg"></i> Nouvelle Commande
         </a>
+          <div class="card mb-4">
+            <div class="card-body">
+              <h5 class="mb-3">Import / Export Excel</h5>
+              <div th:replace="~{fragments/excel-actions :: excelActions(
+                  '/import/commandes',
+                  '/export/commandes',
+                  '/template_exel/commandes/template_import_commandes.xlsx'
+              )}"></div>
+            </div>
+          </div>
       </div>
 
       <div th:replace="~{fragments/alerts :: flash}"></div>
@@ -10096,9 +10128,9 @@ RESOURCE : src/main/resources/templates/fragments/pagination.html
   </div>
 
   <div class="page-btns" th:if="${page.totalPages > 1}">
-    <a class="page-btn"
+     <a class="page-btn"
        th:classappend="${!page.hasPrevious()} ? ' disabled'"
-       th:href="${page.hasPrevious()} ? ${@pageLinks.url(#request, page.number - 1, page.size)} : '#'"
+       th:href="${page.hasPrevious()} ? ${@pageLinks.url(request, page.number - 1, page.size)} : '#'"
        th:attr="aria-disabled=${!page.hasPrevious()}"
        aria-label="Page précédente">&lsaquo;</a>
 
@@ -10110,27 +10142,27 @@ RESOURCE : src/main/resources/templates/fragments/pagination.html
         end=${current + window >= total ? total - 1 : current + window}">
 
       <a th:if="${start > 0}"
-         class="page-btn"
-         th:href="${@pageLinks.url(#request, 0, page.size)}">1</a>
+        class="page-btn"
+        th:href="${@pageLinks.url(request, 0, page.size)}">1</a>
       <span th:if="${start > 1}" class="page-ellipsis">…</span>
 
       <a th:each="i : ${#numbers.sequence(start, end)}"
          class="page-btn"
          th:classappend="${i == current} ? ' active'"
-         th:href="${@pageLinks.url(#request, i, page.size)}"
+        th:href="${@pageLinks.url(request, i, page.size)}"
          th:text="${i + 1}"
          th:aria-current="${i == current} ? 'page' : null">1</a>
 
       <span th:if="${end < total - 2}" class="page-ellipsis">…</span>
       <a th:if="${end < total - 1}"
-         class="page-btn"
-         th:href="${@pageLinks.url(#request, total - 1, page.size)}"
-         th:text="${total}">99</a>
+        class="page-btn"
+        th:href="${@pageLinks.url(request, total - 1, page.size)}"
+        th:text="${total}">99</a>
     </th:block>
 
-    <a class="page-btn"
+     <a class="page-btn"
        th:classappend="${!page.hasNext()} ? ' disabled'"
-       th:href="${page.hasNext()} ? ${@pageLinks.url(#request, page.number + 1, page.size)} : '#'"
+       th:href="${page.hasNext()} ? ${@pageLinks.url(request, page.number + 1, page.size)} : '#'"
        th:attr="aria-disabled=${!page.hasNext()}"
        aria-label="Page suivante">&rsaquo;</a>
   </div>
@@ -10139,9 +10171,9 @@ RESOURCE : src/main/resources/templates/fragments/pagination.html
     <label class="visually-hidden" for="pageSizeSelect">Taille de page</label>
     <select id="pageSizeSelect" class="page-size-select"
             onchange="location.href=this.value">
-      <option th:value="${@pageLinks.url(#request, 0, 10)}" th:selected="${page.size == 10}">10 / page</option>
-      <option th:value="${@pageLinks.url(#request, 0, 20)}" th:selected="${page.size == 20}">20 / page</option>
-      <option th:value="${@pageLinks.url(#request, 0, 50)}" th:selected="${page.size == 50}">50 / page</option>
+      <option th:value="${@pageLinks.url(request, 0, 10)}" th:selected="${page.size == 10}">10 / page</option>
+      <option th:value="${@pageLinks.url(request, 0, 20)}" th:selected="${page.size == 20}">20 / page</option>
+      <option th:value="${@pageLinks.url(request, 0, 50)}" th:selected="${page.size == 50}">50 / page</option>
     </select>
   </div>
 </nav>
@@ -11343,6 +11375,16 @@ RESOURCE : src/main/resources/templates/materielles/list.html
         <div style="display:flex; gap:8px;">
           <a th:href="@{/materielles/dashboard}" class="btn btn-secondary">Dashboard</a>
           <a th:href="@{/materielles/new}" class="btn btn-primary">+ Nouveau Matériel</a>
+        </div>
+        <div class="card mb-4">
+          <div class="card-body">
+            <h5 class="mb-3">Import / Export Excel</h5>
+            <div th:replace="~{fragments/excel-actions :: excelActions(
+                '/import/materielles',
+                '/export/materielles',
+                '/template_exel/materielles/template_import_materielles.xlsx'
+            )}"></div>
+          </div>
         </div>
       </div>
 
@@ -12710,6 +12752,16 @@ RESOURCE : src/main/resources/templates/recettes/list.html
         <a th:href="@{/plats/recette/nouveau}" class="btn btn-primary">
           <i class="bi bi-plus-lg"></i> Nouvelle Recette
         </a>
+        <div class="card mb-4">
+          <div class="card-body">
+            <h5 class="mb-3">Import / Export Excel</h5>
+            <div th:replace="~{fragments/excel-actions :: excelActions(
+                '/import/recettes',
+                '/export/recettes',
+                '/template_exel/recettes/template_import_recettes.xlsx'
+            )}"></div>
+          </div>
+        </div>
       </div>
 
       <!-- Formulaire / Filtre par Catégorie -->
@@ -12915,7 +12967,17 @@ RESOURCE : src/main/resources/templates/stocks/list.html
           <h2>Mise à Jour / État du Stock</h2>
           <div class="breadcrumb">Accueil / <span>Stocks</span></div>
         </div>
-        <a th:href="@{/stocks/new}" class="btn btn-primary">Ajuster le Stock</a>
+          <a th:href="@{/stocks/new}" class="btn btn-primary">Ajuster le Stock</a>
+          <div class="card mb-4">
+            <div class="card-body">
+              <h5 class="mb-3">Import / Export Excel</h5>
+              <div th:replace="~{fragments/excel-actions :: excelActions(
+                  '/import/stocks',
+                  '/export/stocks',
+                  '/template_exel/stocks/template_import_stocks.xlsx'
+              )}"></div>
+            </div>
+          </div>
       </div>
 
       <div class="table-card">

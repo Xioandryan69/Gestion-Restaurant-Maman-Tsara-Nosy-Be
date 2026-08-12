@@ -27,6 +27,16 @@
         <a th:href="@{/plats/recette/nouveau}" class="btn btn-primary">
           <i class="bi bi-plus-lg"></i> Nouvelle Recette
         </a>
+        <div class="card mb-4">
+          <div class="card-body">
+            <h5 class="mb-3">Import / Export Excel</h5>
+            <div th:replace="~{fragments/excel-actions :: excelActions(
+                '/import/recettes',
+                '/export/recettes',
+                '/template_exel/recettes/template_import_recettes.xlsx'
+            )}"></div>
+          </div>
+        </div>
       </div>
 
       <!-- Formulaire / Filtre par Catégorie -->

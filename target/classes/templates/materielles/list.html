@@ -19,6 +19,16 @@
           <a th:href="@{/materielles/dashboard}" class="btn btn-secondary">Dashboard</a>
           <a th:href="@{/materielles/new}" class="btn btn-primary">+ Nouveau Matériel</a>
         </div>
+        <div class="card mb-4">
+          <div class="card-body">
+            <h5 class="mb-3">Import / Export Excel</h5>
+            <div th:replace="~{fragments/excel-actions :: excelActions(
+                '/import/materielles',
+                '/export/materielles',
+                '/template_exel/materielles/template_import_materielles.xlsx'
+            )}"></div>
+          </div>
+        </div>
       </div>
 
       <div th:replace="~{fragments/alerts :: flash}"></div>
