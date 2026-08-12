@@ -290,7 +290,11 @@ public RestaurantExcelExchangeService(
 
     private <T> ImportSummary importSimple(MultipartFile file, String sheetName, RowSaver<T> rowSaver) throws IOException {
         try (InputStream inputStream = file.getInputStream(); Workbook workbook = WorkbookFactory.create(inputStream)) {
+            if (workbook.getNumberOfSheets() == 0) {
+                throw new IllegalArgumentException("Le fichier Excel ne contient aucune feuille.");
+            }
             Sheet sheet = workbook.getSheet(sheetName);
+
             if (sheet == null) {
                 throw new IllegalArgumentException("Feuille introuvable : " + sheetName);
             }
