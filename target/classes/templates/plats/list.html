@@ -25,6 +25,19 @@
           <div class="breadcrumb">Accueil / <span>Plats</span></div>
         </div>
         <div>
+          <div class="card mb-4">
+            <div class="card-body">
+              <h5 class="mb-3">
+                Import / Export Excel — Recettes (Plats + Ingrédients)
+              </h5>
+              <div th:replace="~{fragments/excel-actions :: excelActionsMultiple(
+                  '/import/recettes',
+                  '/export/recettes',
+                  '/template_exel/recettes/template_import_recettes.xlsx'
+              )}">
+              </div>
+            </div>
+          </div>
           <a th:href="@{/plats/dashboard}" class="btn btn-outline-secondary me-2">Dashboard</a>
           <a th:href="@{/plats/new}" class="btn btn-primary">
             <i class="bi bi-plus-lg"></i> Créer des Plats / Recettes
@@ -33,7 +46,7 @@
             <i class="bi bi-exclamation-triangle"></i> Maintenance BDD
           </a>
           <div class="card mb-4">
-    <div class="card-body">
+        <div class="card-body">
 
             <h5 class="mb-3">
                 Import / Export Excel

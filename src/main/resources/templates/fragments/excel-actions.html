@@ -54,3 +54,62 @@
     </div>
 
 </div>
+
+
+<!-- A ajouter à la suite du fragment excelActions existant, dans le même fichier -->
+
+<div th:fragment="excelActionsMultiple(importUrl, exportUrl, templateUrl)" class="d-flex flex-wrap gap-2">
+
+    <button type="button"
+            class="btn btn-outline-primary"
+            data-bs-toggle="modal"
+            data-bs-target="#importExcelModalMultiple">
+        <i class="bi bi-upload"></i>
+        Importer
+    </button>
+
+    <a th:href="${exportUrl}" class="btn btn-outline-success">
+        <i class="bi bi-download"></i>
+        Exporter
+    </a>
+
+    <a th:href="${templateUrl}" class="btn btn-outline-secondary">
+        <i class="bi bi-file-earmark-excel"></i>
+        Template
+    </a>
+
+    <div class="modal fade" id="importExcelModalMultiple" tabindex="-1" aria-labelledby="importExcelModalMultipleLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+
+                <form th:action="${importUrl}" method="post" enctype="multipart/form-data">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="importExcelModalMultipleLabel">Importer un ou plusieurs fichiers Excel</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+                    </div>
+
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="excelFilesInputRecettes" class="form-label">Sélectionner le(s) fichier(s) (.xlsx)</label>
+                            <input type="file"
+                                   id="excelFilesInputRecettes"
+                                   name="files"
+                                   accept=".xlsx"
+                                   class="form-control"
+                                   multiple
+                                   required />
+                            <div class="form-text">Vous pouvez sélectionner plusieurs fichiers .xlsx à la fois (Ctrl / Cmd + clic).</div>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                        <button type="submit" class="btn btn-primary">Valider l'import</button>
+                    </div>
+                </form>
+
+            </div>
+        </div>
+    </div>
+
+</div>

@@ -1,5 +1,5 @@
 ===== EXPORT COMPLET SPRING =====
-Date : mer. 12 août 2026 18:16:30 EAT
+Date : mer. 12 août 2026 22:02:35 EAT
 
 
 ======================================
@@ -376,6 +376,80 @@ public class ThymeleafModelAttributes {
     }
 }
 
+
+======================================
+FILE : src/main/java/com/gestion/restaurant/controller/admin/AdminMaintenanceController.java
+======================================
+package com.gestion.restaurant.controller.admin;
+
+import com.gestion.restaurant.service.admin.DatabaseMaintenanceService;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+
+/**
+ * Page d'administration "Zone dangereuse" : vidage complet de la base
+ * et reset des séquences. Protégée par l'authentification globale
+ * (SecurityConfig : anyRequest().authenticated(), un seul compte ADMIN existe).
+ * <p>
+ * Chaque action nécessite en plus une confirmation textuelle exacte
+ * (mot-clé tapé par l'utilisateur), vérifiée côté serveur, pour éviter
+ * qu'un simple clic accidentel ou un confirm() JS contourné ne déclenche
+ * une perte de données irréversible.
+ */
+@Controller
+@RequestMapping("/admin/maintenance")
+public class AdminMaintenanceController {
+
+    private static final String MOT_CLE_TRUNCATE = "SUPPRIMER";
+    private static final String MOT_CLE_RESET_SEQ = "RESET";
+
+    private final DatabaseMaintenanceService maintenanceService;
+
+    public AdminMaintenanceController(DatabaseMaintenanceService maintenanceService) {
+        this.maintenanceService = maintenanceService;
+    }
+
+    @GetMapping
+    public String page(Model model) {
+        model.addAttribute("tables", maintenanceService.listUserTables());
+        model.addAttribute("motCleTruncate", MOT_CLE_TRUNCATE);
+        model.addAttribute("motCleResetSeq", MOT_CLE_RESET_SEQ);
+        return "admin/maintenance";
+    }
+
+    @PostMapping("/truncate")
+    public String truncate(@RequestParam("confirmation") String confirmation,
+                            RedirectAttributes redirectAttributes) {
+        if (!MOT_CLE_TRUNCATE.equals(confirmation)) {
+            redirectAttributes.addFlashAttribute("errorMessage",
+                    "Confirmation invalide : tape exactement \"" + MOT_CLE_TRUNCATE + "\" pour valider.");
+            return "redirect:/admin/maintenance";
+        }
+        int nbTables = maintenanceService.truncateAllTables();
+        redirectAttributes.addFlashAttribute("successMessage",
+                nbTables + " table(s) vidée(s) et compteurs remis à zéro.");
+        return "redirect:/admin/maintenance";
+    }
+
+    @PostMapping("/reset-sequences")
+    public String resetSequences(@RequestParam("confirmation") String confirmation,
+                                  RedirectAttributes redirectAttributes) {
+        if (!MOT_CLE_RESET_SEQ.equals(confirmation)) {
+            redirectAttributes.addFlashAttribute("errorMessage",
+                    "Confirmation invalide : tape exactement \"" + MOT_CLE_RESET_SEQ + "\" pour valider.");
+            return "redirect:/admin/maintenance";
+        }
+        int nbSeq = maintenanceService.resetAllSequencesToZero();
+        redirectAttributes.addFlashAttribute("successMessage",
+                nbSeq + " séquence(s) remise(s) à 0.");
+        return "redirect:/admin/maintenance";
+    }
+}
 
 ======================================
 FILE : src/main/java/com/gestion/restaurant/controller/api/StatsController.java
@@ -4537,6 +4611,103 @@ public class RestaurantApplication {
 
 }
 
+
+======================================
+FILE : src/main/java/com/gestion/restaurant/service/admin/DatabaseMaintenanceService.java
+======================================
+package com.gestion.restaurant.service.admin;
+
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+
+/**
+ * Opérations de maintenance dangereuses sur la base de données
+ * (vidage complet, reset des séquences).
+ *
+ * ATTENTION : toutes les méthodes de ce service sont IRRÉVERSIBLES.
+ * L'accès est contrôlé au niveau du controller (voir AdminMaintenanceController),
+ * qui exige une authentification (déjà imposée globalement par SecurityConfig)
+ * ainsi qu'une confirmation textuelle explicite avant tout appel.
+ */
+@Service
+public class DatabaseMaintenanceService {
+
+    /**
+     * Tables techniques à ne jamais toucher (migrations, etc.).
+     * Ajoute ici tout nom de table que tu veux exclure du reset.
+     */
+    private static final List<String> TABLES_EXCLUES = List.of(
+            "flyway_schema_history",
+            "databasechangelog",
+            "databasechangeloglock"
+    );
+
+    private final JdbcTemplate jdbcTemplate;
+
+    public DatabaseMaintenanceService(JdbcTemplate jdbcTemplate) {
+        this.jdbcTemplate = jdbcTemplate;
+    }
+
+    /**
+     * Liste les tables "métier" du schéma public (hors tables techniques).
+     * Utile pour afficher un récapitulatif avant confirmation.
+     */
+    public List<String> listUserTables() {
+        String sql = "SELECT tablename FROM pg_tables WHERE schemaname = 'public' "
+                + "AND tablename NOT IN (" + inClausePlaceholders(TABLES_EXCLUES.size()) + ") "
+                + "ORDER BY tablename";
+        return jdbcTemplate.queryForList(sql, String.class, TABLES_EXCLUES.toArray());
+    }
+
+    /**
+     * Vide TOUTES les tables métier du schéma public et remet les séquences
+     * (colonnes SERIAL/IDENTITY) à zéro, via TRUNCATE ... RESTART IDENTITY CASCADE.
+     * <p>
+     * Action IRRÉVERSIBLE : toutes les données de l'application sont perdues.
+     */
+    @Transactional
+    public int truncateAllTables() {
+        List<String> tables = listUserTables();
+        if (tables.isEmpty()) {
+            return 0;
+        }
+        String quoted = String.join(", ", tables.stream().map(t -> "\"" + t + "\"").toList());
+        jdbcTemplate.execute("TRUNCATE TABLE " + quoted + " RESTART IDENTITY CASCADE");
+        return tables.size();
+    }
+
+    /**
+     * Remet à zéro (RESTART WITH 1) toutes les séquences du schéma public,
+     * SANS effacer les données. Utile si les tables sont déjà vides et que
+     * tu veux juste que le prochain ID reparte de 1.
+     * <p>
+     * Si des lignes existent encore, les prochains INSERT risquent de créer
+     * des conflits de clé primaire : à utiliser normalement juste après un
+     * truncate, ou sur une base vide.
+     */
+    @Transactional
+    public int resetAllSequencesToZero() {
+        List<String> sequences = jdbcTemplate.queryForList(
+                "SELECT sequence_name FROM information_schema.sequences WHERE sequence_schema = 'public'",
+                String.class);
+        for (String seq : sequences) {
+            jdbcTemplate.execute("ALTER SEQUENCE \"" + seq + "\" RESTART WITH 1");
+        }
+        return sequences.size();
+    }
+
+    private String inClausePlaceholders(int count) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < count; i++) {
+            if (i > 0) sb.append(", ");
+            sb.append("?");
+        }
+        return sb.toString();
+    }
+}
 
 ======================================
 FILE : src/main/java/com/gestion/restaurant/service/caisse/CaisseService.java
@@ -9305,6 +9476,114 @@ RESOURCE : src/main/resources/static/template_exel/zones-livraison/.~lock.templa
 ,andrianandrainy,andrianandrainy-HP-EliteBook-830-G6,12.08.2026 12:14,file:///home/andrianandrainy/.config/libreoffice/4;
 
 ======================================
+RESOURCE : src/main/resources/templates/admin/maintenance.html
+======================================
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="fr"
+      th:with="pageTitle='Maintenance Base de Données'">
+<head th:replace="~{layout/head :: head(pageTitle=${pageTitle})}"></head>
+<body>
+
+<div class="app">
+  <aside th:replace="~{layout/sidebar :: sidebar(activeMenu='admin-maintenance')}"></aside>
+
+  <div class="main">
+    <div th:replace="~{layout/navbar :: topbar(pageTitle=${pageTitle})}"></div>
+
+    <div class="content">
+
+      <div class="page-header">
+        <div>
+          <h2>Maintenance Base de Données</h2>
+          <div class="breadcrumb">Accueil / <span>Maintenance</span></div>
+        </div>
+        <a th:href="@{/plats}" class="btn btn-outline-secondary">&larr; Retour</a>
+      </div>
+
+      <div th:replace="~{fragments/alerts :: flash}"></div>
+
+      <div class="alert alert-danger" role="alert" style="border:2px solid #dc3545;">
+        <strong><i class="bi bi-exclamation-triangle-fill"></i> Zone dangereuse</strong> —
+        Ces actions modifient la base de données <u>de production</u> et sont
+        <strong>irréversibles</strong>. Assure-toi d'avoir une sauvegarde récente
+        avant de continuer.
+      </div>
+
+      <div class="form-grid cols-1">
+
+        <!-- Vider toutes les tables -->
+        <div class="form-card mb-4" style="border-left:4px solid #dc3545;">
+          <h3 class="form-section-title">Vider la base (TRUNCATE)</h3>
+          <p>
+            Supprime <strong>toutes les données</strong> des
+            <strong th:text="${#lists.size(tables)}">0</strong> table(s) suivante(s)
+            et remet leurs compteurs d'ID à zéro :
+          </p>
+          <p class="text-muted" style="font-size:0.9rem;">
+            <span th:each="t, iter : ${tables}">
+              <span th:text="${t}">table</span><span th:if="${!iter.last}">, </span>
+            </span>
+          </p>
+
+          <form th:action="@{/admin/maintenance/truncate}" method="post"
+                onsubmit="return confirm('Dernière confirmation : cette action va EFFACER TOUTES LES DONNÉES de la base en production. Continuer ?');">
+            <div class="field-group">
+              <label class="field-label">
+                Tape <code th:text="${motCleTruncate}">SUPPRIMER</code> pour confirmer
+              </label>
+              <input type="text" name="confirmation" class="form-control"
+                     autocomplete="off" required
+                     th:placeholder="${motCleTruncate}"/>
+            </div>
+            <div class="form-footer">
+              <button type="submit" class="btn btn-danger">
+                <i class="bi bi-trash3-fill"></i> Vider toutes les tables
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Reset des séquences uniquement -->
+        <div class="form-card mb-4" style="border-left:4px solid #fd7e14;">
+          <h3 class="form-section-title">Remettre les compteurs (ID) à 0</h3>
+          <p>
+            Ne supprime aucune donnée : remet uniquement les séquences (auto-increment)
+            à leur valeur de départ. À utiliser normalement juste après un vidage, ou
+            sur une base déjà vide — sinon les prochains enregistrements peuvent entrer
+            en conflit avec des ID existants.
+          </p>
+
+          <form th:action="@{/admin/maintenance/reset-sequences}" method="post"
+                onsubmit="return confirm('Remettre toutes les séquences (ID) à 0 ?');">
+            <div class="field-group">
+              <label class="field-label">
+                Tape <code th:text="${motCleResetSeq}">RESET</code> pour confirmer
+              </label>
+              <input type="text" name="confirmation" class="form-control"
+                     autocomplete="off" required
+                     th:placeholder="${motCleResetSeq}"/>
+            </div>
+            <div class="form-footer">
+              <button type="submit" class="btn btn-warning">
+                <i class="bi bi-arrow-counterclockwise"></i> Reset des compteurs
+              </button>
+            </div>
+          </form>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div th:replace="~{layout/footer :: footer}"></div>
+<th:block th:replace="~{layout/scripts :: scripts}"></th:block>
+
+</body>
+</html>
+
+======================================
 RESOURCE : src/main/resources/templates/caisse/form.html
 ======================================
 <!DOCTYPE html>
@@ -12832,6 +13111,9 @@ RESOURCE : src/main/resources/templates/plats/list.html
           <a th:href="@{/plats/dashboard}" class="btn btn-outline-secondary me-2">Dashboard</a>
           <a th:href="@{/plats/new}" class="btn btn-primary">
             <i class="bi bi-plus-lg"></i> Créer des Plats / Recettes
+          </a>
+          <a th:href="@{/admin/maintenance}" class="btn btn-outline-danger me-2" title="Maintenance base de données">
+            <i class="bi bi-exclamation-triangle"></i> Maintenance BDD
           </a>
           <div class="card mb-4">
     <div class="card-body">

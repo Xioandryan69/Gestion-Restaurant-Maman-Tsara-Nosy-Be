@@ -2,6 +2,7 @@ package com.gestion.restaurant.controller.excel;
 
 import com.gestion.restaurant.service.excel.RestaurantExcelExchangeService;
 import com.gestion.restaurant.service.exportation.ingredients.IngredientsExport;
+import com.gestion.restaurant.service.exportation.recettes.RecetteExport;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,13 +20,16 @@ public class ExportController {
 
     private final RestaurantExcelExchangeService excelService;
     private final IngredientsExport ingredientsExport;
+    private final RecetteExport recetteExport;
 
     public ExportController(
             RestaurantExcelExchangeService excelService,
-            IngredientsExport ingredientsExport) {
+            IngredientsExport ingredientsExport,
+            RecetteExport recetteExport) {
 
         this.excelService = excelService;
         this.ingredientsExport = ingredientsExport;
+        this.recetteExport = recetteExport;
     }
 
     @GetMapping("/clients")
@@ -57,6 +61,13 @@ public class ExportController {
     public void ingredients(HttpServletResponse response) throws IOException {
         ingredientsExport.exportIngredients(response);
     }
+
+    // ---- Ajout : export des recettes (Plat + Ingrédients) ----
+    @GetMapping("/recettes")
+    public void recettes(HttpServletResponse response) throws IOException {
+        recetteExport.exportRecettes(response);
+    }
+
     @GetMapping("/zones-livraison")
     public void zonesLivraison(HttpServletResponse response) throws IOException {
         excelService.exportZonesLivraison(response);
