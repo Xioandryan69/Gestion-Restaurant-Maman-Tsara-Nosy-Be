@@ -148,4 +148,18 @@ public String materielles(
 
     return "redirect:/materielles";
 }
+@PostMapping("/zones-livraison")
+public String zonesLivraison(
+        @RequestParam("file") MultipartFile file,
+        RedirectAttributes redirectAttributes) throws IOException {
+
+    var result = excelService.importZonesLivraison(file);
+
+    redirectAttributes.addFlashAttribute(
+            "successMessage",
+            "Import zones de livraison terminé : " + result.total() + " ligne(s)."
+    );
+
+    return "redirect:/zones-livraison";
+}
 }

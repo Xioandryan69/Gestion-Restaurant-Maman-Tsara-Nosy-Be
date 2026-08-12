@@ -101,49 +101,49 @@ public class RestaurantExcelExchangeService {
     private final FacturesCommandesRepository facturesCommandesRepository;
     private final DetailsCommandesRepository detailsCommandesRepository;
 
-public RestaurantExcelExchangeService(
-        ClientsRepository clientsRepository,
-        TypeClientRepository typeClientRepository,
-        FournisseursRepository fournisseursRepository,
-        TypeFournisseursRepository typeFournisseursRepository,
-        PersonnelsRepository personnelsRepository,
-        RolePersonnelsRepository rolePersonnelsRepository,
-        CategoriePlatsRepository categoriePlatsRepository,
-        PlatsRepository platsRepository,
-        MouvementCaisseRepository mouvementCaisseRepository,
-        TypeMouvementCaisseRepository typeMouvementCaisseRepository,
-        CategorieIngredientsRepository categorieIngredientsRepository,
-        IngredientsRepository ingredientsRepository,
-        CommandesRepository commandesRepository,
-        ZoneLivraisonRepository zoneLivraisonRepository,
-        CategorieMateriellesRepository categorieMateriellesRepository,
-        MateriellesRepository materiellesRepository,
-        StatutMateriellesRepository statutMateriellesRepository,
-        FacturesCommandesRepository facturesCommandesRepository,
-        DetailsCommandesRepository detailsCommandesRepository) {
+    public RestaurantExcelExchangeService(
+            ClientsRepository clientsRepository,
+            TypeClientRepository typeClientRepository,
+            FournisseursRepository fournisseursRepository,
+            TypeFournisseursRepository typeFournisseursRepository,
+            PersonnelsRepository personnelsRepository,
+            RolePersonnelsRepository rolePersonnelsRepository,
+            CategoriePlatsRepository categoriePlatsRepository,
+            PlatsRepository platsRepository,
+            MouvementCaisseRepository mouvementCaisseRepository,
+            TypeMouvementCaisseRepository typeMouvementCaisseRepository,
+            CategorieIngredientsRepository categorieIngredientsRepository,
+            IngredientsRepository ingredientsRepository,
+            CommandesRepository commandesRepository,
+            ZoneLivraisonRepository zoneLivraisonRepository,
+            CategorieMateriellesRepository categorieMateriellesRepository,
+            MateriellesRepository materiellesRepository,
+            StatutMateriellesRepository statutMateriellesRepository,
+            FacturesCommandesRepository facturesCommandesRepository,
+            DetailsCommandesRepository detailsCommandesRepository) {
 
-    this.clientsRepository = clientsRepository;
-    this.typeClientRepository = typeClientRepository;
-    this.fournisseursRepository = fournisseursRepository;
-    this.typeFournisseursRepository = typeFournisseursRepository;
-    this.personnelsRepository = personnelsRepository;
-    this.rolePersonnelsRepository = rolePersonnelsRepository;
-    this.categoriePlatsRepository = categoriePlatsRepository;
-    this.platsRepository = platsRepository;
-    this.mouvementCaisseRepository = mouvementCaisseRepository;
-    this.typeMouvementCaisseRepository = typeMouvementCaisseRepository;
-    this.categorieIngredientsRepository = categorieIngredientsRepository;
-    this.ingredientsRepository = ingredientsRepository;
+        this.clientsRepository = clientsRepository;
+        this.typeClientRepository = typeClientRepository;
+        this.fournisseursRepository = fournisseursRepository;
+        this.typeFournisseursRepository = typeFournisseursRepository;
+        this.personnelsRepository = personnelsRepository;
+        this.rolePersonnelsRepository = rolePersonnelsRepository;
+        this.categoriePlatsRepository = categoriePlatsRepository;
+        this.platsRepository = platsRepository;
+        this.mouvementCaisseRepository = mouvementCaisseRepository;
+        this.typeMouvementCaisseRepository = typeMouvementCaisseRepository;
+        this.categorieIngredientsRepository = categorieIngredientsRepository;
+        this.ingredientsRepository = ingredientsRepository;
 
-    this.commandesRepository = commandesRepository;
-    this.zoneLivraisonRepository = zoneLivraisonRepository;
+        this.commandesRepository = commandesRepository;
+        this.zoneLivraisonRepository = zoneLivraisonRepository;
 
-    this.categorieMateriellesRepository = categorieMateriellesRepository;
-    this.materiellesRepository = materiellesRepository;
-    this.statutMateriellesRepository = statutMateriellesRepository;
-    this.facturesCommandesRepository = facturesCommandesRepository;
-    this.detailsCommandesRepository=detailsCommandesRepository;
-}
+        this.categorieMateriellesRepository = categorieMateriellesRepository;
+        this.materiellesRepository = materiellesRepository;
+        this.statutMateriellesRepository = statutMateriellesRepository;
+        this.facturesCommandesRepository = facturesCommandesRepository;
+        this.detailsCommandesRepository = detailsCommandesRepository;
+    }
 
     public void exportClients(HttpServletResponse response) throws IOException {
         writeWorkbook(response, "clients.xlsx", workbook -> {
@@ -179,7 +179,8 @@ public RestaurantExcelExchangeService(
             Sheet sheet = workbook.createSheet("Personnels");
             writeHeader(sheet, "rolePersonnel", "nom", "prenom", "contact", "dateEmbauche");
             int rowIndex = 1;
-            for (Personnels personnel : personnelsRepository.findAll((root, query, cb) -> cb.conjunction(), org.springframework.data.domain.PageRequest.of(0, Integer.MAX_VALUE)).getContent()) {
+            for (Personnels personnel : personnelsRepository.findAll((root, query, cb) -> cb.conjunction(),
+                    org.springframework.data.domain.PageRequest.of(0, Integer.MAX_VALUE)).getContent()) {
                 Row row = sheet.createRow(rowIndex++);
                 writeRow(row,
                         personnel.getRolePersonnels() != null ? personnel.getRolePersonnels().getLibelle() : "",
@@ -196,7 +197,9 @@ public RestaurantExcelExchangeService(
             Sheet sheet = workbook.createSheet("Caisse");
             writeHeader(sheet, "dateMouvement", "typeMouvement", "montant");
             int rowIndex = 1;
-            for (MouvementCaisse mouvement : mouvementCaisseRepository.findAllWithType(org.springframework.data.domain.PageRequest.of(0, Integer.MAX_VALUE)).getContent()) {
+            for (MouvementCaisse mouvement : mouvementCaisseRepository
+                    .findAllWithType(org.springframework.data.domain.PageRequest.of(0, Integer.MAX_VALUE))
+                    .getContent()) {
                 Row row = sheet.createRow(rowIndex++);
                 writeRow(row,
                         mouvement.getDateMouvement() != null ? mouvement.getDateMouvement().toString() : "",
@@ -224,7 +227,8 @@ public RestaurantExcelExchangeService(
     public ImportSummary importClients(MultipartFile file) throws IOException {
         return importSimple(file, "Clients", row -> {
             String typeLabel = required(row, "typeclient", "type client");
-            TypeClient type = resolve(typeLabel, typeClientRepository.findAll(), TypeClient::new, t -> t.setLibelle(typeLabel.trim()), typeClientRepository::save, TypeClient::getLibelle);
+            TypeClient type = resolve(typeLabel, typeClientRepository.findAll(), TypeClient::new,
+                    t -> t.setLibelle(typeLabel.trim()), typeClientRepository::save, TypeClient::getLibelle);
             Clients client = new Clients();
             client.setNom(required(row, "nom"));
             client.setPrenom(required(row, "prenom"));
@@ -237,7 +241,9 @@ public RestaurantExcelExchangeService(
     public ImportSummary importFournisseurs(MultipartFile file) throws IOException {
         return importSimple(file, "Fournisseurs", row -> {
             String typeLabel = required(row, "typefournisseurs", "type fournisseurs");
-            TypeFournisseurs type = resolve(typeLabel, typeFournisseursRepository.findAll(), TypeFournisseurs::new, t -> t.setLibelle(typeLabel.trim()), typeFournisseursRepository::save, TypeFournisseurs::getLibelle);
+            TypeFournisseurs type = resolve(typeLabel, typeFournisseursRepository.findAll(), TypeFournisseurs::new,
+                    t -> t.setLibelle(typeLabel.trim()), typeFournisseursRepository::save,
+                    TypeFournisseurs::getLibelle);
             Fournisseurs fournisseur = new Fournisseurs();
             fournisseur.setTypeFournisseurs(type);
             fournisseur.setNom(required(row, "nom"));
@@ -250,7 +256,8 @@ public RestaurantExcelExchangeService(
     public ImportSummary importPersonnels(MultipartFile file) throws IOException {
         return importSimple(file, "Personnels", row -> {
             String roleLabel = required(row, "rolepersonnel", "role personnel");
-            RolePersonnels role = resolve(roleLabel, rolePersonnelsRepository.findAll(), RolePersonnels::new, r -> r.setLibelle(roleLabel.trim()), rolePersonnelsRepository::save, RolePersonnels::getLibelle);
+            RolePersonnels role = resolve(roleLabel, rolePersonnelsRepository.findAll(), RolePersonnels::new,
+                    r -> r.setLibelle(roleLabel.trim()), rolePersonnelsRepository::save, RolePersonnels::getLibelle);
             Personnels personnel = new Personnels();
             personnel.setRolePersonnels(role);
             personnel.setNom(required(row, "nom"));
@@ -264,7 +271,10 @@ public RestaurantExcelExchangeService(
 
     public ImportSummary importCaisse(MultipartFile file) throws IOException {
         return importSimple(file, "Caisse", row -> {
-            TypeMouvementCaisse type = resolve(required(row, "typemouvement", "type mouvement"), typeMouvementCaisseRepository.findAll(), TypeMouvementCaisse::new, t -> t.setLibelle(required(row, "typemouvement", "type mouvement").trim()), typeMouvementCaisseRepository::save, TypeMouvementCaisse::getLibelle);
+            TypeMouvementCaisse type = resolve(required(row, "typemouvement", "type mouvement"),
+                    typeMouvementCaisseRepository.findAll(), TypeMouvementCaisse::new,
+                    t -> t.setLibelle(required(row, "typemouvement", "type mouvement").trim()),
+                    typeMouvementCaisseRepository::save, TypeMouvementCaisse::getLibelle);
             MouvementCaisse mouvement = new MouvementCaisse();
             mouvement.setDateMouvement(LocalDate.parse(required(row, "datemouvement", "date mouvement")));
             mouvement.setMontant(new BigDecimal(required(row, "montant")));
@@ -275,7 +285,10 @@ public RestaurantExcelExchangeService(
 
     public ImportSummary importPlats(MultipartFile file) throws IOException {
         return importSimple(file, "Plats", row -> {
-            CategoriePlats categorie = resolve(required(row, "categorieplats", "categorie plats"), categoriePlatsRepository.findAll(), CategoriePlats::new, c -> c.setLibelle(required(row, "categorieplats", "categorie plats").trim()), categoriePlatsRepository::save, CategoriePlats::getLibelle);
+            CategoriePlats categorie = resolve(required(row, "categorieplats", "categorie plats"),
+                    categoriePlatsRepository.findAll(), CategoriePlats::new,
+                    c -> c.setLibelle(required(row, "categorieplats", "categorie plats").trim()),
+                    categoriePlatsRepository::save, CategoriePlats::getLibelle);
             Plats plat = new Plats();
             plat.setNom(required(row, "nom"));
             plat.setCategoriePlats(categorie);
@@ -288,7 +301,8 @@ public RestaurantExcelExchangeService(
         return new ClassPathResource(resourcePath);
     }
 
-    private <T> ImportSummary importSimple(MultipartFile file, String sheetName, RowSaver<T> rowSaver) throws IOException {
+    private <T> ImportSummary importSimple(MultipartFile file, String sheetName, RowSaver<T> rowSaver)
+            throws IOException {
         try (InputStream inputStream = file.getInputStream(); Workbook workbook = WorkbookFactory.create(inputStream)) {
             if (workbook.getNumberOfSheets() == 0) {
                 throw new IllegalArgumentException("Le fichier Excel ne contient aucune feuille.");
@@ -311,7 +325,8 @@ public RestaurantExcelExchangeService(
         }
     }
 
-    private <T> T resolve(String label, Iterable<T> existing, Factory<T> factory, Setter<T> setter, Saver<T> saver, LabelGetter<T> getter) {
+    private <T> T resolve(String label, Iterable<T> existing, Factory<T> factory, Setter<T> setter, Saver<T> saver,
+            LabelGetter<T> getter) {
         String normalized = normalize(label);
         for (T item : existing) {
             if (normalize(getter.get(item)).equals(normalized)) {
@@ -323,11 +338,13 @@ public RestaurantExcelExchangeService(
         return saver.save(created);
     }
 
-    private void writeWorkbook(HttpServletResponse response, String filename, WorkbookWriter writer) throws IOException {
+    private void writeWorkbook(HttpServletResponse response, String filename, WorkbookWriter writer)
+            throws IOException {
         try (Workbook workbook = new XSSFWorkbook()) {
             writer.write(workbook);
             response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-            response.setHeader("Content-Disposition", "attachment; filename=" + java.net.URLEncoder.encode(filename, StandardCharsets.UTF_8));
+            response.setHeader("Content-Disposition",
+                    "attachment; filename=" + java.net.URLEncoder.encode(filename, StandardCharsets.UTF_8));
             workbook.write(response.getOutputStream());
             response.flushBuffer();
         }
@@ -395,424 +412,405 @@ public RestaurantExcelExchangeService(
     }
 
     public ImportSummary importMaterielles(MultipartFile file) throws IOException {
-    return importSimple(file, "Materielles", row -> {
+        return importSimple(file, "Materielles", row -> {
 
-        String categorieLabel = required(
-                row,
-                "categorieMaterielles",
-                "categorie materielle",
-                "categorie materiels"
-        );
+            String categorieLabel = required(
+                    row,
+                    "categorieMaterielles",
+                    "categorie materielle",
+                    "categorie materiels");
 
-        CategorieMaterielles categorie = resolve(
-                categorieLabel,
-                categorieMateriellesRepository.findAll(),
-                CategorieMaterielles::new,
-                c -> c.setLibelle(categorieLabel.trim()),
-                categorieMateriellesRepository::save,
-                CategorieMaterielles::getLibelle
-        );
+            CategorieMaterielles categorie = resolve(
+                    categorieLabel,
+                    categorieMateriellesRepository.findAll(),
+                    CategorieMaterielles::new,
+                    c -> c.setLibelle(categorieLabel.trim()),
+                    categorieMateriellesRepository::save,
+                    CategorieMaterielles::getLibelle);
 
-        String statutLabel = required(
-                row,
-                "statutMaterielles",
-                "statut materielle",
-                "statut materiels"
-        );
+            String statutLabel = required(
+                    row,
+                    "statutMaterielles",
+                    "statut materielle",
+                    "statut materiels");
 
-        StatutMaterielles statut = resolve(
-                statutLabel,
-                statutMateriellesRepository.findAll(),
-                StatutMaterielles::new,
-                s -> s.setLibelle(statutLabel.trim()),
-                statutMateriellesRepository::save,
-                StatutMaterielles::getLibelle
-        );
+            StatutMaterielles statut = resolve(
+                    statutLabel,
+                    statutMateriellesRepository.findAll(),
+                    StatutMaterielles::new,
+                    s -> s.setLibelle(statutLabel.trim()),
+                    statutMateriellesRepository::save,
+                    StatutMaterielles::getLibelle);
 
-        Materielles materiel = new Materielles();
+            Materielles materiel = new Materielles();
 
-        materiel.setNom(
-                required(row, "nom")
-        );
+            materiel.setNom(
+                    required(row, "nom"));
 
-        materiel.setDateEntree(
-                LocalDate.parse(
-                        required(row, "dateEntree", "date entree")
-                )
-        );
+            materiel.setDateEntree(
+                    LocalDate.parse(
+                            required(row, "dateEntree", "date entree")));
 
-        materiel.setCategorieMaterielles(categorie);
-        materiel.setStatutMaterielles(statut);
+            materiel.setCategorieMaterielles(categorie);
+            materiel.setStatutMaterielles(statut);
 
-        return materiellesRepository.save(materiel);
-    });
-}public ImportSummary importCommandes(MultipartFile file) throws IOException {
+            return materiellesRepository.save(materiel);
+        });
+    }
 
-    try (InputStream inputStream = file.getInputStream();
-         Workbook workbook = WorkbookFactory.create(inputStream)) {
+    public ImportSummary importCommandes(MultipartFile file) throws IOException {
 
-        Sheet commandesSheet = workbook.getSheet("Commandes");
-        Sheet detailsSheet = workbook.getSheet("DetailsCommandes");
-        Sheet facturesSheet = workbook.getSheet("FactureCommandes");
+        try (InputStream inputStream = file.getInputStream();
+                Workbook workbook = WorkbookFactory.create(inputStream)) {
 
-        if (commandesSheet == null) {
-            throw new IllegalArgumentException(
-                    "Feuille introuvable : Commandes"
-            );
-        }
+            Sheet commandesSheet = workbook.getSheet("Commandes");
+            Sheet detailsSheet = workbook.getSheet("DetailsCommandes");
+            Sheet facturesSheet = workbook.getSheet("FactureCommandes");
 
-        if (detailsSheet == null) {
-            throw new IllegalArgumentException(
-                    "Feuille introuvable : DetailsCommandes"
-            );
-        }
-
-        if (facturesSheet == null) {
-            throw new IllegalArgumentException(
-                    "Feuille introuvable : FactureCommandes"
-            );
-        }
-
-        /*
-         * Map utilisée pour retrouver une commande
-         * depuis la colonne "commande" des feuilles
-         * DetailsCommandes et FactureCommandes.
-         *
-         * La clé principale est le numéro de ligne Excel.
-         *
-         * Exemple :
-         * Commandes
-         * ligne 2 -> commande créée avec ID 15
-         *
-         * DetailsCommandes
-         * commande = 2
-         *
-         * => on retrouve la commande ID 15.
-         */
-        Map<String, Commandes> commandesMap = new LinkedHashMap<>();
-
-        int importedCommandes = 0;
-        int importedDetails = 0;
-        int importedFactures = 0;
-
-        /*
-         * ============================================================
-         * 1. IMPORT DES COMMANDES
-         * ============================================================
-         */
-
-        for (Row row : commandesSheet) {
-
-            if (row.getRowNum() == 0 || isRowEmpty(row)) {
-                continue;
+            if (commandesSheet == null) {
+                throw new IllegalArgumentException(
+                        "Feuille introuvable : Commandes");
             }
 
-            String clientLabel = required(row, "client");
+            if (detailsSheet == null) {
+                throw new IllegalArgumentException(
+                        "Feuille introuvable : DetailsCommandes");
+            }
 
-            String dateCommandeValue =
-                    required(row, "datecommande", "date commande");
-
-            String zoneLabel =
-                    required(row, "zonelivraison", "zone livraison");
-
-            String montantTotalValue =
-                    required(row, "montanttotal", "montant total");
-
-            Clients client = findClientForImport(clientLabel);
-
-            ZonesLivraison zone = findZoneForImport(zoneLabel);
-
-            Commandes commande = new Commandes();
-
-            commande.setClient(client);
-            commande.setDateCommande(
-                    LocalDate.parse(dateCommandeValue)
-            );
-            commande.setZoneLivraison(zone);
-            commande.setMontantTotal(
-                    new BigDecimal(montantTotalValue)
-            );
-
-            Commandes saved = commandesRepository.save(commande);
+            if (facturesSheet == null) {
+                throw new IllegalArgumentException(
+                        "Feuille introuvable : FactureCommandes");
+            }
 
             /*
-             * row.getRowNum() commence à 0.
+             * Map utilisée pour retrouver une commande
+             * depuis la colonne "commande" des feuilles
+             * DetailsCommandes et FactureCommandes.
              *
-             * Excel :
-             * ligne 1 = header
-             * ligne 2 = première donnée
+             * La clé principale est le numéro de ligne Excel.
              *
-             * Donc on utilise row.getRowNum() + 1
-             * comme référence de commande dans Excel.
+             * Exemple :
+             * Commandes
+             * ligne 2 -> commande créée avec ID 15
+             *
+             * DetailsCommandes
+             * commande = 2
+             *
+             * => on retrouve la commande ID 15.
              */
-            String excelRowReference =
-                    String.valueOf(row.getRowNum() + 1);
+            Map<String, Commandes> commandesMap = new LinkedHashMap<>();
 
-            commandesMap.put(
-                    excelRowReference,
-                    saved
-            );
+            int importedCommandes = 0;
+            int importedDetails = 0;
+            int importedFactures = 0;
 
             /*
-             * On permet également de retrouver la commande
-             * avec son ID PostgreSQL.
+             * ============================================================
+             * 1. IMPORT DES COMMANDES
+             * ============================================================
              */
-            if (saved.getId() != null) {
+
+            for (Row row : commandesSheet) {
+
+                if (row.getRowNum() == 0 || isRowEmpty(row)) {
+                    continue;
+                }
+
+                String clientLabel = required(row, "client");
+
+                String dateCommandeValue = required(row, "datecommande", "date commande");
+
+                String zoneLabel = required(row, "zonelivraison", "zone livraison");
+
+                String montantTotalValue = required(row, "montanttotal", "montant total");
+
+                Clients client = findClientForImport(clientLabel);
+
+                ZonesLivraison zone = findZoneForImport(zoneLabel);
+
+                Commandes commande = new Commandes();
+
+                commande.setClient(client);
+                commande.setDateCommande(
+                        LocalDate.parse(dateCommandeValue));
+                commande.setZoneLivraison(zone);
+                commande.setMontantTotal(
+                        new BigDecimal(montantTotalValue));
+
+                Commandes saved = commandesRepository.save(commande);
+
+                /*
+                 * row.getRowNum() commence à 0.
+                 *
+                 * Excel :
+                 * ligne 1 = header
+                 * ligne 2 = première donnée
+                 *
+                 * Donc on utilise row.getRowNum() + 1
+                 * comme référence de commande dans Excel.
+                 */
+                String excelRowReference = String.valueOf(row.getRowNum() + 1);
+
                 commandesMap.put(
-                        String.valueOf(saved.getId()),
-                        saved
-                );
+                        excelRowReference,
+                        saved);
+
+                /*
+                 * On permet également de retrouver la commande
+                 * avec son ID PostgreSQL.
+                 */
+                if (saved.getId() != null) {
+                    commandesMap.put(
+                            String.valueOf(saved.getId()),
+                            saved);
+                }
+
+                importedCommandes++;
             }
 
-            importedCommandes++;
+            /*
+             * ============================================================
+             * 2. IMPORT DES DETAILS
+             * ============================================================
+             */
+
+            for (Row row : detailsSheet) {
+
+                if (row.getRowNum() == 0 || isRowEmpty(row)) {
+                    continue;
+                }
+
+                String commandeReference = required(row, "commande");
+
+                String platLabel = required(row, "plat");
+
+                String quantiteValue = required(row, "quantite");
+
+                String prixUnitaireValue = required(row, "prixunitaire", "prix unitaire");
+
+                String montantValue = required(row, "montant");
+
+                Commandes commande = commandesMap.get(
+                        normalize(commandeReference));
+
+                if (commande == null) {
+                    throw new IllegalArgumentException(
+                            "Commande introuvable dans DetailsCommandes : "
+                                    + commandeReference);
+                }
+
+                Plats plat = findPlatForImport(platLabel);
+
+                DetailsCommandes detail = new DetailsCommandes();
+
+                detail.setCommande(commande);
+                detail.setPlat(plat);
+
+                detail.setQuantite(
+                        new BigDecimal(quantiteValue));
+
+                detail.setPrixUnitaire(
+                        new BigDecimal(prixUnitaireValue));
+
+                detail.setMontant(
+                        new BigDecimal(montantValue));
+
+                detailsCommandesRepository.save(detail);
+
+                importedDetails++;
+            }
+
+            /*
+             * ============================================================
+             * 3. IMPORT DES FACTURES
+             * ============================================================
+             */
+
+            for (Row row : facturesSheet) {
+
+                if (row.getRowNum() == 0 || isRowEmpty(row)) {
+                    continue;
+                }
+
+                String commandeReference = required(row, "commande");
+
+                String dateFactureValue = required(row, "datefacture", "date facture");
+
+                String montantTotalValue = required(row, "montanttotal", "montant total");
+
+                Commandes commande = commandesMap.get(
+                        normalize(commandeReference));
+
+                if (commande == null) {
+                    throw new IllegalArgumentException(
+                            "Commande introuvable dans FactureCommandes : "
+                                    + commandeReference);
+                }
+
+                FacturesCommandes facture = new FacturesCommandes();
+
+                facture.setCommande(commande);
+
+                facture.setDateFacture(
+                        LocalDate.parse(dateFactureValue));
+
+                facture.setMontantTotal(
+                        new BigDecimal(montantTotalValue));
+
+                facturesCommandesRepository.save(facture);
+
+                importedFactures++;
+            }
+
+            /*
+             * importedRows = total des objets réellement insérés.
+             */
+            int totalImported = importedCommandes
+                    + importedDetails
+                    + importedFactures;
+
+            return new ImportSummary(
+                    totalImported,
+                    0,
+                    3);
+        }
+    }
+
+    private Clients findClientForImport(String value) {
+
+        String normalized = normalize(value);
+
+        /*
+         * Si Excel contient directement l'ID du client.
+         */
+        try {
+            Long id = Long.parseLong(normalized);
+
+            Clients client = clientsRepository.findById(id).orElse(null);
+
+            if (client != null) {
+                return client;
+            }
+        } catch (NumberFormatException ignored) {
         }
 
         /*
-         * ============================================================
-         * 2. IMPORT DES DETAILS
-         * ============================================================
+         * Sinon :
+         * "Nom Prénom"
          */
+        for (Clients client : clientsRepository.findAll()) {
 
-        for (Row row : detailsSheet) {
+            String fullName = normalize(
+                    client.getNom()
+                            + " "
+                            + client.getPrenom());
 
-            if (row.getRowNum() == 0 || isRowEmpty(row)) {
-                continue;
+            if (fullName.equals(normalized)) {
+                return client;
             }
 
-            String commandeReference =
-                    required(row, "commande");
-
-            String platLabel =
-                    required(row, "plat");
-
-            String quantiteValue =
-                    required(row, "quantite");
-
-            String prixUnitaireValue =
-                    required(row, "prixunitaire", "prix unitaire");
-
-            String montantValue =
-                    required(row, "montant");
-
-            Commandes commande =
-                    commandesMap.get(
-                            normalize(commandeReference)
-                    );
-
-            if (commande == null) {
-                throw new IllegalArgumentException(
-                        "Commande introuvable dans DetailsCommandes : "
-                                + commandeReference
-                );
+            /*
+             * On accepte également uniquement le nom.
+             */
+            if (normalize(client.getNom()).equals(normalized)) {
+                return client;
             }
+        }
 
-            Plats plat =
-                    findPlatForImport(platLabel);
+        throw new IllegalArgumentException(
+                "Client introuvable : " + value);
+    }
 
-            DetailsCommandes detail = new DetailsCommandes();
+    private ZonesLivraison findZoneForImport(String value) {
 
-            detail.setCommande(commande);
-            detail.setPlat(plat);
+        String normalized = normalize(value);
 
-            detail.setQuantite(
-                    new BigDecimal(quantiteValue)
-            );
+        /*
+         * Excel peut contenir l'ID.
+         */
+        try {
+            Long id = Long.parseLong(normalized);
 
-            detail.setPrixUnitaire(
-                    new BigDecimal(prixUnitaireValue)
-            );
+            ZonesLivraison zone = zoneLivraisonRepository.findById(id).orElse(null);
 
-            detail.setMontant(
-                    new BigDecimal(montantValue)
-            );
-
-            detailsCommandesRepository.save(detail);
-
-            importedDetails++;
+            if (zone != null) {
+                return zone;
+            }
+        } catch (NumberFormatException ignored) {
         }
 
         /*
-         * ============================================================
-         * 3. IMPORT DES FACTURES
-         * ============================================================
+         * Sinon recherche par libellé.
          */
+        for (ZonesLivraison zone : zoneLivraisonRepository.findAll()) {
 
-        for (Row row : facturesSheet) {
-
-            if (row.getRowNum() == 0 || isRowEmpty(row)) {
-                continue;
+            if (normalize(zone.getLibelle()).equals(normalized)) {
+                return zone;
             }
+        }
 
-            String commandeReference =
-                    required(row, "commande");
+        throw new IllegalArgumentException(
+                "Zone de livraison introuvable : " + value);
+    }
 
-            String dateFactureValue =
-                    required(row, "datefacture", "date facture");
+    private Plats findPlatForImport(String value) {
 
-            String montantTotalValue =
-                    required(row, "montanttotal", "montant total");
+        String normalized = normalize(value);
 
-            Commandes commande =
-                    commandesMap.get(
-                            normalize(commandeReference)
-                    );
+        /*
+         * Excel peut contenir l'ID du plat.
+         */
+        try {
+            Long id = Long.parseLong(normalized);
 
-            if (commande == null) {
-                throw new IllegalArgumentException(
-                        "Commande introuvable dans FactureCommandes : "
-                                + commandeReference
-                );
+            Plats plat = platsRepository.findById(id).orElse(null);
+
+            if (plat != null) {
+                return plat;
             }
-
-            FacturesCommandes facture =
-                    new FacturesCommandes();
-
-            facture.setCommande(commande);
-
-            facture.setDateFacture(
-                    LocalDate.parse(dateFactureValue)
-            );
-
-            facture.setMontantTotal(
-                    new BigDecimal(montantTotalValue)
-            );
-
-            facturesCommandesRepository.save(facture);
-
-            importedFactures++;
+        } catch (NumberFormatException ignored) {
         }
 
         /*
-         * importedRows = total des objets réellement insérés.
+         * Sinon recherche par nom.
          */
-        int totalImported =
-                importedCommandes
-                        + importedDetails
-                        + importedFactures;
+        for (Plats plat : platsRepository.findAll()) {
 
-        return new ImportSummary(
-                totalImported,
-                0,
-                3
-        );
-    }
-}
-private Clients findClientForImport(String value) {
-
-    String normalized = normalize(value);
-
-    /*
-     * Si Excel contient directement l'ID du client.
-     */
-    try {
-        Long id = Long.parseLong(normalized);
-
-        Clients client = clientsRepository.findById(id).orElse(null);
-
-        if (client != null) {
-            return client;
-        }
-    } catch (NumberFormatException ignored) {
-    }
-
-    /*
-     * Sinon :
-     * "Nom Prénom"
-     */
-    for (Clients client : clientsRepository.findAll()) {
-
-        String fullName =
-                normalize(
-                        client.getNom()
-                                + " "
-                                + client.getPrenom()
-                );
-
-        if (fullName.equals(normalized)) {
-            return client;
+            if (normalize(plat.getNom()).equals(normalized)) {
+                return plat;
+            }
         }
 
-        /*
-         * On accepte également uniquement le nom.
-         */
-        if (normalize(client.getNom()).equals(normalized)) {
-            return client;
-        }
+        throw new IllegalArgumentException(
+                "Plat introuvable : " + value);
     }
 
-    throw new IllegalArgumentException(
-            "Client introuvable : " + value
-    );
-}
-private ZonesLivraison findZoneForImport(String value) {
-
-    String normalized = normalize(value);
-
-    /*
-     * Excel peut contenir l'ID.
-     */
-    try {
-        Long id = Long.parseLong(normalized);
-
-        ZonesLivraison zone =
-                zoneLivraisonRepository.findById(id).orElse(null);
-
-        if (zone != null) {
-            return zone;
-        }
-    } catch (NumberFormatException ignored) {
+    public void exportZonesLivraison(HttpServletResponse response) throws IOException {
+        writeWorkbook(response, "zones-livraison.xlsx", workbook -> {
+            Sheet sheet = workbook.createSheet("ZonesLivraison");
+            writeHeader(sheet, "libelle", "min", "max", "prix");
+            int rowIndex = 1;
+            for (ZonesLivraison zone : zoneLivraisonRepository.findAll()) {
+                Row row = sheet.createRow(rowIndex++);
+                writeRow(row,
+                        zone.getLibelle(),
+                        zone.getMin().toPlainString(),
+                        zone.getMax().toPlainString(),
+                        zone.getPrix().toPlainString());
+            }
+        });
     }
 
-    /*
-     * Sinon recherche par libellé.
-     */
-    for (ZonesLivraison zone :
-            zoneLivraisonRepository.findAll()) {
-
-        if (normalize(zone.getLibelle()).equals(normalized)) {
-            return zone;
-        }
+    public ImportSummary importZonesLivraison(MultipartFile file) throws IOException {
+        return importSimple(file, "ZonesLivraison", row -> {
+            ZonesLivraison zone = new ZonesLivraison();
+            zone.setLibelle(required(row, "libelle"));
+            zone.setMin(new BigDecimal(required(row, "min")));
+            zone.setMax(new BigDecimal(required(row, "max")));
+            zone.setPrix(new BigDecimal(required(row, "prix")));
+            return zoneLivraisonRepository.save(zone);
+        });
     }
-
-    throw new IllegalArgumentException(
-            "Zone de livraison introuvable : " + value
-    );
-}
-private Plats findPlatForImport(String value) {
-
-    String normalized = normalize(value);
-
-    /*
-     * Excel peut contenir l'ID du plat.
-     */
-    try {
-        Long id = Long.parseLong(normalized);
-
-        Plats plat =
-                platsRepository.findById(id).orElse(null);
-
-        if (plat != null) {
-            return plat;
-        }
-    } catch (NumberFormatException ignored) {
-    }
-
-    /*
-     * Sinon recherche par nom.
-     */
-    for (Plats plat : platsRepository.findAll()) {
-
-        if (normalize(plat.getNom()).equals(normalized)) {
-            return plat;
-        }
-    }
-
-    throw new IllegalArgumentException(
-            "Plat introuvable : " + value
-    );
-}
-
-
 
     @FunctionalInterface
     private interface RowSaver<T> {
@@ -825,11 +823,22 @@ private Plats findPlatForImport(String value) {
     }
 
     @FunctionalInterface
-    private interface Factory<T> { T create(); }
+    private interface Factory<T> {
+        T create();
+    }
+
     @FunctionalInterface
-    private interface Setter<T> { void set(T value); }
+    private interface Setter<T> {
+        void set(T value);
+    }
+
     @FunctionalInterface
-    private interface Saver<T> { T save(T value); }
+    private interface Saver<T> {
+        T save(T value);
+    }
+
     @FunctionalInterface
-    private interface LabelGetter<T> { String get(T value); }
+    private interface LabelGetter<T> {
+        String get(T value);
+    }
 }
