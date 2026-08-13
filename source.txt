@@ -1,5 +1,5 @@
 ===== EXPORT COMPLET SPRING =====
-Date : mer. 12 août 2026 22:02:35 EAT
+Date : jeu. 13 août 2026 14:47:10 EAT
 
 
 ======================================
@@ -887,6 +887,7 @@ package com.gestion.restaurant.controller.excel;
 
 import com.gestion.restaurant.service.excel.RestaurantExcelExchangeService;
 import com.gestion.restaurant.service.exportation.ingredients.IngredientsExport;
+import com.gestion.restaurant.service.exportation.recettes.RecetteExport;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -904,13 +905,16 @@ public class ExportController {
 
     private final RestaurantExcelExchangeService excelService;
     private final IngredientsExport ingredientsExport;
+    private final RecetteExport recetteExport;
 
     public ExportController(
             RestaurantExcelExchangeService excelService,
-            IngredientsExport ingredientsExport) {
+            IngredientsExport ingredientsExport,
+            RecetteExport recetteExport) {
 
         this.excelService = excelService;
         this.ingredientsExport = ingredientsExport;
+        this.recetteExport = recetteExport;
     }
 
     @GetMapping("/clients")
@@ -942,6 +946,13 @@ public class ExportController {
     public void ingredients(HttpServletResponse response) throws IOException {
         ingredientsExport.exportIngredients(response);
     }
+
+    // ---- Ajout : export des recettes (Plat + Ingrédients) ----
+    @GetMapping("/recettes")
+    public void recettes(HttpServletResponse response) throws IOException {
+        recetteExport.exportRecettes(response);
+    }
+
     @GetMapping("/zones-livraison")
     public void zonesLivraison(HttpServletResponse response) throws IOException {
         excelService.exportZonesLivraison(response);
@@ -970,6 +981,8 @@ package com.gestion.restaurant.controller.excel;
 import com.gestion.restaurant.service.excel.RestaurantExcelExchangeService;
 import com.gestion.restaurant.service.importation.ingredients.IngredientsImportService;
 import jakarta.servlet.http.HttpServletResponse;
+import com.gestion.restaurant.service.importation.recettes.RecetteImportService;
+import java.util.List;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -981,154 +994,177 @@ import java.io.IOException;
 @RequestMapping("/import")
 public class ImportController {
 
-    private final RestaurantExcelExchangeService excelService;
-    private final IngredientsImportService ingredientsImportService;
+        private final RestaurantExcelExchangeService excelService;
+        private final IngredientsImportService ingredientsImportService;
+        private final RecetteImportService recetteImportService;
 
-    public ImportController(
-            RestaurantExcelExchangeService excelService,
-            IngredientsImportService ingredientsImportService) {
+        public ImportController(
+                        RestaurantExcelExchangeService excelService,
+                        IngredientsImportService ingredientsImportService,
+                        RecetteImportService recetteImportService) {
 
-        this.excelService = excelService;
-        this.ingredientsImportService = ingredientsImportService;
-    }
+                this.excelService = excelService;
+                this.ingredientsImportService = ingredientsImportService;
+                this.recetteImportService = recetteImportService;
+        }
 
-    @PostMapping("/clients")
-    public String clients(
-            @RequestParam("file") MultipartFile file,
-            RedirectAttributes redirectAttributes) throws IOException {
+        @PostMapping("/clients")
+        public String clients(
+                        @RequestParam("file") MultipartFile file,
+                        RedirectAttributes redirectAttributes) throws IOException {
 
-        var result = excelService.importClients(file);
+                var result = excelService.importClients(file);
 
-        redirectAttributes.addFlashAttribute(
-                "successMessage",
-                "Import clients terminé : " + result.total() + " ligne(s)."
-        );
+                redirectAttributes.addFlashAttribute(
+                                "successMessage",
+                                "Import clients terminé : " + result.total() + " ligne(s).");
 
-        return "redirect:/clients";
-    }
+                return "redirect:/clients";
+        }
 
-    @PostMapping("/fournisseurs")
-    public String fournisseurs(
-            @RequestParam("file") MultipartFile file,
-            RedirectAttributes redirectAttributes) throws IOException {
+        @PostMapping("/fournisseurs")
+        public String fournisseurs(
+                        @RequestParam("file") MultipartFile file,
+                        RedirectAttributes redirectAttributes) throws IOException {
 
-        var result = excelService.importFournisseurs(file);
+                var result = excelService.importFournisseurs(file);
 
-        redirectAttributes.addFlashAttribute(
-                "successMessage",
-                "Import fournisseurs terminé : " + result.total() + " ligne(s)."
-        );
+                redirectAttributes.addFlashAttribute(
+                                "successMessage",
+                                "Import fournisseurs terminé : " + result.total() + " ligne(s).");
 
-        return "redirect:/fournisseurs";
-    }
+                return "redirect:/fournisseurs";
+        }
 
-    @PostMapping("/personnels")
-    public String personnels(
-            @RequestParam("file") MultipartFile file,
-            RedirectAttributes redirectAttributes) throws IOException {
+        @PostMapping("/personnels")
+        public String personnels(
+                        @RequestParam("file") MultipartFile file,
+                        RedirectAttributes redirectAttributes) throws IOException {
 
-        var result = excelService.importPersonnels(file);
+                var result = excelService.importPersonnels(file);
 
-        redirectAttributes.addFlashAttribute(
-                "successMessage",
-                "Import personnels terminé : " + result.total() + " ligne(s)."
-        );
+                redirectAttributes.addFlashAttribute(
+                                "successMessage",
+                                "Import personnels terminé : " + result.total() + " ligne(s).");
 
-        return "redirect:/personnels";
-    }
+                return "redirect:/personnels";
+        }
 
-    @PostMapping("/caisse")
-    public String caisse(
-            @RequestParam("file") MultipartFile file,
-            RedirectAttributes redirectAttributes) throws IOException {
+        @PostMapping("/caisse")
+        public String caisse(
+                        @RequestParam("file") MultipartFile file,
+                        RedirectAttributes redirectAttributes) throws IOException {
 
-        var result = excelService.importCaisse(file);
+                var result = excelService.importCaisse(file);
 
-        redirectAttributes.addFlashAttribute(
-                "successMessage",
-                "Import caisse terminé : " + result.total() + " ligne(s)."
-        );
+                redirectAttributes.addFlashAttribute(
+                                "successMessage",
+                                "Import caisse terminé : " + result.total() + " ligne(s).");
 
-        return "redirect:/caisse";
-    }
+                return "redirect:/caisse";
+        }
 
-    @PostMapping("/plats")
-    public String plats(
-            @RequestParam("file") MultipartFile file,
-            RedirectAttributes redirectAttributes) throws IOException {
+        @PostMapping("/plats")
+        public String plats(
+                        @RequestParam("file") MultipartFile file,
+                        RedirectAttributes redirectAttributes) throws IOException {
 
-        var result = excelService.importPlats(file);
+                var result = excelService.importPlats(file);
 
-        redirectAttributes.addFlashAttribute(
-                "successMessage",
-                "Import plats terminé : " + result.total() + " ligne(s)."
-        );
+                redirectAttributes.addFlashAttribute(
+                                "successMessage",
+                                "Import plats terminé : " + result.total() + " ligne(s).");
 
-        return "redirect:/plats";
-    }
+                return "redirect:/plats";
+        }
 
-    @PostMapping("/ingredients")
-    public String ingredients(
-            @RequestParam("file") MultipartFile file,
-            RedirectAttributes redirectAttributes) throws IOException {
-        if (file.isEmpty()) {
-        redirectAttributes.addFlashAttribute("errorMessage", "Veuillez sélectionner un fichier Excel valide.");
-        return "redirect:/ingredients";
-    }
-        var result = ingredientsImportService.importerExcel(file);
+        @PostMapping("/ingredients")
+        public String ingredients(
+                        @RequestParam("file") MultipartFile file,
+                        RedirectAttributes redirectAttributes) throws IOException {
+                if (file.isEmpty()) {
+                        redirectAttributes.addFlashAttribute("errorMessage",
+                                        "Veuillez sélectionner un fichier Excel valide.");
+                        return "redirect:/ingredients";
+                }
+                var result = ingredientsImportService.importerExcel(file);
 
-        redirectAttributes.addFlashAttribute(
-                "successMessage",
-                "Import ingrédients terminé : " + result.total() + " ligne(s)."
-        );
+                redirectAttributes.addFlashAttribute(
+                                "successMessage",
+                                "Import ingrédients terminé : " + result.total() + " ligne(s).");
 
-        return "redirect:/ingredients";
-    }
+                return "redirect:/ingredients";
+        }
 
+        @PostMapping("/commandes")
+        public String commandes(
+                        @RequestParam("file") MultipartFile file,
+                        RedirectAttributes redirectAttributes) throws IOException {
 
-    @PostMapping("/commandes")
-public String commandes(
-        @RequestParam("file") MultipartFile file,
-        RedirectAttributes redirectAttributes) throws IOException {
+                var result = excelService.importCommandes(file);
 
-    var result = excelService.importCommandes(file);
+                redirectAttributes.addFlashAttribute(
+                                "successMessage",
+                                "Import commandes terminé : " + result.total() + " ligne(s).");
 
-    redirectAttributes.addFlashAttribute(
-            "successMessage",
-            "Import commandes terminé : " + result.total() + " ligne(s)."
-    );
+                return "redirect:/commandes";
+        }
 
-    return "redirect:/commandes";
-}
+        @PostMapping("/materielles")
+        public String materielles(
+                        @RequestParam("file") MultipartFile file,
+                        RedirectAttributes redirectAttributes) throws IOException {
 
-@PostMapping("/materielles")
-public String materielles(
-        @RequestParam("file") MultipartFile file,
-        RedirectAttributes redirectAttributes) throws IOException {
+                var result = excelService.importMaterielles(file);
 
-    var result = excelService.importMaterielles(file);
+                redirectAttributes.addFlashAttribute(
+                                "successMessage",
+                                "Import matériels terminé : " + result.total() + " ligne(s).");
 
-    redirectAttributes.addFlashAttribute(
-            "successMessage",
-            "Import matériels terminé : " + result.total() + " ligne(s)."
-    );
+                return "redirect:/materielles";
+        }
 
-    return "redirect:/materielles";
-}
-@PostMapping("/zones-livraison")
-public String zonesLivraison(
-        @RequestParam("file") MultipartFile file,
-        RedirectAttributes redirectAttributes) throws IOException {
+        @PostMapping("/zones-livraison")
+        public String zonesLivraison(
+                        @RequestParam("file") MultipartFile file,
+                        RedirectAttributes redirectAttributes) throws IOException {
 
-    var result = excelService.importZonesLivraison(file);
+                var result = excelService.importZonesLivraison(file);
 
-    redirectAttributes.addFlashAttribute(
-            "successMessage",
-            "Import zones de livraison terminé : " + result.total() + " ligne(s)."
-    );
+                redirectAttributes.addFlashAttribute(
+                                "successMessage",
+                                "Import zones de livraison terminé : " + result.total() + " ligne(s).");
 
-    return "redirect:/zones-livraison";
-}
+                return "redirect:/zones-livraison";
+        }
+
+        // ---- Ajout : import des recettes — plusieurs fichiers *.xlsx en une fois ----
+        @PostMapping("/recettes")
+        public String recettes(
+                        @RequestParam("files") List<MultipartFile> files,
+                        RedirectAttributes redirectAttributes) throws IOException {
+
+                List<MultipartFile> fichiersValides = files.stream()
+                                .filter(f -> f != null && !f.isEmpty())
+                                .toList();
+
+                if (fichiersValides.isEmpty()) {
+                        redirectAttributes.addFlashAttribute("errorMessage",
+                                        "Veuillez sélectionner au moins un fichier Excel valide.");
+                        return "redirect:/plats";
+                }
+
+                var result = recetteImportService.importerRecettes(fichiersValides);
+
+                redirectAttributes.addFlashAttribute(
+                                "successMessage",
+                                "Import recettes terminé : " + result.lignesImportees() + " ligne(s) importée(s) sur "
+                                                + result.fichiersTraites() + " fichier(s) — " + result.platsCrees()
+                                                + " plat(s) créé(s).");
+
+                return "redirect:/plats";
+        }
+
 }
 
 ======================================
@@ -4574,6 +4610,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface RecettePlatsRepository extends JpaRepository<RecettePlats, Long> {
@@ -4588,11 +4625,13 @@ public interface RecettePlatsRepository extends JpaRepository<RecettePlats, Long
 
     List<RecettePlats> findByIngredientId(Long idIngredient);
 
+    // Ajout : évite les doublons plat+ingrédient lors de l'import Excel.
+    Optional<RecettePlats> findByPlatIdAndIngredientId(Long idPlat, Long idIngredient);
+
     void deleteByPlatId(Long idPlat);
 
     void deleteByIngredientId(Long idIngredient);
 }
-
 
 ======================================
 FILE : src/main/java/com/gestion/restaurant/RestaurantApplication.java
@@ -6213,6 +6252,88 @@ public class IngredientsExport {
 
 
 ======================================
+FILE : src/main/java/com/gestion/restaurant/service/exportation/recettes/RecetteExport.java
+======================================
+package com.gestion.restaurant.service.exportation.recettes;
+
+import com.gestion.restaurant.entity.ingredients.Ingredients;
+import com.gestion.restaurant.entity.plats.Plats;
+import com.gestion.restaurant.entity.plats.RecettePlats;
+import com.gestion.restaurant.repository.recettes.RecettePlatsRepository;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.stereotype.Service;
+
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+
+/**
+ * Export Excel des recettes (association Plat <-> Ingrédient).
+ * Une ligne par couple (plat, ingrédient) — même format que le template d'import.
+ */
+@Service
+public class RecetteExport {
+
+    private final RecettePlatsRepository recettePlatsRepository;
+
+    public RecetteExport(RecettePlatsRepository recettePlatsRepository) {
+        this.recettePlatsRepository = recettePlatsRepository;
+    }
+
+    public void exportRecettes(HttpServletResponse response) throws IOException {
+        try (Workbook workbook = new XSSFWorkbook()) {
+            Sheet sheet = workbook.createSheet("Recettes");
+            Row header = sheet.createRow(0);
+            createCell(header, 0, "plat");
+            createCell(header, 1, "categoriePlats");
+            createCell(header, 2, "prixVente");
+            createCell(header, 3, "ingredient");
+            createCell(header, 4, "quantiteRequise");
+            createCell(header, 5, "unite");
+
+            int rowIndex = 1;
+            for (RecettePlats recette : recettePlatsRepository.findAll()) {
+                Plats plat = recette.getPlat();
+                Ingredients ingredient = recette.getIngredient();
+
+                Row row = sheet.createRow(rowIndex++);
+                createCell(row, 0, plat != null ? plat.getNom() : "");
+                createCell(row, 1, plat != null && plat.getCategoriePlats() != null
+                        ? plat.getCategoriePlats().getLibelle() : "");
+                createCell(row, 2, plat != null && plat.getPrixVente() != null
+                        ? plat.getPrixVente().toPlainString() : "0");
+                createCell(row, 3, ingredient != null ? ingredient.getNom() : "");
+                createCell(row, 4, recette.getQuantiteRequise() != null
+                        ? recette.getQuantiteRequise().toPlainString() : "0");
+                createCell(row, 5, ingredient != null && ingredient.getUnite() != null
+                        ? ingredient.getUnite().getNom() : "");
+            }
+
+            for (int i = 0; i < 6; i++) {
+                sheet.autoSizeColumn(i);
+            }
+
+            response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            String filename = URLEncoder.encode("recettes-export.xlsx", StandardCharsets.UTF_8).replace("+", "%20");
+            response.setHeader("Content-Disposition", "attachment; filename=" + filename);
+
+            workbook.write(response.getOutputStream());
+            response.flushBuffer();
+        }
+    }
+
+    private void createCell(Row row, int columnIndex, String value) {
+        Cell cell = row.createCell(columnIndex);
+        cell.setCellValue(value != null ? value : "");
+    }
+}
+
+======================================
 FILE : src/main/java/com/gestion/restaurant/service/fournisseurs/FournisseursService.java
 ======================================
 package com.gestion.restaurant.service.fournisseurs;
@@ -6936,6 +7057,270 @@ public class IngredientsImportService {
     @FunctionalInterface
     private interface RowImporter<T> {
         T importRow(Row row);
+    }
+}
+
+======================================
+FILE : src/main/java/com/gestion/restaurant/service/importation/recettes/RecetteImportService.java
+======================================
+package com.gestion.restaurant.service.importation.recettes;
+
+import com.gestion.restaurant.entity.ingredients.Ingredients;
+import com.gestion.restaurant.entity.plats.CategoriePlats;
+import com.gestion.restaurant.entity.plats.Plats;
+import com.gestion.restaurant.entity.plats.RecettePlats;
+import com.gestion.restaurant.repository.ingredients.IngredientsRepository;
+import com.gestion.restaurant.repository.plats.CategoriePlatsRepository;
+import com.gestion.restaurant.repository.plats.PlatsRepository;
+import com.gestion.restaurant.repository.recettes.RecettePlatsRepository;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.DataFormatter;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.usermodel.WorkbookFactory;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.math.BigDecimal;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+
+/**
+ * Import Excel des recettes (Plat + Ingrédients).
+ *
+ * Règle métier : on charge une {@code Map<String, Plats>} indexée par le nom
+ * normalisé du plat ("nomPlat") au début de l'import, PUIS on l'utilise pour
+ * chaque ligne :
+ *  - si le plat existe déjà dans la Map -> on le réutilise (pas de nouvelle requête / pas de doublon)
+ *  - sinon -> on le crée (avec sa catégorie et son prix de vente) et on l'ajoute à la Map
+ *    pour les lignes suivantes, y compris entre plusieurs fichiers importés dans le même appel.
+ *
+ * Plusieurs fichiers .xlsx peuvent être importés en une seule fois.
+ */
+@Service
+public class RecetteImportService {
+
+    public record ImportSummary(int lignesImportees, int platsCrees, int fichiersTraites) {
+        public int total() {
+            return lignesImportees;
+        }
+    }
+
+    private final RecettePlatsRepository recettePlatsRepository;
+    private final PlatsRepository platsRepository;
+    private final CategoriePlatsRepository categoriePlatsRepository;
+    private final IngredientsRepository ingredientsRepository;
+
+    public RecetteImportService(RecettePlatsRepository recettePlatsRepository,
+                                 PlatsRepository platsRepository,
+                                 CategoriePlatsRepository categoriePlatsRepository,
+                                 IngredientsRepository ingredientsRepository) {
+        this.recettePlatsRepository = recettePlatsRepository;
+        this.platsRepository = platsRepository;
+        this.categoriePlatsRepository = categoriePlatsRepository;
+        this.ingredientsRepository = ingredientsRepository;
+    }
+
+    @Transactional
+    public ImportSummary importerRecettes(List<MultipartFile> files) throws IOException {
+
+        // ---- Map<nomPlat> : chargée une seule fois, réutilisée/complétée pour tous les fichiers ----
+        Map<String, Plats> platsParNom = indexPlats();
+        Map<String, CategoriePlats> categoriesParLibelle = indexCategories();
+        Map<String, Ingredients> ingredientsParNom = indexIngredients();
+
+        int platsAuDepart = platsParNom.size();
+        int lignesImportees = 0;
+        int fichiersTraites = 0;
+
+        for (MultipartFile file : files) {
+            if (file == null || file.isEmpty()) {
+                continue;
+            }
+            lignesImportees += importerUnFichier(file, platsParNom, categoriesParLibelle, ingredientsParNom);
+            fichiersTraites++;
+        }
+
+        int platsCrees = platsParNom.size() - platsAuDepart;
+
+        return new ImportSummary(lignesImportees, platsCrees, fichiersTraites);
+    }
+
+    private int importerUnFichier(MultipartFile file,
+                                   Map<String, Plats> platsParNom,
+                                   Map<String, CategoriePlats> categoriesParLibelle,
+                                   Map<String, Ingredients> ingredientsParNom) throws IOException {
+
+        try (InputStream inputStream = file.getInputStream();
+             Workbook workbook = WorkbookFactory.create(inputStream)) {
+
+            Sheet sheet = workbook.getSheet("Recettes");
+            if (sheet == null && workbook.getNumberOfSheets() > 0) {
+                // Tolère un classeur dont l'onglet a été renommé.
+                sheet = workbook.getSheetAt(0);
+            }
+            if (sheet == null) {
+                throw new IllegalArgumentException(
+                        "Feuille 'Recettes' introuvable dans le fichier : " + file.getOriginalFilename());
+            }
+
+            int imported = 0;
+            for (Row row : sheet) {
+                if (row.getRowNum() == 0 || isRowEmpty(row)) {
+                    continue;
+                }
+
+                String nomPlat = required(row, "plat", "nomplat", "nom plat");
+                String ingredientLabel = required(row, "ingredient");
+                String quantiteValue = required(row, "quantiterequise", "quantite requise", "quantite");
+
+                Plats plat = trouverOuCreerPlat(row, nomPlat, platsParNom, categoriesParLibelle);
+                Ingredients ingredient = trouverIngredient(ingredientLabel, ingredientsParNom);
+                BigDecimal quantite = new BigDecimal(quantiteValue.replace(",", "."));
+
+                RecettePlats recette = recettePlatsRepository
+                        .findByPlatIdAndIngredientId(plat.getId(), ingredient.getId())
+                        .orElseGet(RecettePlats::new);
+                recette.setPlat(plat);
+                recette.setIngredient(ingredient);
+                recette.setQuantiteRequise(quantite);
+                recettePlatsRepository.save(recette);
+
+                imported++;
+            }
+            return imported;
+        }
+    }
+
+    /**
+     * Coeur de la règle demandée : utilise toujours la Map&lt;nomPlat&gt; en premier.
+     * Si le plat est déjà dans la Map -> réutilisation. Sinon -> création + ajout à la Map.
+     */
+    private Plats trouverOuCreerPlat(Row row, String nomPlat,
+                                      Map<String, Plats> platsParNom,
+                                      Map<String, CategoriePlats> categoriesParLibelle) {
+
+        String cle = normalize(nomPlat);
+        Plats plat = platsParNom.get(cle);
+        if (plat != null) {
+            return plat;
+        }
+
+        String categorieLabel = optional(row, "categorieplats", "categorie plats", "categorie");
+        CategoriePlats categorie = resoudreCategorie(categorieLabel, categoriesParLibelle);
+
+        String prixVenteValue = optional(row, "prixvente", "prix vente");
+        BigDecimal prixVente = (prixVenteValue != null && !prixVenteValue.isBlank())
+                ? new BigDecimal(prixVenteValue.replace(",", "."))
+                : BigDecimal.ZERO;
+
+        Plats nouveauPlat = new Plats();
+        nouveauPlat.setNom(nomPlat.trim());
+        nouveauPlat.setCategoriePlats(categorie);
+        nouveauPlat.setPrixVente(prixVente);
+
+        Plats sauvegarde = platsRepository.save(nouveauPlat);
+        platsParNom.put(cle, sauvegarde);
+        return sauvegarde;
+    }
+
+    private CategoriePlats resoudreCategorie(String label, Map<String, CategoriePlats> categoriesParLibelle) {
+        String libelle = (label != null && !label.isBlank()) ? label.trim() : "Non classée";
+        String cle = normalize(libelle);
+
+        CategoriePlats categorie = categoriesParLibelle.get(cle);
+        if (categorie != null) {
+            return categorie;
+        }
+        CategoriePlats nouvelle = new CategoriePlats();
+        nouvelle.setLibelle(libelle);
+        CategoriePlats sauvegardee = categoriePlatsRepository.save(nouvelle);
+        categoriesParLibelle.put(cle, sauvegardee);
+        return sauvegardee;
+    }
+
+    private Ingredients trouverIngredient(String label, Map<String, Ingredients> ingredientsParNom) {
+        Ingredients ingredient = ingredientsParNom.get(normalize(label));
+        if (ingredient == null) {
+            throw new IllegalArgumentException(
+                    "Ingrédient introuvable : " + label
+                            + " (créez-le dans le module Ingrédients avant d'importer la recette)");
+        }
+        return ingredient;
+    }
+
+    private Map<String, Plats> indexPlats() {
+        Map<String, Plats> map = new LinkedHashMap<>();
+        for (Plats p : platsRepository.findAll()) {
+            map.put(normalize(p.getNom()), p);
+        }
+        return map;
+    }
+
+    private Map<String, CategoriePlats> indexCategories() {
+        Map<String, CategoriePlats> map = new LinkedHashMap<>();
+        for (CategoriePlats c : categoriePlatsRepository.findAll()) {
+            map.put(normalize(c.getLibelle()), c);
+        }
+        return map;
+    }
+
+    private Map<String, Ingredients> indexIngredients() {
+        Map<String, Ingredients> map = new LinkedHashMap<>();
+        for (Ingredients i : ingredientsRepository.findAllWithRelationsList()) {
+            map.put(normalize(i.getNom()), i);
+        }
+        return map;
+    }
+
+    private boolean isRowEmpty(Row row) {
+        for (Cell cell : row) {
+            if (cell != null && !new DataFormatter().formatCellValue(cell).trim().isEmpty()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private String required(Row row, String... headers) {
+        String value = optional(row, headers);
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException("Valeur manquante pour: " + String.join(", ", headers));
+        }
+        return value.trim();
+    }
+
+    private String optional(Row row, String... headers) {
+        Row headerRow = row.getSheet().getRow(0);
+        if (headerRow == null) {
+            return null;
+        }
+        Map<String, Integer> indexes = new HashMap<>();
+        DataFormatter formatter = new DataFormatter();
+        for (Cell cell : headerRow) {
+            indexes.put(normalize(formatter.formatCellValue(cell)), cell.getColumnIndex());
+        }
+        for (String header : headers) {
+            Integer index = indexes.get(normalize(header));
+            if (index != null) {
+                return formatter.formatCellValue(row.getCell(index));
+            }
+        }
+        return null;
+    }
+
+    private String normalize(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.trim().toLowerCase(Locale.ROOT).replaceAll("\\s+", " ");
     }
 }
 
@@ -10851,6 +11236,65 @@ RESOURCE : src/main/resources/templates/fragments/excel-actions.html
 
 </div>
 
+
+<!-- A ajouter à la suite du fragment excelActions existant, dans le même fichier -->
+
+<div th:fragment="excelActionsMultiple(importUrl, exportUrl, templateUrl)" class="d-flex flex-wrap gap-2">
+
+    <button type="button"
+            class="btn btn-outline-primary"
+            data-bs-toggle="modal"
+            data-bs-target="#importExcelModalMultiple">
+        <i class="bi bi-upload"></i>
+        Importer
+    </button>
+
+    <a th:href="${exportUrl}" class="btn btn-outline-success">
+        <i class="bi bi-download"></i>
+        Exporter
+    </a>
+
+    <a th:href="${templateUrl}" class="btn btn-outline-secondary">
+        <i class="bi bi-file-earmark-excel"></i>
+        Template
+    </a>
+
+    <div class="modal fade" id="importExcelModalMultiple" tabindex="-1" aria-labelledby="importExcelModalMultipleLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+
+                <form th:action="${importUrl}" method="post" enctype="multipart/form-data">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="importExcelModalMultipleLabel">Importer un ou plusieurs fichiers Excel</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+                    </div>
+
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="excelFilesInputRecettes" class="form-label">Sélectionner le(s) fichier(s) (.xlsx)</label>
+                            <input type="file"
+                                   id="excelFilesInputRecettes"
+                                   name="files"
+                                   accept=".xlsx"
+                                   class="form-control"
+                                   multiple
+                                   required />
+                            <div class="form-text">Vous pouvez sélectionner plusieurs fichiers .xlsx à la fois (Ctrl / Cmd + clic).</div>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                        <button type="submit" class="btn btn-primary">Valider l'import</button>
+                    </div>
+                </form>
+
+            </div>
+        </div>
+    </div>
+
+</div>
+
 ======================================
 RESOURCE : src/main/resources/templates/fragments/layout.html
 ======================================
@@ -13108,6 +13552,19 @@ RESOURCE : src/main/resources/templates/plats/list.html
           <div class="breadcrumb">Accueil / <span>Plats</span></div>
         </div>
         <div>
+          <div class="card mb-4">
+            <div class="card-body">
+              <h5 class="mb-3">
+                Import / Export Excel — Recettes (Plats + Ingrédients)
+              </h5>
+              <div th:replace="~{fragments/excel-actions :: excelActionsMultiple(
+                  '/import/recettes',
+                  '/export/recettes',
+                  '/template_exel/recettes/template_import_recettes.xlsx'
+              )}">
+              </div>
+            </div>
+          </div>
           <a th:href="@{/plats/dashboard}" class="btn btn-outline-secondary me-2">Dashboard</a>
           <a th:href="@{/plats/new}" class="btn btn-primary">
             <i class="bi bi-plus-lg"></i> Créer des Plats / Recettes
@@ -13116,7 +13573,7 @@ RESOURCE : src/main/resources/templates/plats/list.html
             <i class="bi bi-exclamation-triangle"></i> Maintenance BDD
           </a>
           <div class="card mb-4">
-    <div class="card-body">
+        <div class="card-body">
 
             <h5 class="mb-3">
                 Import / Export Excel
