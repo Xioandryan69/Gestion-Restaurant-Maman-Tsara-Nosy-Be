@@ -62,6 +62,7 @@ com/gestion/restaurant/dto/clients/ClientSearchCriteria.class
 com/gestion/restaurant/entity/ingredients/StatutIngredient.class
 com/gestion/restaurant/dto/ingredients/IngredientDashboardDto.class
 com/gestion/restaurant/repository/ingredients/IngredientsRepository.class
+com/gestion/restaurant/service/importation/recettes/RecetteImportService$ImportSummary.class
 com/gestion/restaurant/service/materielles/MateriellesService.class
 com/gestion/restaurant/repository/fournisseur/TypeFournisseursRepository.class
 com/gestion/restaurant/dto/personnels/PersonnelSearchCriteria.class
@@ -73,6 +74,7 @@ com/gestion/restaurant/service/livraisons/ZoneLivraisonService.class
 com/gestion/restaurant/dto/commandes/CommandeLigneRequestDto.class
 com/gestion/restaurant/config/AdminCredentials.class
 com/gestion/restaurant/dto/ingredients/StockPageView.class
+com/gestion/restaurant/service/exportation/recettes/RecetteExport.class
 com/gestion/restaurant/entity/ingredients/InventaireIngredient.class
 com/gestion/restaurant/dto/ingredients/IngredientSearchCriteria.class
 com/gestion/restaurant/repository/clients/ClientsRepository.class
@@ -115,6 +117,7 @@ com/gestion/restaurant/repository/commandes/CommandesRepository.class
 com/gestion/restaurant/config/DatabaseUrlConfig$ParsedDatabaseUrl.class
 com/gestion/restaurant/controller/ingredients/IngredientsController.class
 com/gestion/restaurant/entity/materielles/StatutMaterielles.class
+com/gestion/restaurant/service/importation/recettes/RecetteImportService.class
 com/gestion/restaurant/service/excel/RestaurantExcelExchangeService$Factory.class
 com/gestion/restaurant/repository/ingredients/InventaireIngredientRepository.class
 com/gestion/restaurant/entity/materielles/MaintenanceMaterielles.class
