@@ -1,5 +1,5 @@
 ===== EXPORT COMPLET SPRING =====
-Date : jeu. 13 août 2026 16:33:00 EAT
+Date : jeu. 13 août 2026 17:50:56 EAT
 
 
 ======================================
@@ -1761,6 +1761,9 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import com.gestion.restaurant.dto.plats.PlatUpdateRequestDto;
+import jakarta.validation.Valid;
+import org.springframework.validation.BindingResult;
 
 @Controller
 @RequestMapping("/plats")
@@ -1829,6 +1832,40 @@ public class PlatsController {
         redirectAttributes.addFlashAttribute("successMessage", "Plat supprimé.");
         return "redirect:/plats";
     }
+    @GetMapping("/edit/{id}")
+public String showEditForm(@PathVariable("id") Long id,
+                           Model model) {
+
+    model.addAttribute("plat", platsService.toUpdateDto(id));
+    model.addAttribute("categories", platsService.findAllCategories());
+
+    return "plats/edit";
+}
+
+@PostMapping("/edit/{id}")
+public String updatePlat(
+        @PathVariable("id") Long id,
+        @Valid @ModelAttribute("plat") PlatUpdateRequestDto dto,
+        BindingResult result,
+        Model model,
+        RedirectAttributes redirectAttributes) {
+
+    dto.setId(id);
+
+    if (result.hasErrors()) {
+        model.addAttribute("categories", platsService.findAllCategories());
+        return "plats/edit";
+    }
+
+    platsService.updateFromDto(dto);
+
+    redirectAttributes.addFlashAttribute(
+            "successMessage",
+            "Plat modifié avec succès."
+    );
+
+    return "redirect:/recettes/plat/" + id;
+}
 }
 
 
@@ -2665,6 +2702,37 @@ import lombok.Data;
 public class PlatSearchCriteria {
     private String nom;
     private Long idCategorie;
+}
+
+======================================
+FILE : src/main/java/com/gestion/restaurant/dto/plats/PlatUpdateRequestDto.java
+======================================
+package com.gestion.restaurant.dto.plats;
+
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+import lombok.Data;
+
+import java.math.BigDecimal;
+
+@Data
+public class PlatUpdateRequestDto {
+
+    private Long id;
+
+    @NotBlank(message = "Le nom du plat est obligatoire")
+    @Size(max = 255, message = "Le nom ne doit pas dépasser 255 caractères")
+    private String nom;
+
+    @NotNull(message = "La catégorie est obligatoire")
+    private Long idCategorie;
+
+    @NotNull(message = "Le prix de vente est obligatoire")
+    @DecimalMin(value = "0.0", inclusive = true,
+            message = "Le prix de vente doit être positif ou nul")
+    private BigDecimal prixVente;
 }
 
 ======================================
@@ -8310,6 +8378,7 @@ import java.util.List;
 import java.math.BigDecimal;
 import com.gestion.restaurant.entity.ingredients.HistoriqueIngredients;
 import com.gestion.restaurant.repository.ingredients.HistoriqueIngredientsRepository;
+import com.gestion.restaurant.dto.plats.PlatUpdateRequestDto;
 
 @Service
 public class PlatsService {
@@ -8463,6 +8532,50 @@ public class PlatsService {
         summary.add("Mise à jour automatique à chaque consultation");
         return summary;
     }
+    @Transactional(readOnly = true)
+public PlatUpdateRequestDto toUpdateDto(Long id) {
+
+    Plats plat = findById(id);
+
+    PlatUpdateRequestDto dto = new PlatUpdateRequestDto();
+
+    dto.setId(plat.getId());
+    dto.setNom(plat.getNom());
+    dto.setPrixVente(plat.getPrixVente());
+
+    if (plat.getCategoriePlats() != null) {
+        dto.setIdCategorie(plat.getCategoriePlats().getId());
+    }
+
+    return dto;
+}
+
+@Transactional
+public Plats updateFromDto(PlatUpdateRequestDto dto) {
+
+    if (dto.getId() == null) {
+        throw new ResourceNotFoundException("ID du plat obligatoire");
+    }
+
+    Plats plat = platsRepository.findById(dto.getId())
+            .orElseThrow(() ->
+                    new ResourceNotFoundException(
+                            "Plat non trouvé avec l'ID : " + dto.getId()
+                    ));
+
+    CategoriePlats categorie = categoriePlatsRepository
+            .findById(dto.getIdCategorie())
+            .orElseThrow(() ->
+                    new ResourceNotFoundException(
+                            "Catégorie introuvable : " + dto.getIdCategorie()
+                    ));
+
+    plat.setNom(dto.getNom());
+    plat.setCategoriePlats(categorie);
+    plat.setPrixVente(dto.getPrixVente());
+
+    return platsRepository.save(plat);
+}
 }
 
 
@@ -13834,16 +13947,44 @@ RESOURCE : src/main/resources/templates/recettes/details.html
     <!-- Contenu de la page -->
     <div class="content">
 
-      <!-- En-tête de la page -->
-      <div class="page-header">
-        <div>
-          <h2 th:text="${plat != null ? plat.nom : 'Détail de la Recette'}">Recette du Plat</h2>
-          <div class="breadcrumb">
-            Accueil / <a th:href="@{/plats}">Plats</a> / <span>Fiche Recette</span>
-          </div>
+    <!-- En-tête de la page -->
+    <div class="page-header">
+
+      <div>
+        <h2 th:text="${plat != null ? plat.nom : 'Détail de la Recette'}">
+          Recette du Plat
+        </h2>
+
+        <div class="breadcrumb">
+          Accueil /
+          <a th:href="@{/plats}">Plats</a> /
+          <span>Fiche Recette</span>
         </div>
-        <a th:href="@{/plats}" class="btn btn-secondary">&larr; Retour aux plats</a>
       </div>
+
+      <div class="d-flex gap-2">
+
+        <!-- Modifier le plat -->
+        <a th:if="${plat != null}"
+          th:href="@{/plats/edit/{id}(id=${plat.id})}"
+          class="btn btn-primary">
+
+          <i class="bi bi-pencil"></i>
+          Modifier le plat
+
+        </a>
+
+        <!-- Retour aux plats -->
+        <a th:href="@{/plats}"
+          class="btn btn-secondary">
+
+          &larr; Retour aux plats
+
+        </a>
+
+      </div>
+
+    </div>
 
       <!-- Notification de succès -->
       <div th:if="${successMessage}" class="alert alert-success mb-4 d-flex justify-content-between align-items-center">

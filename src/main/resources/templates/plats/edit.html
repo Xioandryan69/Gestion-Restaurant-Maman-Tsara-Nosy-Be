@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="fr"
+      th:with="pageTitle='Plat à Modifier'">
+
+<head th:replace="~{layout/head :: head(pageTitle=${pageTitle})}"></head>
+
+<body>
+
+<div class="app">
+
+  <!-- Sidebar globale -->
+  <aside th:replace="~{layout/sidebar :: sidebar(activeMenu='plats')}"></aside>
+
+  <!-- Conteneur principal -->
+  <div class="main">
+
+    <!-- Topbar globale -->
+    <div th:replace="~{layout/navbar :: topbar(pageTitle=${pageTitle})}"></div>
+
+    <!-- Contenu de la page -->
+    <div class="content">
+
+      <!-- En-tête de la page -->
+      <div class="page-header">
+
+        <div>
+          <h2>Modifier le Plat</h2>
+
+          <div class="breadcrumb">
+            Accueil /
+            <a th:href="@{/plats}">Plats</a> /
+            <span>Modification</span>
+          </div>
+        </div>
+
+        <a th:href="@{/recettes/plat/{id}(id=${plat.id})}"
+           class="btn btn-secondary">
+          &larr; Retour à la recette
+        </a>
+
+      </div>
+
+
+      <!-- Formulaire de modification -->
+      <form th:action="@{/plats/edit/{id}(id=${plat.id})}"
+            th:object="${plat}"
+            method="post">
+
+        <div class="form-card mb-4">
+
+          <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+            <h3 class="m-0 text-primary">
+              <i class="bi bi-pencil-square"></i>
+              Informations du Plat
+            </h3>
+          </div>
+
+
+          <!-- Informations générales -->
+          <div class="form-grid">
+
+            <!-- Nom -->
+            <div class="field-group">
+
+              <label class="field-label">
+                Nom du Plat
+                <span class="required">*</span>
+              </label>
+
+              <input type="text"
+                     th:field="*{nom}"
+                     class="form-control"
+                     placeholder="ex: Pizza Margherita"
+                     required />
+
+              <div class="text-danger"
+                   th:if="${#fields.hasErrors('nom')}"
+                   th:errors="*{nom}">
+              </div>
+
+            </div>
+
+
+            <!-- Catégorie -->
+            <div class="field-group">
+
+              <label class="field-label">
+                Catégorie
+                <span class="required">*</span>
+              </label>
+
+              <select th:field="*{idCategorie}"
+                      class="form-control"
+                      required>
+
+                <option value="">
+                  -- Sélectionner --
+                </option>
+
+                <option th:each="c : ${categories}"
+                        th:value="${c.id}"
+                        th:text="${c.libelle}">
+                </option>
+
+              </select>
+
+              <div class="text-danger"
+                   th:if="${#fields.hasErrors('idCategorie')}"
+                   th:errors="*{idCategorie}">
+              </div>
+
+            </div>
+
+
+            <!-- Prix de vente -->
+            <div class="field-group">
+
+              <label class="field-label">
+                Prix de Vente (Ar)
+                <span class="required">*</span>
+              </label>
+
+              <input type="number"
+                     th:field="*{prixVente}"
+                     class="form-control"
+                     step="0.01"
+                     min="0"
+                     placeholder="0.00"
+                     required />
+
+              <div class="text-danger"
+                   th:if="${#fields.hasErrors('prixVente')}"
+                   th:errors="*{prixVente}">
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+
+        <!-- Barre des boutons -->
+        <div class="toolbar d-flex justify-content-between align-items-center mt-4">
+
+          <a th:href="@{/recettes/plat/{id}(id=${plat.id})}"
+             class="btn btn-secondary">
+
+            <i class="bi bi-arrow-left"></i>
+            Annuler
+
+          </a>
+
+
+          <button type="submit"
+                  class="btn btn-primary">
+
+            <i class="bi bi-check-circle"></i>
+            Enregistrer les modifications
+
+          </button>
+
+        </div>
+
+      </form>
+
+    </div>
+  </div>
+
+</div>
+
+
+<!-- Footer -->
+<div th:replace="~{layout/footer :: footer}"></div>
+
+<!-- Scripts -->
+<th:block th:replace="~{layout/scripts :: scripts}"></th:block>
+
+</body>
+</html>
