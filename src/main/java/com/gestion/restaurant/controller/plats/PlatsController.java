@@ -11,6 +11,9 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import com.gestion.restaurant.dto.plats.PlatUpdateRequestDto;
+import jakarta.validation.Valid;
+import org.springframework.validation.BindingResult;
 
 @Controller
 @RequestMapping("/plats")
@@ -79,4 +82,38 @@ public class PlatsController {
         redirectAttributes.addFlashAttribute("successMessage", "Plat supprimé.");
         return "redirect:/plats";
     }
+    @GetMapping("/edit/{id}")
+public String showEditForm(@PathVariable("id") Long id,
+                           Model model) {
+
+    model.addAttribute("plat", platsService.toUpdateDto(id));
+    model.addAttribute("categories", platsService.findAllCategories());
+
+    return "plats/edit";
+}
+
+@PostMapping("/edit/{id}")
+public String updatePlat(
+        @PathVariable("id") Long id,
+        @Valid @ModelAttribute("plat") PlatUpdateRequestDto dto,
+        BindingResult result,
+        Model model,
+        RedirectAttributes redirectAttributes) {
+
+    dto.setId(id);
+
+    if (result.hasErrors()) {
+        model.addAttribute("categories", platsService.findAllCategories());
+        return "plats/edit";
+    }
+
+    platsService.updateFromDto(dto);
+
+    redirectAttributes.addFlashAttribute(
+            "successMessage",
+            "Plat modifié avec succès."
+    );
+
+    return "redirect:/recettes/plat/" + id;
+}
 }

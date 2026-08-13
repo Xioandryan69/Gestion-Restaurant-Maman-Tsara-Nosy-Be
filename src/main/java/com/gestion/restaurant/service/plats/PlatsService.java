@@ -24,6 +24,7 @@ import java.util.List;
 import java.math.BigDecimal;
 import com.gestion.restaurant.entity.ingredients.HistoriqueIngredients;
 import com.gestion.restaurant.repository.ingredients.HistoriqueIngredientsRepository;
+import com.gestion.restaurant.dto.plats.PlatUpdateRequestDto;
 
 @Service
 public class PlatsService {
@@ -177,4 +178,48 @@ public class PlatsService {
         summary.add("Mise à jour automatique à chaque consultation");
         return summary;
     }
+    @Transactional(readOnly = true)
+public PlatUpdateRequestDto toUpdateDto(Long id) {
+
+    Plats plat = findById(id);
+
+    PlatUpdateRequestDto dto = new PlatUpdateRequestDto();
+
+    dto.setId(plat.getId());
+    dto.setNom(plat.getNom());
+    dto.setPrixVente(plat.getPrixVente());
+
+    if (plat.getCategoriePlats() != null) {
+        dto.setIdCategorie(plat.getCategoriePlats().getId());
+    }
+
+    return dto;
+}
+
+@Transactional
+public Plats updateFromDto(PlatUpdateRequestDto dto) {
+
+    if (dto.getId() == null) {
+        throw new ResourceNotFoundException("ID du plat obligatoire");
+    }
+
+    Plats plat = platsRepository.findById(dto.getId())
+            .orElseThrow(() ->
+                    new ResourceNotFoundException(
+                            "Plat non trouvé avec l'ID : " + dto.getId()
+                    ));
+
+    CategoriePlats categorie = categoriePlatsRepository
+            .findById(dto.getIdCategorie())
+            .orElseThrow(() ->
+                    new ResourceNotFoundException(
+                            "Catégorie introuvable : " + dto.getIdCategorie()
+                    ));
+
+    plat.setNom(dto.getNom());
+    plat.setCategoriePlats(categorie);
+    plat.setPrixVente(dto.getPrixVente());
+
+    return platsRepository.save(plat);
+}
 }

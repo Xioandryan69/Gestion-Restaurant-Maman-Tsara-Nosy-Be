@@ -40,6 +40,7 @@ com/gestion/restaurant/web/PageLinks.class
 com/gestion/restaurant/repository/fournisseur/FournisseursRepository.class
 com/gestion/restaurant/dto/clients/ClientResponseDto.class
 com/gestion/restaurant/controller/personnels/PersonnelsController.class
+com/gestion/restaurant/dto/plats/PlatUpdateRequestDto.class
 com/gestion/restaurant/entity/ingredients/Ingredients.class
 com/gestion/restaurant/entity/fournisseurs/Fournisseurs.class
 com/gestion/restaurant/entity/materielles/EtatStockMaterielles.class
