@@ -1,5 +1,5 @@
 ===== EXPORT COMPLET SPRING =====
-Date : jeu. 13 août 2026 14:47:10 EAT
+Date : jeu. 13 août 2026 16:33:00 EAT
 
 
 ======================================
@@ -10585,13 +10585,11 @@ RESOURCE : src/main/resources/templates/commandes/form.html
               <tbody id="lignesContainer">
                 <tr th:each="ligne, stat : *{lignes}" class="ligne-plat-row">
                   <td>
-                    <select class="form-control plat-select" th:field="*{lignes[__${stat.index}__].idPlat}" required>
-                      <option value="">-- Choisir un plat --</option>
-                      <option th:each="p : ${plats}" 
-                              th:value="${p.id}" 
-                              th:text="${p.nom + (p.prixVente != null ? ' - ' + #numbers.formatDecimal(p.prixVente, 1, 'POINT', 2, 'COMMA') + ' Ar' : '')}">
-                      </option>
-                    </select>
+                    <div class="plat-autocomplete">
+                      <input type="text" class="form-control plat-search" placeholder="Rechercher un plat…" autocomplete="off" />
+                      <input type="hidden" class="plat-select" th:field="*{lignes[__${stat.index}__].idPlat}" />
+                      <ul class="autocomplete-list"></ul>
+                    </div>
                   </td>
                   <td>
                     <input type="number" step="0.01" min="0.01" class="form-control plat-qty" 
@@ -10626,36 +10624,148 @@ RESOURCE : src/main/resources/templates/commandes/form.html
 <div th:replace="~{layout/footer :: footer}"></div>
 <th:block th:replace="~{layout/scripts :: scripts}"></th:block>
 
+<!-- Styles pour l'autocomplete du champ Plat -->
+<style>
+.plat-autocomplete { position: relative; }
+.plat-autocomplete .plat-search { width: 100%; font-size: 16px; }
+.plat-autocomplete .plat-search.is-invalid { border-color: #dc3545; }
+
+.autocomplete-list {
+  position: absolute;
+  z-index: 50;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 2px;
+  padding: 4px 0;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 6px;
+  max-height: 220px;
+  overflow-y: auto;
+  box-shadow: 0 4px 12px rgba(0,0,0,.08);
+  list-style: none;
+  display: none;
+}
+.autocomplete-list.open { display: block; }
+.autocomplete-list li { padding: 8px 12px; cursor: pointer; font-size: .9rem; }
+.autocomplete-list li:hover, .autocomplete-list li.active { background: #f1f3f5; }
+.autocomplete-list li.no-result { color: #888; cursor: default; }
+
+@media (max-width: 768px) {
+  .autocomplete-list li { padding: 12px 14px; font-size: 1rem; }
+}
+</style>
+
 <!-- Logic JavaScript d'ajout/suppression dynamique avec réindexation -->
 <script th:inline="javascript">
 document.addEventListener("DOMContentLoaded", function() {
     const platsList = /*[[${plats}]]*/ [];
     const container = document.getElementById("lignesContainer");
     const btnAdd = document.getElementById("btnAddPlat");
+    const form = document.getElementById("commandeForm");
 
     function formatNumber(num) {
         if (!num) return "0,00";
         return new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num);
     }
 
-    function buildOptionsHtml() {
-        let optionsHtml = '<option value="">-- Choisir un plat --</option>';
-        if (platsList && platsList.length > 0) {
-            platsList.forEach(p => {
-                const prixStr = p.prixVente != null ? ` - ${formatNumber(p.prixVente)} Ar` : '';
-                optionsHtml += `<option value="${p.id}">${p.nom}${prixStr}</option>`;
-            });
+    function platLabel(p) {
+        const prixStr = p.prixVente != null ? ` - ${formatNumber(p.prixVente)} Ar` : '';
+        return `${p.nom}${prixStr}`;
+    }
+
+    function findPlat(id) {
+        return platsList.find(p => String(p.id) === String(id));
+    }
+
+    function initAutocomplete(wrapper) {
+        const searchInput = wrapper.querySelector(".plat-search");
+        const hiddenInput = wrapper.querySelector(".plat-select");
+        const list = wrapper.querySelector(".autocomplete-list");
+
+        const preselected = findPlat(hiddenInput.value);
+        if (preselected) searchInput.value = platLabel(preselected);
+
+        function closeList() {
+            list.classList.remove("open");
+            list.innerHTML = "";
         }
-        return optionsHtml;
+
+        function selectPlat(p) {
+            hiddenInput.value = p.id;
+            searchInput.value = platLabel(p);
+            searchInput.classList.remove("is-invalid");
+            closeList();
+        }
+
+        function renderList(showAll) {
+            const q = showAll ? "" : searchInput.value.trim().toLowerCase();
+            const matches = platsList.filter(p => p.nom.toLowerCase().includes(q));
+            list.innerHTML = "";
+            if (matches.length === 0) {
+                list.innerHTML = '<li class="no-result">Aucun plat trouvé</li>';
+            } else {
+                matches.slice(0, 50).forEach(p => {
+                    const li = document.createElement("li");
+                    li.textContent = platLabel(p);
+                    li.addEventListener("mousedown", (e) => {
+                        e.preventDefault(); // évite que le blur ferme la liste avant le clic
+                        selectPlat(p);
+                    });
+                    list.appendChild(li);
+                });
+            }
+            list.classList.add("open");
+        }
+
+        searchInput.addEventListener("focus", () => renderList(true));
+        searchInput.addEventListener("input", () => {
+            hiddenInput.value = "";
+            renderList(false);
+        });
+        searchInput.addEventListener("blur", () => {
+            setTimeout(() => {
+                closeList();
+                const selected = findPlat(hiddenInput.value);
+                searchInput.value = selected ? platLabel(selected) : "";
+                searchInput.classList.toggle("is-invalid", !selected);
+            }, 150);
+        });
+        searchInput.addEventListener("keydown", (e) => {
+            const items = Array.from(list.querySelectorAll("li:not(.no-result)"));
+            let idx = items.findIndex(li => li.classList.contains("active"));
+            if (e.key === "ArrowDown") {
+                e.preventDefault();
+                idx = Math.min(idx + 1, items.length - 1);
+            } else if (e.key === "ArrowUp") {
+                e.preventDefault();
+                idx = Math.max(idx - 1, 0);
+            } else if (e.key === "Enter") {
+                e.preventDefault();
+                if (idx >= 0 && items[idx]) items[idx].dispatchEvent(new Event("mousedown"));
+                return;
+            } else if (e.key === "Escape") {
+                closeList();
+                return;
+            } else {
+                return;
+            }
+            items.forEach(li => li.classList.remove("active"));
+            if (items[idx]) {
+                items[idx].classList.add("active");
+                items[idx].scrollIntoView({ block: "nearest" });
+            }
+        });
     }
 
     function updateRowIndices() {
         const rows = container.querySelectorAll(".ligne-plat-row");
         rows.forEach((row, index) => {
-            const select = row.querySelector(".plat-select");
+            const hidden = row.querySelector(".plat-select");
             const input = row.querySelector(".plat-qty");
-            
-            select.name = `lignes[${index}].idPlat`;
+
+            hidden.name = `lignes[${index}].idPlat`;
             input.name = `lignes[${index}].quantite`;
         });
     }
@@ -10667,9 +10777,11 @@ document.addEventListener("DOMContentLoaded", function() {
 
         tr.innerHTML = `
             <td>
-                <select name="lignes[${index}].idPlat" class="form-control plat-select" required>
-                    ${buildOptionsHtml()}
-                </select>
+                <div class="plat-autocomplete">
+                    <input type="text" class="form-control plat-search" placeholder="Rechercher un plat…" autocomplete="off" />
+                    <input type="hidden" name="lignes[${index}].idPlat" class="plat-select" />
+                    <ul class="autocomplete-list"></ul>
+                </div>
             </td>
             <td>
                 <input type="number" step="0.01" min="0.01" name="lignes[${index}].quantite" value="1" class="form-control plat-qty" required />
@@ -10682,6 +10794,7 @@ document.addEventListener("DOMContentLoaded", function() {
         `;
 
         container.appendChild(tr);
+        initAutocomplete(tr.querySelector(".plat-autocomplete"));
         updateRowIndices();
     }
 
@@ -10695,7 +10808,22 @@ document.addEventListener("DOMContentLoaded", function() {
         }
     });
 
-    // S'assurer que les index de départ sont propres
+    // Validation avant soumission : chaque ligne doit avoir un plat sélectionné
+    form.addEventListener("submit", function(e) {
+        let valid = true;
+        container.querySelectorAll(".ligne-plat-row").forEach(row => {
+            const hidden = row.querySelector(".plat-select");
+            const search = row.querySelector(".plat-search");
+            if (!hidden.value) {
+                valid = false;
+                search.classList.add("is-invalid");
+            }
+        });
+        if (!valid) e.preventDefault();
+    });
+
+    // Initialise les lignes déjà présentes au chargement (mode édition) et les index de départ
+    container.querySelectorAll(".plat-autocomplete").forEach(initAutocomplete);
     updateRowIndices();
 });
 </script>
@@ -13845,7 +13973,7 @@ RESOURCE : src/main/resources/templates/recettes/form.html
 ======================================
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" lang="fr"
-      th:with="pageTitle='Créer / Modifier une Recette'">
+      th:with="pageTitle='Recette du Plat'">
 <head th:replace="~{layout/head :: head(pageTitle=${pageTitle})}"></head>
 <body>
 
@@ -13866,87 +13994,123 @@ RESOURCE : src/main/resources/templates/recettes/form.html
       <!-- En-tête de la page -->
       <div class="page-header">
         <div>
-          <h2>Composition de la Recette du Plat</h2>
+          <h2 th:text="${plat != null ? plat.nom : 'Détail de la Recette'}">Recette du Plat</h2>
           <div class="breadcrumb">
-            Accueil / <a th:href="@{/plats}">Plats</a> / <span>Recette</span>
+            Accueil / <a th:href="@{/plats}">Plats</a> / <span>Fiche Recette</span>
           </div>
         </div>
-        <a th:href="@{/plats}" class="btn btn-secondary">&larr; Retour à la liste</a>
+        <a th:href="@{/plats}" class="btn btn-secondary">&larr; Retour aux plats</a>
       </div>
 
-      <form th:action="@{/plats/recette/save}" method="post" id="recetteForm">
-        
-        <!-- Selection du Plat -->
-        <div class="form-card mb-4">
-          <h3 class="mb-3 text-primary">Plat concerné</h3>
-          <div class="form-grid" style="grid-template-columns: 1fr 1fr;">
-            <div class="field-group">
-              <label for="platId" class="field-label">Sélectionner le Plat <span class="required">*</span></label>
-              <select class="form-control" id="platId" name="platId" required>
-                <option value="" disabled selected>-- Choisir un plat --</option>
-                <option th:each="plat : ${plats}" 
-                        th:value="${plat.id}" 
-                        th:text="${plat.nom + (plat.categoriePlats != null ? ' (' + plat.categoriePlats.libelle + ')' : '')}">
-                </option>
-              </select>
+      <!-- Notification de succès -->
+      <div th:if="${successMessage}" class="alert alert-success mb-4 d-flex justify-content-between align-items-center">
+        <span th:text="${successMessage}">Option enregistrée avec succès.</span>
+        <button type="button" class="btn-close" onclick="this.parentElement.remove();">&times;</button>
+      </div>
+
+      <!-- Carte d'en-tête d'information du Plat -->
+      <div class="form-card mb-4" th:if="${plat != null}">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <h3 class="text-primary m-0" th:text="${plat.nom}">Nom du Plat</h3>
+            <div class="mt-2 text-muted">
+              Catégorie : 
+              <span class="badge bg-info text-dark" 
+                    th:text="${plat.categoriePlats != null ? plat.categoriePlats.libelle : 'Non définie'}">
+                Catégorie
+              </span>
             </div>
           </div>
-        </div>
-
-        <!-- Section Ingrédients Dynamiques -->
-        <div class="table-card mb-4 p-4">
-          <div class="d-flex justify-content-between align-items-center mb-3">
-            <h3 class="m-0 text-secondary">Ingrédients Requis</h3>
-            <button type="button" class="btn btn-secondary btn-sm" id="btnAddIngredient">
-              <i class="bi bi-plus-circle"></i> Ajouter un ingrédient
-            </button>
+          <div class="text-end">
+            <span class="text-muted d-block small">Prix de Vente</span>
+            <span class="fs-4 fw-bold text-success" 
+                  th:text="${plat.prixVente != null ? #numbers.formatDecimal(plat.prixVente, 1, 'POINT', 2, 'COMMA') + ' Ar' : '0,00 Ar'}">
+              0,00 Ar
+            </span>
           </div>
+        </div>
+      </div>
 
-          <div class="table-responsive">
-            <table class="data-table" id="ingredientsTable">
-              <thead>
-                <tr>
-                  <th style="width: 55%;">Ingrédient / Produit</th>
-                  <th style="width: 30%;">Quantité Nécessaire</th>
-                  <th style="width: 15%;" class="text-center">Action</th>
-                </tr>
-              </thead>
-              <tbody id="ingredientsContainer">
-                <!-- Ligne par défaut (Index 0) -->
-                <tr class="ingredient-row">
-                  <td>
-                    <select name="ingredients[0].idProduit" class="form-control produit-select" required>
-                      <option value="" disabled selected>-- Sélectionner l'ingrédient --</option>
-                      <option th:each="prod : ${produits}" 
-                              th:value="${prod.id}" 
-                              th:text="${prod.nom + (prod.uniteMesure != null ? ' (' + prod.uniteMesure + ')' : '')}">
-                      </option>
-                    </select>
-                  </td>
-                  <td>
-                    <input type="number" step="0.01" min="0.01" name="ingredients[0].quantite" 
-                           class="form-control" placeholder="Ex: 0.500" required>
-                  </td>
-                  <td class="text-center">
-                    <button type="button" class="btn btn-danger btn-sm remove-row" disabled title="Supprimer">
-                      <i class="bi bi-trash"></i>
+      <!-- Disposition 2 Colonnes (Tableau & Formulaire) -->
+      <div class="form-grid mb-4" style="grid-template-columns: 1fr 380px;">
+        
+        <!-- Colonne Gauche : Ingrédients de la Recette -->
+        <div class="table-card p-0">
+          <div class="p-3 border-bottom bg-light">
+            <h3 class="m-0 text-secondary" style="font-size: 1.1rem;">
+              <i class="bi bi-basket"></i> Ingrédients de la Recette
+            </h3>
+          </div>
+          
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Ingrédient</th>
+                <th>Quantité Requise</th>
+                <th>Unité</th>
+                <th class="text-center">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr th:each="recette : ${recettes}">
+                <td class="fw-bold" th:text="${recette.ingredient != null ? recette.ingredient.nom : '-'}">Ingrédient</td>
+                <td th:text="${recette.quantiteRequise}">0.00</td>
+                <td>
+                  <span th:text="${recette.ingredient != null && recette.ingredient.unite != null ? recette.ingredient.unite.symbole : '-'}">
+                    unité
+                  </span>
+                </td>
+                <td class="actions text-center">
+                  <form th:action="@{/recettes/supprimer/{id}(id=${recette.id})}" method="post" style="display:inline;">
+                    <input type="hidden" name="idPlat" th:value="${plat != null ? plat.id : ''}"/>
+                    <button type="submit" class="btn btn-danger btn-sm" 
+                            onclick="return confirm('Retirer cet ingrédient ?');" 
+                            title="Retirer cet ingrédient">
+                      <i class="bi bi-trash"></i> Retirer
                     </button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+                  </form>
+                </td>
+              </tr>
+              <tr th:if="${#lists.isEmpty(recettes)}">
+                <td colspan="4" class="text-center text-muted py-4">Aucun ingrédient associé à ce plat.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Colonne Droite : Formulaire Rapide d'Ajout -->
+        <div>
+          <div class="form-card">
+            <h3 class="mb-3 text-primary" style="font-size: 1.1rem;">
+              <i class="bi bi-plus-circle"></i> Ajouter un Ingrédient
+            </h3>
+            
+            <form th:action="@{/recettes/ajouter}" method="post" th:object="${nouvelIngredient}" id="ajoutIngredientForm">
+              <input type="hidden" th:field="*{idPlat}"/>
+              
+              <div class="field-group mb-3">
+                <label class="field-label">Ingrédient <span class="required">*</span></label>
+                <div class="plat-autocomplete">
+                  <input type="text" id="ingredientSearch" class="form-control" placeholder="Rechercher un ingrédient…" autocomplete="off" />
+                  <input type="hidden" th:field="*{idIngredient}" id="idIngredientHidden" />
+                  <ul class="autocomplete-list" id="ingredientList"></ul>
+                </div>
+              </div>
+
+              <div class="field-group mb-4">
+                <label class="field-label">Quantité Requise <span class="required">*</span></label>
+                <input type="number" step="0.001" min="0.001" th:field="*{quantiteRequise}" 
+                       class="form-control" placeholder="ex: 0.250" required />
+              </div>
+
+              <button type="submit" class="btn btn-primary w-100">
+                <i class="bi bi-check-lg"></i> Ajouter à la recette
+              </button>
+            </form>
           </div>
         </div>
 
-        <!-- Actions de soumission -->
-        <div class="toolbar d-flex justify-content-end gap-2 mb-4">
-          <button type="reset" class="btn btn-secondary">Réinitialiser</button>
-          <button type="submit" class="btn btn-primary">
-            <i class="bi bi-check-circle"></i> Enregistrer la Recette
-          </button>
-        </div>
-
-      </form>
+      </div>
 
     </div>
   </div>
@@ -13956,55 +14120,137 @@ RESOURCE : src/main/resources/templates/recettes/form.html
 <div th:replace="~{layout/footer :: footer}"></div>
 <th:block th:replace="~{layout/scripts :: scripts}"></th:block>
 
-<!-- Dynamic Rows Script -->
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    const container = document.getElementById('ingredientsContainer');
-    const btnAdd = document.getElementById('btnAddIngredient');
+<!-- Styles pour l'autocomplete du champ Ingrédient -->
+<style>
+.plat-autocomplete { position: relative; }
+.plat-autocomplete input[type="text"] { width: 100%; font-size: 16px; }
+.plat-autocomplete input[type="text"].is-invalid { border-color: #dc3545; }
 
-    // Mettre à jour les indices des formulaires après chaque modification
-    function updateRowIndices() {
-        const rows = container.querySelectorAll('.ingredient-row');
-        rows.forEach((row, index) => {
-            const select = row.querySelector('.produit-select');
-            const input = row.querySelector('input[type="number"]');
+.autocomplete-list {
+  position: absolute;
+  z-index: 50;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 2px;
+  padding: 4px 0;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 6px;
+  max-height: 220px;
+  overflow-y: auto;
+  box-shadow: 0 4px 12px rgba(0,0,0,.08);
+  list-style: none;
+  display: none;
+}
+.autocomplete-list.open { display: block; }
+.autocomplete-list li { padding: 8px 12px; cursor: pointer; font-size: .9rem; }
+.autocomplete-list li:hover, .autocomplete-list li.active { background: #f1f3f5; }
+.autocomplete-list li.no-result { color: #888; cursor: default; }
 
-            select.name = `ingredients[${index}].idProduit`;
-            input.name = `ingredients[${index}].quantite`;
+@media (max-width: 768px) {
+  .autocomplete-list li { padding: 12px 14px; font-size: 1rem; }
+}
+</style>
 
-            // Désactiver le bouton de suppression s'il n'y a qu'une seule ligne
-            const btnRemove = row.querySelector('.remove-row');
-            if (rows.length === 1) {
-                btnRemove.setAttribute('disabled', 'true');
-            } else {
-                btnRemove.removeAttribute('disabled');
+<!-- Autocomplétion sur le choix de l'ingrédient -->
+<script th:inline="javascript">
+document.addEventListener("DOMContentLoaded", function () {
+    const ingredientsList = /*[[${ingredients}]]*/ [];
+    const searchInput = document.getElementById("ingredientSearch");
+    const hiddenInput = document.getElementById("idIngredientHidden");
+    const list = document.getElementById("ingredientList");
+    const form = document.getElementById("ajoutIngredientForm");
+
+    function ingredientLabel(ing) {
+        const uniteStr = ing.unite != null ? ` (${ing.unite.symbole})` : '';
+        return `${ing.nom}${uniteStr}`;
+    }
+
+    function findIngredient(id) {
+        return ingredientsList.find(i => String(i.id) === String(id));
+    }
+
+    function closeList() {
+        list.classList.remove("open");
+        list.innerHTML = "";
+    }
+
+    function selectIngredient(ing) {
+        hiddenInput.value = ing.id;
+        searchInput.value = ingredientLabel(ing);
+        searchInput.classList.remove("is-invalid");
+        closeList();
+    }
+
+    function renderList(showAll) {
+        const q = showAll ? "" : searchInput.value.trim().toLowerCase();
+        const matches = ingredientsList.filter(i => i.nom.toLowerCase().includes(q));
+        list.innerHTML = "";
+        if (matches.length === 0) {
+            list.innerHTML = '<li class="no-result">Aucun ingrédient trouvé</li>';
+        } else {
+            matches.slice(0, 50).forEach(ing => {
+                const li = document.createElement("li");
+                li.textContent = ingredientLabel(ing);
+                li.addEventListener("mousedown", (e) => {
+                    e.preventDefault(); // évite que le blur ferme la liste avant le clic
+                    selectIngredient(ing);
+                });
+                list.appendChild(li);
+            });
+        }
+        list.classList.add("open");
+    }
+
+    searchInput.addEventListener("focus", () => renderList(true));
+    searchInput.addEventListener("input", () => {
+        hiddenInput.value = "";
+        renderList(false);
+    });
+    searchInput.addEventListener("blur", () => {
+        setTimeout(() => {
+            closeList();
+            const selected = findIngredient(hiddenInput.value);
+            searchInput.value = selected ? ingredientLabel(selected) : "";
+            searchInput.classList.toggle("is-invalid", !selected);
+        }, 150);
+    });
+    searchInput.addEventListener("keydown", (e) => {
+        const items = Array.from(list.querySelectorAll("li:not(.no-result)"));
+        let idx = items.findIndex(li => li.classList.contains("active"));
+        if (e.key === "ArrowDown") {
+            e.preventDefault();
+            idx = Math.min(idx + 1, items.length - 1);
+        } else if (e.key === "ArrowUp") {
+            e.preventDefault();
+            idx = Math.max(idx - 1, 0);
+        } else if (e.key === "Enter") {
+            e.preventDefault();
+            if (idx >= 0 && items[idx]) items[idx].dispatchEvent(new Event("mousedown"));
+            return;
+        } else if (e.key === "Escape") {
+            closeList();
+            return;
+        } else {
+            return;
+        }
+        items.forEach(li => li.classList.remove("active"));
+        if (items[idx]) {
+            items[idx].classList.add("active");
+            items[idx].scrollIntoView({ block: "nearest" });
+        }
+    });
+
+    // Validation avant soumission : un ingrédient doit être sélectionné
+    if (form) {
+        form.addEventListener("submit", function (e) {
+            if (!hiddenInput.value) {
+                e.preventDefault();
+                searchInput.classList.add("is-invalid");
             }
         });
     }
-
-    // Ajouter une nouvelle ligne
-    btnAdd.addEventListener('click', function () {
-        const firstRow = container.querySelector('.ingredient-row');
-        const newRow = firstRow.cloneNode(true);
-
-        // Réinitialiser les valeurs des inputs clonés
-        newRow.querySelector('.produit-select').value = '';
-        newRow.querySelector('input[type="number"]').value = '';
-
-        container.appendChild(newRow);
-        updateRowIndices();
-    });
-
-    // Supprimer une ligne via Event Delegation
-    container.addEventListener('click', function (e) {
-        if (e.target.closest('.remove-row')) {
-            const rows = container.querySelectorAll('.ingredient-row');
-            if (rows.length > 1) {
-                e.target.closest('.ingredient-row').remove();
-                updateRowIndices();
-            }
-        }
-    });
 });
 </script>
 

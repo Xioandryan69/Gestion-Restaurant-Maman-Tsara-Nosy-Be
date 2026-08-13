@@ -92,13 +92,11 @@
               <tbody id="lignesContainer">
                 <tr th:each="ligne, stat : *{lignes}" class="ligne-plat-row">
                   <td>
-                    <select class="form-control plat-select" th:field="*{lignes[__${stat.index}__].idPlat}" required>
-                      <option value="">-- Choisir un plat --</option>
-                      <option th:each="p : ${plats}" 
-                              th:value="${p.id}" 
-                              th:text="${p.nom + (p.prixVente != null ? ' - ' + #numbers.formatDecimal(p.prixVente, 1, 'POINT', 2, 'COMMA') + ' Ar' : '')}">
-                      </option>
-                    </select>
+                    <div class="plat-autocomplete">
+                      <input type="text" class="form-control plat-search" placeholder="Rechercher un plat…" autocomplete="off" />
+                      <input type="hidden" class="plat-select" th:field="*{lignes[__${stat.index}__].idPlat}" />
+                      <ul class="autocomplete-list"></ul>
+                    </div>
                   </td>
                   <td>
                     <input type="number" step="0.01" min="0.01" class="form-control plat-qty" 
@@ -133,36 +131,148 @@
 <div th:replace="~{layout/footer :: footer}"></div>
 <th:block th:replace="~{layout/scripts :: scripts}"></th:block>
 
+<!-- Styles pour l'autocomplete du champ Plat -->
+<style>
+.plat-autocomplete { position: relative; }
+.plat-autocomplete .plat-search { width: 100%; font-size: 16px; }
+.plat-autocomplete .plat-search.is-invalid { border-color: #dc3545; }
+
+.autocomplete-list {
+  position: absolute;
+  z-index: 50;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 2px;
+  padding: 4px 0;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 6px;
+  max-height: 220px;
+  overflow-y: auto;
+  box-shadow: 0 4px 12px rgba(0,0,0,.08);
+  list-style: none;
+  display: none;
+}
+.autocomplete-list.open { display: block; }
+.autocomplete-list li { padding: 8px 12px; cursor: pointer; font-size: .9rem; }
+.autocomplete-list li:hover, .autocomplete-list li.active { background: #f1f3f5; }
+.autocomplete-list li.no-result { color: #888; cursor: default; }
+
+@media (max-width: 768px) {
+  .autocomplete-list li { padding: 12px 14px; font-size: 1rem; }
+}
+</style>
+
 <!-- Logic JavaScript d'ajout/suppression dynamique avec réindexation -->
 <script th:inline="javascript">
 document.addEventListener("DOMContentLoaded", function() {
     const platsList = /*[[${plats}]]*/ [];
     const container = document.getElementById("lignesContainer");
     const btnAdd = document.getElementById("btnAddPlat");
+    const form = document.getElementById("commandeForm");
 
     function formatNumber(num) {
         if (!num) return "0,00";
         return new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num);
     }
 
-    function buildOptionsHtml() {
-        let optionsHtml = '<option value="">-- Choisir un plat --</option>';
-        if (platsList && platsList.length > 0) {
-            platsList.forEach(p => {
-                const prixStr = p.prixVente != null ? ` - ${formatNumber(p.prixVente)} Ar` : '';
-                optionsHtml += `<option value="${p.id}">${p.nom}${prixStr}</option>`;
-            });
+    function platLabel(p) {
+        const prixStr = p.prixVente != null ? ` - ${formatNumber(p.prixVente)} Ar` : '';
+        return `${p.nom}${prixStr}`;
+    }
+
+    function findPlat(id) {
+        return platsList.find(p => String(p.id) === String(id));
+    }
+
+    function initAutocomplete(wrapper) {
+        const searchInput = wrapper.querySelector(".plat-search");
+        const hiddenInput = wrapper.querySelector(".plat-select");
+        const list = wrapper.querySelector(".autocomplete-list");
+
+        const preselected = findPlat(hiddenInput.value);
+        if (preselected) searchInput.value = platLabel(preselected);
+
+        function closeList() {
+            list.classList.remove("open");
+            list.innerHTML = "";
         }
-        return optionsHtml;
+
+        function selectPlat(p) {
+            hiddenInput.value = p.id;
+            searchInput.value = platLabel(p);
+            searchInput.classList.remove("is-invalid");
+            closeList();
+        }
+
+        function renderList(showAll) {
+            const q = showAll ? "" : searchInput.value.trim().toLowerCase();
+            const matches = platsList.filter(p => p.nom.toLowerCase().includes(q));
+            list.innerHTML = "";
+            if (matches.length === 0) {
+                list.innerHTML = '<li class="no-result">Aucun plat trouvé</li>';
+            } else {
+                matches.slice(0, 50).forEach(p => {
+                    const li = document.createElement("li");
+                    li.textContent = platLabel(p);
+                    li.addEventListener("mousedown", (e) => {
+                        e.preventDefault(); // évite que le blur ferme la liste avant le clic
+                        selectPlat(p);
+                    });
+                    list.appendChild(li);
+                });
+            }
+            list.classList.add("open");
+        }
+
+        searchInput.addEventListener("focus", () => renderList(true));
+        searchInput.addEventListener("input", () => {
+            hiddenInput.value = "";
+            renderList(false);
+        });
+        searchInput.addEventListener("blur", () => {
+            setTimeout(() => {
+                closeList();
+                const selected = findPlat(hiddenInput.value);
+                searchInput.value = selected ? platLabel(selected) : "";
+                searchInput.classList.toggle("is-invalid", !selected);
+            }, 150);
+        });
+        searchInput.addEventListener("keydown", (e) => {
+            const items = Array.from(list.querySelectorAll("li:not(.no-result)"));
+            let idx = items.findIndex(li => li.classList.contains("active"));
+            if (e.key === "ArrowDown") {
+                e.preventDefault();
+                idx = Math.min(idx + 1, items.length - 1);
+            } else if (e.key === "ArrowUp") {
+                e.preventDefault();
+                idx = Math.max(idx - 1, 0);
+            } else if (e.key === "Enter") {
+                e.preventDefault();
+                if (idx >= 0 && items[idx]) items[idx].dispatchEvent(new Event("mousedown"));
+                return;
+            } else if (e.key === "Escape") {
+                closeList();
+                return;
+            } else {
+                return;
+            }
+            items.forEach(li => li.classList.remove("active"));
+            if (items[idx]) {
+                items[idx].classList.add("active");
+                items[idx].scrollIntoView({ block: "nearest" });
+            }
+        });
     }
 
     function updateRowIndices() {
         const rows = container.querySelectorAll(".ligne-plat-row");
         rows.forEach((row, index) => {
-            const select = row.querySelector(".plat-select");
+            const hidden = row.querySelector(".plat-select");
             const input = row.querySelector(".plat-qty");
-            
-            select.name = `lignes[${index}].idPlat`;
+
+            hidden.name = `lignes[${index}].idPlat`;
             input.name = `lignes[${index}].quantite`;
         });
     }
@@ -174,9 +284,11 @@ document.addEventListener("DOMContentLoaded", function() {
 
         tr.innerHTML = `
             <td>
-                <select name="lignes[${index}].idPlat" class="form-control plat-select" required>
-                    ${buildOptionsHtml()}
-                </select>
+                <div class="plat-autocomplete">
+                    <input type="text" class="form-control plat-search" placeholder="Rechercher un plat…" autocomplete="off" />
+                    <input type="hidden" name="lignes[${index}].idPlat" class="plat-select" />
+                    <ul class="autocomplete-list"></ul>
+                </div>
             </td>
             <td>
                 <input type="number" step="0.01" min="0.01" name="lignes[${index}].quantite" value="1" class="form-control plat-qty" required />
@@ -189,6 +301,7 @@ document.addEventListener("DOMContentLoaded", function() {
         `;
 
         container.appendChild(tr);
+        initAutocomplete(tr.querySelector(".plat-autocomplete"));
         updateRowIndices();
     }
 
@@ -202,7 +315,22 @@ document.addEventListener("DOMContentLoaded", function() {
         }
     });
 
-    // S'assurer que les index de départ sont propres
+    // Validation avant soumission : chaque ligne doit avoir un plat sélectionné
+    form.addEventListener("submit", function(e) {
+        let valid = true;
+        container.querySelectorAll(".ligne-plat-row").forEach(row => {
+            const hidden = row.querySelector(".plat-select");
+            const search = row.querySelector(".plat-search");
+            if (!hidden.value) {
+                valid = false;
+                search.classList.add("is-invalid");
+            }
+        });
+        if (!valid) e.preventDefault();
+    });
+
+    // Initialise les lignes déjà présentes au chargement (mode édition) et les index de départ
+    container.querySelectorAll(".plat-autocomplete").forEach(initAutocomplete);
     updateRowIndices();
 });
 </script>
