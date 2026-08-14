@@ -45,6 +45,8 @@ public class IngredientsController {
         model.addAttribute("page", ingredientsService.search(criteria, pageable));
         model.addAttribute("categories", ingredientsService.findAllCategories());
         model.addAttribute("statuts", ingredientsService.findAllStatuts());
+        model.addAttribute("fournisseurs", ingredientsService.findAllFournisseurs());
+        model.addAttribute("unites", ingredientsService.findAllUnites());
         return "ingredients/list";
     }
 
@@ -133,13 +135,16 @@ public class IngredientsController {
 
     @GetMapping("/stock")
     public String viewStockGlobal(
+            @ModelAttribute("criteria") com.gestion.restaurant.dto.ingredients.StockSearchCriteria criteria,
             @PageableDefault(size = 10, sort = "nom", direction = Sort.Direction.ASC) Pageable pageable,
             Model model) {
-        StockPageView stock = ingredientsService.getGlobalStockState(pageable);
+        StockPageView stock = ingredientsService.getGlobalStockState(criteria, pageable);
         model.addAttribute("page", stock.page());
         model.addAttribute("nombreAlerteStock", stock.nombreAlerteStock());
         model.addAttribute("nombreStockOk", stock.nombreStockOk());
         model.addAttribute("seuilStockFaible", stock.seuilStockFaible());
+        model.addAttribute("categories", ingredientsService.findAllCategories());
+        model.addAttribute("unites", ingredientsService.findAllUnites());
         return "ingredients/stock";
     }
 

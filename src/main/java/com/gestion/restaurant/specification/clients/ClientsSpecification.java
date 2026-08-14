@@ -27,6 +27,9 @@ public class ClientsSpecification {
             if (criteria.getIdTypeClient() != null) {
                 predicates.add(cb.equal(root.get("typeClient").get("id"), criteria.getIdTypeClient()));
             }
+            if (criteria.getContact() != null && !criteria.getContact().isBlank()) {
+                predicates.add(cb.like(root.get("contact"), "%" + criteria.getContact().trim() + "%"));
+            }
 
             return cb.and(predicates.toArray(new Predicate[0]));
         };

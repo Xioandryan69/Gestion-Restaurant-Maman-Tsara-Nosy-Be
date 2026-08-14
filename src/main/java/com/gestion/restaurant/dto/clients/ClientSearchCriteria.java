@@ -7,4 +7,5 @@ public class ClientSearchCriteria {
     private String nom;
     private String prenom;
     private Long idTypeClient;
+    private String contact;
 }

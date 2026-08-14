@@ -1,8 +1,7 @@
 package com.gestion.restaurant.controller.caisse;
 
-import jakarta.servlet.http.HttpServletRequest;
-
 import com.gestion.restaurant.dto.caisse.MouvementCaisseRequestDto;
+import com.gestion.restaurant.dto.caisse.MouvementCaisseSearchCriteria;
 import com.gestion.restaurant.service.caisse.CaisseService;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Pageable;
@@ -25,9 +24,11 @@ public class CaisseController {
     }
 
     @GetMapping
-    public String list(@PageableDefault(size = 10, sort = "id", direction = Sort.Direction.DESC) Pageable pageable,
+    public String list(@ModelAttribute("criteria") MouvementCaisseSearchCriteria criteria,
+                       @PageableDefault(size = 10, sort = "dateMouvement", direction = Sort.Direction.DESC) Pageable pageable,
                        Model model) {
-        model.addAttribute("page", caisseService.findAll(pageable));
+        model.addAttribute("page", caisseService.search(criteria, pageable));
+        model.addAttribute("typesMouvement", caisseService.findAllTypes());
         return "caisse/list";
     }
 

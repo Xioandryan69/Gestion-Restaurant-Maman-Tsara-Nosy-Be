@@ -29,6 +29,7 @@ com/gestion/restaurant/dto/personnels/PersonnelRequestDto.class
 com/gestion/restaurant/entity/caisse/MouvementCaisse.class
 com/gestion/restaurant/service/fournisseurs/FournisseursService.class
 com/gestion/restaurant/repository/ingredients/UniteRepository.class
+com/gestion/restaurant/dto/caisse/MouvementCaisseSearchCriteria.class
 com/gestion/restaurant/repository/ingredients/StatutIngredientRepository.class
 com/gestion/restaurant/entity/ingredients/CategorieIngredients.class
 com/gestion/restaurant/repository/materielles/MateriellesRepository.class
@@ -51,6 +52,7 @@ com/gestion/restaurant/repository/livraisons/ZoneLivraisonRepository.class
 com/gestion/restaurant/repository/materielles/CategorieMateriellesRepository.class
 com/gestion/restaurant/entity/commandes/FacturesCommandes.class
 com/gestion/restaurant/controller/dashboard/DashboardController.class
+com/gestion/restaurant/dto/commandes/CommandeSearchCriteria.class
 com/gestion/restaurant/controller/client/ClientsController.class
 com/gestion/restaurant/specification/ingredients/IngredientsSpecification.class
 com/gestion/restaurant/repository/materielles/StatutMateriellesRepository.class
@@ -83,6 +85,7 @@ com/gestion/restaurant/controller/materielles/MateriellesController.class
 com/gestion/restaurant/entity/plats/CategoriePlats.class
 com/gestion/restaurant/entity/personnels/RolePersonnels.class
 com/gestion/restaurant/repository/materielles/TypeMvtMateriellesRepository.class
+com/gestion/restaurant/dto/ingredients/StockSearchCriteria.class
 com/gestion/restaurant/service/excel/RestaurantExcelExchangeService$Setter.class
 com/gestion/restaurant/entity/personnels/AbsencePersonnels.class
 com/gestion/restaurant/specification/clients/ClientsSpecification.class

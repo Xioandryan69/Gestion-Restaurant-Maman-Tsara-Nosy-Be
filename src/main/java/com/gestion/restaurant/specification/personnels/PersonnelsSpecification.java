@@ -27,6 +27,9 @@ public class PersonnelsSpecification {
             if (criteria.getIdRole() != null) {
                 predicates.add(cb.equal(root.get("rolePersonnels").get("id"), criteria.getIdRole()));
             }
+            if (criteria.getContact() != null && !criteria.getContact().isBlank()) predicates.add(cb.like(root.get("contact"), "%" + criteria.getContact().trim() + "%"));
+            if (criteria.getDateEmbaucheDebut() != null) predicates.add(cb.greaterThanOrEqualTo(root.get("dateEmbauche"), criteria.getDateEmbaucheDebut()));
+            if (criteria.getDateEmbaucheFin() != null) predicates.add(cb.lessThanOrEqualTo(root.get("dateEmbauche"), criteria.getDateEmbaucheFin()));
 
             return cb.and(predicates.toArray(new Predicate[0]));
         };

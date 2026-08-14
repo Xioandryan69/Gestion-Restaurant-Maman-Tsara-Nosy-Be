@@ -39,6 +39,15 @@
 
       <div th:replace="~{fragments/alerts :: flash}"></div>
 
+      <div class="card mb-4 shadow-sm"><div class="card-body">
+        <form th:action="@{/caisse}" th:object="${criteria}" method="get" class="row g-3 align-items-end">
+          <div class="col-md-3"><label class="form-label">Du</label><input th:field="*{dateDebut}" type="date" class="form-control"></div>
+          <div class="col-md-3"><label class="form-label">Au</label><input th:field="*{dateFin}" type="date" class="form-control"></div>
+          <div class="col-md-3"><label class="form-label">Type</label><select th:field="*{idTypeMouvement}" class="form-select"><option value="">Tous les types</option><option th:each="type : ${typesMouvement}" th:value="${type.id}" th:text="${type.libelle}"></option></select></div>
+          <div class="col-md-3 d-flex gap-2"><button class="btn btn-secondary" type="submit">Filtrer</button><a class="btn btn-outline-secondary" th:href="@{/caisse}">Réinitialiser</a></div>
+        </form>
+      </div></div>
+
       <div class="card mb-4" style="padding:16px; border-radius:12px; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,0.06);">
         <h4 style="margin-top:0;">Synthèse annuelle de la caisse</h4>
         <canvas id="caisseYearChart" height="220"></canvas>
@@ -55,10 +64,10 @@
         <table class="data-table">
           <thead>
             <tr>
-              <th>ID</th>
-              <th>Date</th>
-              <th>Type Mouvement</th>
-              <th>Montant (Ar)</th>
+              <th><a th:href="${@pageLinks.sortUrl(request, 'id')}">ID ↕</a></th>
+              <th><a th:href="${@pageLinks.sortUrl(request, 'dateMouvement')}">Date ↕</a></th>
+              <th><a th:href="${@pageLinks.sortUrl(request, 'typeMouvement.libelle')}">Type Mouvement ↕</a></th>
+              <th><a th:href="${@pageLinks.sortUrl(request, 'montant')}">Montant (Ar) ↕</a></th>
               <th class="text-center">Actions</th>
             </tr>
           </thead>

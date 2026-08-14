@@ -31,10 +31,10 @@ public class PlatsController {
     public String list(@ModelAttribute("criteria") PlatSearchCriteria criteria,
                        @PageableDefault(size = 10, sort = "nom", direction = Sort.Direction.ASC) Pageable pageable,
                        Model model) {
-        model.addAttribute("page", platsService.search(criteria, pageable));
         model.addAttribute("categories", platsService.findAllCategories());
         // compute prixAchat and benef per plat to provide server-side fallback for the list view
         var page = platsService.search(criteria, pageable);
+        model.addAttribute("page", page);
         var prixAchatMap = new java.util.HashMap<Long, java.math.BigDecimal>();
         var benefMap = new java.util.HashMap<Long, java.math.BigDecimal>();
         for (var p : page.getContent()) {

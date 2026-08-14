@@ -20,6 +20,18 @@ public interface MouvementCaisseRepository extends JpaRepository<MouvementCaisse
     @Query("SELECT m FROM MouvementCaisse m")
     Page<MouvementCaisse> findAllWithType(Pageable pageable);
 
+    @EntityGraph(attributePaths = {"typeMouvement"})
+    @Query("SELECT m FROM MouvementCaisse m WHERE (:dateDebut IS NULL OR m.dateMouvement >= :dateDebut) "
+            + "AND (:dateFin IS NULL OR m.dateMouvement <= :dateFin) "
+            + "AND (:idType IS NULL OR m.typeMouvement.id = :idType)")
+    Page<MouvementCaisse> search(@Param("dateDebut") LocalDate dateDebut, @Param("dateFin") LocalDate dateFin,
+                                 @Param("idType") Long idType, Pageable pageable);
+
+    @Query("SELECT COALESCE(SUM(m.montant), 0) FROM MouvementCaisse m WHERE m.dateMouvement BETWEEN :debut AND :fin "
+            + "AND LOWER(m.typeMouvement.libelle) = LOWER(:type)")
+    java.math.BigDecimal sumMontantByTypeBetween(@Param("debut") LocalDate debut, @Param("fin") LocalDate fin,
+                                                  @Param("type") String type);
+
     @Query("SELECT m FROM MouvementCaisse m LEFT JOIN FETCH m.typeMouvement WHERE m.id = :id")
     Optional<MouvementCaisse> findByIdWithType(@Param("id") Long id);
     List<MouvementCaisse> findByDateMouvementBetween(LocalDate start, LocalDate end);

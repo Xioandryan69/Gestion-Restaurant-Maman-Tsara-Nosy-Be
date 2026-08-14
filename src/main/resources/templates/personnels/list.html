@@ -47,17 +47,29 @@
 
       <div th:replace="~{fragments/alerts :: flash}"></div>
 
+      <div class="card mb-4 shadow-sm"><div class="card-body">
+        <form th:action="@{/personnels}" th:object="${criteria}" method="get" class="row g-3 align-items-end">
+          <div class="col-md-3"><label class="form-label">Nom</label><input th:field="*{nom}" list="personnelNomSuggestions" autocomplete="off" class="form-control" placeholder="Nom"><datalist id="personnelNomSuggestions"><option th:each="p : ${page.content}" th:value="${p.nom}"></option></datalist></div>
+          <div class="col-md-3"><label class="form-label">Prénom</label><input th:field="*{prenom}" class="form-control" placeholder="Prénom"></div>
+          <div class="col-md-3"><label class="form-label">Contact</label><input th:field="*{contact}" class="form-control" placeholder="Téléphone"></div>
+          <div class="col-md-3"><label class="form-label">Rôle</label><select th:field="*{idRole}" class="form-select"><option value="">Tous les rôles</option><option th:each="role : ${roles}" th:value="${role.id}" th:text="${role.libelle}"></option></select></div>
+          <div class="col-md-3"><label class="form-label">Embauché du</label><input th:field="*{dateEmbaucheDebut}" type="date" class="form-control"></div>
+          <div class="col-md-3"><label class="form-label">Embauché au</label><input th:field="*{dateEmbaucheFin}" type="date" class="form-control"></div>
+          <div class="col-md-3 d-flex gap-2"><button class="btn btn-secondary">Filtrer</button><a th:href="@{/personnels}" class="btn btn-outline-secondary">Tout</a></div>
+        </form>
+      </div></div>
+
       <!-- Tableau des résultats -->
       <div class="table-card mb-4">
         <table class="data-table">
           <thead>
             <tr>
-              <th>ID</th>
-              <th>Nom</th>
-              <th>Prénom</th>
-              <th>Contact</th>
-              <th>Rôle</th>
-              <th>Date d'embauche</th>
+              <th><a th:href="${@pageLinks.sortUrl(request, 'id')}">ID ↕</a></th>
+              <th><a th:href="${@pageLinks.sortUrl(request, 'nom')}">Nom ↕</a></th>
+              <th><a th:href="${@pageLinks.sortUrl(request, 'prenom')}">Prénom ↕</a></th>
+              <th><a th:href="${@pageLinks.sortUrl(request, 'contact')}">Contact ↕</a></th>
+              <th><a th:href="${@pageLinks.sortUrl(request, 'rolePersonnels.libelle')}">Rôle ↕</a></th>
+              <th><a th:href="${@pageLinks.sortUrl(request, 'dateEmbauche')}">Date d'embauche ↕</a></th>
               <th class="text-center">Actions</th>
             </tr>
           </thead>

@@ -29,6 +29,8 @@ public class IngredientsSpecification {
             if (criteria.getIdStatut() != null) {
                 predicates.add(cb.equal(root.get("statutIngredient").get("id"), criteria.getIdStatut()));
             }
+            if (criteria.getIdFournisseur() != null) predicates.add(cb.equal(root.get("fournisseur").get("id"), criteria.getIdFournisseur()));
+            if (criteria.getIdUnite() != null) predicates.add(cb.equal(root.get("unite").get("id"), criteria.getIdUnite()));
 
             return cb.and(predicates.toArray(new Predicate[0]));
         };

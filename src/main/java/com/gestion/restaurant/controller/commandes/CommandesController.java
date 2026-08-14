@@ -1,6 +1,7 @@
 package com.gestion.restaurant.controller.commandes;
 
 import com.gestion.restaurant.dto.commandes.CommandeCreateRequestDto;
+import com.gestion.restaurant.dto.commandes.CommandeSearchCriteria;
 import com.gestion.restaurant.service.commandes.CommandesService;
 import com.gestion.restaurant.service.plats.PlatsService;
 
@@ -27,10 +28,13 @@ public class CommandesController {
     }
 
     @GetMapping
-    public String list(@PageableDefault(size = 10, sort = "id", direction = Sort.Direction.DESC) Pageable pageable,
+    public String list(@ModelAttribute("criteria") CommandeSearchCriteria criteria,
+                       @PageableDefault(size = 10, sort = "dateCommande", direction = Sort.Direction.DESC) Pageable pageable,
                        Model model) {
-        var page = commandesService.findAll(pageable);
+        var page = commandesService.search(criteria, pageable);
         model.addAttribute("page", page);
+        model.addAttribute("zones", commandesService.findAllZones());
+        model.addAttribute("clients", commandesService.findAllClients());
         // compute profit per commande for server-side display
         var profitMap = new java.util.HashMap<Long, java.math.BigDecimal>();
         for (var c : page.getContent()) {

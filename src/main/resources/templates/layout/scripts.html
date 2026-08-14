@@ -16,6 +16,48 @@
     <script th:src="@{/js/charts/plats-charts.js}"></script>
     <script th:src="@{/js/dashboard/plat-list.js}"></script>
     <script th:src="@{/js/dashboard/caisse-summary.js}"></script>
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('[data-filter-select]').forEach(input => {
+          const select = document.querySelector(input.dataset.filterSelect);
+          if (!select) return;
+          input.addEventListener('input', () => {
+            const term = input.value.toLocaleLowerCase();
+            Array.from(select.options).forEach((option, index) => {
+              option.hidden = index > 0 && !option.text.toLocaleLowerCase().includes(term);
+            });
+          });
+        });
+        document.querySelectorAll('[data-sortable-table]').forEach(table => {
+          table.querySelectorAll('[data-sort-column]').forEach(button => button.addEventListener('click', () => {
+            const column = Number(button.dataset.sortColumn);
+            const ascending = button.dataset.direction !== 'asc';
+            table.querySelectorAll('[data-sort-column]').forEach(b => delete b.dataset.direction);
+            button.dataset.direction = ascending ? 'asc' : 'desc';
+            const rows = Array.from(table.tBodies[0].rows).filter(row => row.cells.length > column);
+            rows.sort((a, b) => a.cells[column].textContent.trim().localeCompare(
+              b.cells[column].textContent.trim(), 'fr', {numeric: true}) * (ascending ? 1 : -1));
+            rows.forEach(row => table.tBodies[0].appendChild(row));
+          }));
+        });
+        const recetteFilter = document.getElementById('recetteTableFilter');
+        if (recetteFilter) recetteFilter.addEventListener('input', () => {
+          const term = recetteFilter.value.toLocaleLowerCase();
+          recetteFilter.closest('.table-card').querySelectorAll('tbody tr').forEach(row => {
+            row.hidden = !row.textContent.toLocaleLowerCase().includes(term);
+          });
+        });
+        const ingredientSelect = document.getElementById('recetteIngredientSelect');
+        const ingredientUnite = document.getElementById('recetteIngredientUnite');
+        if (ingredientSelect && ingredientUnite) {
+          const updateUnite = () => {
+            ingredientUnite.value = ingredientSelect.selectedOptions[0]?.dataset.unite || '';
+          };
+          ingredientSelect.addEventListener('change', updateUnite);
+          updateUnite();
+        }
+      });
+    </script>
 </th:block>
 </body>
 </html>

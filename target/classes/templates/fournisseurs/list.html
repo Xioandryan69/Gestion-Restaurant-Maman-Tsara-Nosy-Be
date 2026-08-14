@@ -39,7 +39,7 @@
       <div class="table-card">
         <table>
           <thead>
-            <tr><th>ID</th><th>Nom</th><th>Prénom</th><th>Contact</th><th>Type</th><th>Actions</th></tr>
+            <tr><th><a th:href="${@pageLinks.sortUrl(request, 'id')}">ID ↕</a></th><th><a th:href="${@pageLinks.sortUrl(request, 'nom')}">Nom ↕</a></th><th><a th:href="${@pageLinks.sortUrl(request, 'prenom')}">Prénom ↕</a></th><th><a th:href="${@pageLinks.sortUrl(request, 'contact')}">Contact ↕</a></th><th><a th:href="${@pageLinks.sortUrl(request, 'typeFournisseurs.libelle')}">Type ↕</a></th><th>Actions</th></tr>
           </thead>
           <tbody>
             <tr th:each="f : ${page.content}">

@@ -13,11 +13,26 @@ import java.util.Map;
 public class PageLinks {
 
     public String url(HttpServletRequest request, int page, int size) {
+        return url(request, page, size, null);
+    }
+
+    public String sortUrl(HttpServletRequest request, String property) {
+        String currentSort = request.getParameter("sort");
+        String direction = currentSort != null && currentSort.equalsIgnoreCase(property + ",asc")
+                ? "desc" : "asc";
+        int size;
+        try { size = Integer.parseInt(request.getParameter("size")); }
+        catch (Exception ignored) { size = 10; }
+        return url(request, 0, size, Map.of("sort", property + "," + direction));
+    }
+
+    private String url(HttpServletRequest request, int page, int size, Map<String, String> replacements) {
         UriComponentsBuilder builder = UriComponentsBuilder.fromPath(request.getRequestURI());
         Map<String, String[]> params = request.getParameterMap();
         for (Map.Entry<String, String[]> entry : params.entrySet()) {
             String key = entry.getKey();
-            if ("page".equals(key) || "size".equals(key)) {
+            if ("page".equals(key) || "size".equals(key)
+                    || (replacements != null && replacements.containsKey(key))) {
                 continue;
             }
             String[] values = entry.getValue();
@@ -32,6 +47,9 @@ public class PageLinks {
         }
         builder.queryParam("page", Math.max(page, 0));
         builder.queryParam("size", Math.max(size, 1));
+        if (replacements != null) {
+            replacements.forEach(builder::queryParam);
+        }
         return builder.build().encode().toUriString();
     }
 }

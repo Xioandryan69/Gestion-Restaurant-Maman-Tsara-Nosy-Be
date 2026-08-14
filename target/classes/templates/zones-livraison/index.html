@@ -40,9 +40,10 @@
         <div class="toolbar-left">
           <div class="search-box">
             <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <input type="text" th:field="*{search}" placeholder="Rechercher par libellé…"/>
+            <input type="text" th:field="*{search}" autocomplete="off" placeholder="Rechercher par libellé…"/>
           </div>
           <button type="submit" class="btn btn-secondary btn-sm">Filtrer</button>
+          <a th:href="@{/zones-livraison}" class="btn btn-outline-secondary btn-sm">Tout</a>
         </div>
       </form>
 
@@ -50,11 +51,11 @@
         <table class="data-table">
           <thead>
             <tr>
-              <th>ID</th>
-              <th>Libellé</th>
-              <th>Distance Min (km)</th>
-              <th>Distance Max (km)</th>
-              <th>Prix (Ar)</th>
+              <th><a th:href="${@pageLinks.sortUrl(request, 'id')}">ID ↕</a></th>
+              <th><a th:href="${@pageLinks.sortUrl(request, 'libelle')}">Libellé ↕</a></th>
+              <th><a th:href="${@pageLinks.sortUrl(request, 'min')}">Distance Min (km) ↕</a></th>
+              <th><a th:href="${@pageLinks.sortUrl(request, 'max')}">Distance Max (km) ↕</a></th>
+              <th><a th:href="${@pageLinks.sortUrl(request, 'prix')}">Prix (Ar) ↕</a></th>
               <th class="text-center">Actions</th>
             </tr>
           </thead>

@@ -24,12 +24,14 @@
 /home/andrianandrainy/Documents/projet-vacance/Gestion-Restaurant-Maman-Tsara-Nosy-Be/src/main/java/com/gestion/restaurant/controller/recette/RecetteController.java
 /home/andrianandrainy/Documents/projet-vacance/Gestion-Restaurant-Maman-Tsara-Nosy-Be/src/main/java/com/gestion/restaurant/dto/caisse/CaisseSummaryDTO.java
 /home/andrianandrainy/Documents/projet-vacance/Gestion-Restaurant-Maman-Tsara-Nosy-Be/src/main/java/com/gestion/restaurant/dto/caisse/MouvementCaisseRequestDto.java
+/home/andrianandrainy/Documents/projet-vacance/Gestion-Restaurant-Maman-Tsara-Nosy-Be/src/main/java/com/gestion/restaurant/dto/caisse/MouvementCaisseSearchCriteria.java
 /home/andrianandrainy/Documents/projet-vacance/Gestion-Restaurant-Maman-Tsara-Nosy-Be/src/main/java/com/gestion/restaurant/dto/clients/ClientMapper.java
 /home/andrianandrainy/Documents/projet-vacance/Gestion-Restaurant-Maman-Tsara-Nosy-Be/src/main/java/com/gestion/restaurant/dto/clients/ClientRequestDto.java
 /home/andrianandrainy/Documents/projet-vacance/Gestion-Restaurant-Maman-Tsara-Nosy-Be/src/main/java/com/gestion/restaurant/dto/clients/ClientResponseDto.java
 /home/andrianandrainy/Documents/projet-vacance/Gestion-Restaurant-Maman-Tsara-Nosy-Be/src/main/java/com/gestion/restaurant/dto/clients/ClientSearchCriteria.java
 /home/andrianandrainy/Documents/projet-vacance/Gestion-Restaurant-Maman-Tsara-Nosy-Be/src/main/java/com/gestion/restaurant/dto/commandes/CommandeCreateRequestDto.java
 /home/andrianandrainy/Documents/projet-vacance/Gestion-Restaurant-Maman-Tsara-Nosy-Be/src/main/java/com/gestion/restaurant/dto/commandes/CommandeLigneRequestDto.java
+/home/andrianandrainy/Documents/projet-vacance/Gestion-Restaurant-Maman-Tsara-Nosy-Be/src/main/java/com/gestion/restaurant/dto/commandes/CommandeSearchCriteria.java
 /home/andrianandrainy/Documents/projet-vacance/Gestion-Restaurant-Maman-Tsara-Nosy-Be/src/main/java/com/gestion/restaurant/dto/fournisseurs/FournisseurRequestDto.java
 /home/andrianandrainy/Documents/projet-vacance/Gestion-Restaurant-Maman-Tsara-Nosy-Be/src/main/java/com/gestion/restaurant/dto/ingredients/IngredientDashboardDto.java
 /home/andrianandrainy/Documents/projet-vacance/Gestion-Restaurant-Maman-Tsara-Nosy-Be/src/main/java/com/gestion/restaurant/dto/ingredients/IngredientMapper.java
@@ -39,6 +41,7 @@
 /home/andrianandrainy/Documents/projet-vacance/Gestion-Restaurant-Maman-Tsara-Nosy-Be/src/main/java/com/gestion/restaurant/dto/ingredients/IngredientSearchCriteria.java
 /home/andrianandrainy/Documents/projet-vacance/Gestion-Restaurant-Maman-Tsara-Nosy-Be/src/main/java/com/gestion/restaurant/dto/ingredients/IngredientStockDTO.java
 /home/andrianandrainy/Documents/projet-vacance/Gestion-Restaurant-Maman-Tsara-Nosy-Be/src/main/java/com/gestion/restaurant/dto/ingredients/StockPageView.java
+/home/andrianandrainy/Documents/projet-vacance/Gestion-Restaurant-Maman-Tsara-Nosy-Be/src/main/java/com/gestion/restaurant/dto/ingredients/StockSearchCriteria.java
 /home/andrianandrainy/Documents/projet-vacance/Gestion-Restaurant-Maman-Tsara-Nosy-Be/src/main/java/com/gestion/restaurant/dto/livraisons/ZoneLivraisonDto.java
 /home/andrianandrainy/Documents/projet-vacance/Gestion-Restaurant-Maman-Tsara-Nosy-Be/src/main/java/com/gestion/restaurant/dto/livraisons/ZoneLivraisonFilterDto.java
 /home/andrianandrainy/Documents/projet-vacance/Gestion-Restaurant-Maman-Tsara-Nosy-Be/src/main/java/com/gestion/restaurant/dto/materielles/MaterielDashboardDto.java

@@ -21,6 +21,15 @@
 
       <div th:replace="~{fragments/alerts :: flash}"></div>
 
+      <div class="card mb-4 shadow-sm"><div class="card-body">
+        <form th:action="@{/ingredients/stock}" th:object="${criteria}" method="get" class="row g-3 align-items-end">
+          <div class="col-md-4"><label class="form-label">Ingrédient</label><input th:field="*{nom}" class="form-control" placeholder="Nom de l'ingrédient"></div>
+          <div class="col-md-3"><label class="form-label">Catégorie</label><select th:field="*{idCategorie}" class="form-select"><option value="">Toutes les catégories</option><option th:each="c : ${categories}" th:value="${c.id}" th:text="${c.libelle}"></option></select></div>
+          <div class="col-md-3"><label class="form-label">Unité</label><select th:field="*{idUnite}" class="form-select"><option value="">Toutes les unités</option><option th:each="u : ${unites}" th:value="${u.id}" th:text="${u.nom}"></option></select></div>
+          <div class="col-md-2 d-flex gap-2"><button class="btn btn-secondary">Appliquer</button><a th:href="@{/ingredients/stock}" class="btn btn-outline-secondary">Tout</a></div>
+        </form>
+      </div></div>
+
       <div class="kpi-grid">
         <div class="kpi-card">
           <div class="kpi-header">
@@ -49,10 +58,10 @@
         <table class="data-table">
           <thead>
             <tr>
-              <th>Ingrédient</th>
-              <th>Catégorie</th>
+              <th><a th:href="${@pageLinks.sortUrl(request, 'nom')}">Ingrédient ↕</a></th>
+              <th><a th:href="${@pageLinks.sortUrl(request, 'categorieIngredients.libelle')}">Catégorie ↕</a></th>
               <th>Quantité</th>
-              <th>Unité</th>
+              <th><a th:href="${@pageLinks.sortUrl(request, 'unite.nom')}">Unité ↕</a></th>
               <th>Statut</th>
               <th class="text-center">Action</th>
             </tr>

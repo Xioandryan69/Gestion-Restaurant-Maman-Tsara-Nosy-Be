@@ -73,8 +73,11 @@
             
             <div class="field-group">
               <label class="field-label">Nom du plat</label>
-              <input type="text" th:field="*{nom}" class="form-control" placeholder="Rechercher par nom..." />
+              <input type="text" th:field="*{nom}" list="platSuggestions" autocomplete="off" class="form-control" placeholder="Rechercher par nom..." />
+              <datalist id="platSuggestions"><option th:each="plat : ${page.content}" th:value="${plat.nom}"></option></datalist>
             </div>
+            <div class="field-group"><label class="field-label">Prix minimum</label><input th:field="*{prixVenteMin}" type="number" min="0" step="0.001" class="form-control" /></div>
+            <div class="field-group"><label class="field-label">Prix maximum</label><input th:field="*{prixVenteMax}" type="number" min="0" step="0.001" class="form-control" /></div>
 
             <div class="field-group">
               <label class="field-label">Catégorie</label>
@@ -93,6 +96,7 @@
             <button type="submit" class="btn btn-secondary">
               <i class="bi bi-filter"></i> Filtrer
             </button>
+            <a th:href="@{/plats}" class="btn btn-outline-secondary">Tout afficher</a>
           </div>
         </form>
       </div>
@@ -102,10 +106,10 @@
         <table class="data-table">
           <thead>
             <tr>
-              <th>ID</th>
-              <th>Nom du Plat</th>
-              <th>Catégorie</th>
-              <th>Prix de Vente</th>
+              <th><a th:href="${@pageLinks.sortUrl(request, 'id')}">ID ↕</a></th>
+              <th><a th:href="${@pageLinks.sortUrl(request, 'nom')}">Nom du Plat ↕</a></th>
+              <th><a th:href="${@pageLinks.sortUrl(request, 'categoriePlats.libelle')}">Catégorie ↕</a></th>
+              <th><a th:href="${@pageLinks.sortUrl(request, 'prixVente')}">Prix de Vente ↕</a></th>
               <th>Prix Achat</th>
               <th>Bénéfice</th>
               <th class="text-center">Actions</th>

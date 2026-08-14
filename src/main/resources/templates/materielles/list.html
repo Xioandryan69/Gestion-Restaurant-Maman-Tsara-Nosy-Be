@@ -33,25 +33,31 @@
 
       <div th:replace="~{fragments/alerts :: flash}"></div>
 
-      <form th:action="@{/materielles}" method="get" class="toolbar">
+      <form th:action="@{/materielles}" method="get" th:object="${criteria}" class="toolbar">
         <div class="toolbar-left">
-          <select name="categorie" class="filter-select" onchange="this.form.submit()">
+          <input th:field="*{nom}" list="materielSuggestions" autocomplete="off" class="filter-select" placeholder="Rechercher un matériel">
+          <datalist id="materielSuggestions"><option th:each="m : ${page.content}" th:value="${m.nom}"></option></datalist>
+          <select th:field="*{idCategorie}" class="filter-select">
             <option value="">Toutes les catégories</option>
             <option th:each="c : ${categories}" th:value="${c.id}" th:text="${c.libelle}"
-                    th:selected="${selectedCategorie != null and selectedCategorie == c.id}"></option>
+                    ></option>
           </select>
-          <select name="statut" class="filter-select" onchange="this.form.submit()">
+          <select th:field="*{idStatut}" class="filter-select">
             <option value="">Tous les statuts</option>
             <option th:each="s : ${statuts}" th:value="${s.id}" th:text="${s.libelle}"
-                    th:selected="${selectedStatut != null and selectedStatut == s.id}"></option>
+                    ></option>
           </select>
+          <input th:field="*{dateEntreeDebut}" type="date" class="filter-select" title="Date de début">
+          <input th:field="*{dateEntreeFin}" type="date" class="filter-select" title="Date de fin">
+          <button type="submit" class="btn btn-secondary btn-sm">Filtrer</button>
+          <a th:href="@{/materielles}" class="btn btn-outline-secondary btn-sm">Tout</a>
         </div>
       </form>
 
       <div class="table-card">
         <table>
           <thead>
-            <tr><th>ID</th><th>Nom</th><th>Catégorie</th><th>Statut</th><th>Date d'entrée</th><th>Actions</th></tr>
+            <tr><th><a th:href="${@pageLinks.sortUrl(request, 'id')}">ID ↕</a></th><th><a th:href="${@pageLinks.sortUrl(request, 'nom')}">Nom ↕</a></th><th><a th:href="${@pageLinks.sortUrl(request, 'categorieMaterielles.libelle')}">Catégorie ↕</a></th><th><a th:href="${@pageLinks.sortUrl(request, 'statutMaterielles.libelle')}">Statut ↕</a></th><th><a th:href="${@pageLinks.sortUrl(request, 'dateEntree')}">Date d'entrée ↕</a></th><th>Actions</th></tr>
           </thead>
           <tbody>
             <tr th:each="m : ${page.content}">

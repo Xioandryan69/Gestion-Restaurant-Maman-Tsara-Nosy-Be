@@ -22,6 +22,7 @@ import com.gestion.restaurant.repository.ingredients.HistoriqueIngredientsReposi
 import com.gestion.restaurant.repository.materielles.HistoriqueMateriellesRepository;
 import com.gestion.restaurant.repository.materielles.MaintenanceMateriellesRepository;
 import com.gestion.restaurant.dto.caisse.CaisseSummaryDTO;
+import com.gestion.restaurant.dto.caisse.MouvementCaisseSearchCriteria;
 
 /**
  * Service central pour la caisse. Utilisé par les autres modules
@@ -59,35 +60,12 @@ public class CaisseService {
         CaisseSummaryDTO s = new CaisseSummaryDTO();
         if (debut == null || fin == null) return s;
 
-        List<com.gestion.restaurant.entity.caisse.MouvementCaisse> mvts = mouvementCaisseRepository.findAll();
-        mvts.stream().filter(m -> m.getDateMouvement() != null && !m.getDateMouvement().isBefore(debut) && !m.getDateMouvement().isAfter(fin))
-                .forEach(m -> {
-                    if (m.getTypeMouvement() != null && "Entree".equalsIgnoreCase(m.getTypeMouvement().getLibelle())) {
-                        s.setTotalEntrees(s.getTotalEntrees().add(m.getMontant()));
-                    } else {
-                        s.setTotalSorties(s.getTotalSorties().add(m.getMontant()));
-                    }
-                });
-
-        // Achats ingrédients
-        historiqueIngredientsRepository.findAll().stream()
-                .filter(h -> h.getDateEntree() != null && !h.getDateEntree().isBefore(debut) && !h.getDateEntree().isAfter(fin))
-                .forEach(h -> s.setAchatsIngredients(s.getAchatsIngredients().add(h.getPrixAchat().multiply(h.getQuantite()))));
-
-        // Achats matérielles
-        historiqueMateriellesRepository.findAll().stream()
-                .filter(h -> h.getDateEntree() != null && !h.getDateEntree().isBefore(debut) && !h.getDateEntree().isAfter(fin))
-                .forEach(h -> s.setAchatsMaterielles(s.getAchatsMaterielles().add(h.getPrixAchat().multiply(h.getQuantite()))));
-
-        // Maintenances
-        maintenanceMateriellesRepository.findAll().stream()
-                .filter(m -> m.getDateMaintenance() != null && !m.getDateMaintenance().isBefore(debut) && !m.getDateMaintenance().isAfter(fin))
-                .forEach(m -> s.setMaintenance(s.getMaintenance().add(m.getCout())));
-
-        // Ventes (commandes)
-        commandesRepository.findAll().stream()
-                .filter(c -> c.getDateCommande() != null && !c.getDateCommande().isBefore(debut) && !c.getDateCommande().isAfter(fin))
-                .forEach(c -> s.setVentes(s.getVentes().add(c.getMontantTotal() != null ? c.getMontantTotal() : BigDecimal.ZERO)));
+        s.setTotalEntrees(zeroIfNull(mouvementCaisseRepository.sumMontantByTypeBetween(debut, fin, TYPE_ENTREE)));
+        s.setTotalSorties(zeroIfNull(mouvementCaisseRepository.sumMontantByTypeBetween(debut, fin, TYPE_SORTIE)));
+        s.setAchatsIngredients(zeroIfNull(historiqueIngredientsRepository.sumAchatsBetween(debut, fin)));
+        s.setAchatsMaterielles(zeroIfNull(historiqueMateriellesRepository.sumAchatsBetween(debut, fin)));
+        s.setMaintenance(zeroIfNull(maintenanceMateriellesRepository.sumCoutBetween(debut, fin)));
+        s.setVentes(zeroIfNull(commandesRepository.sumMontantTotalBetween(debut, fin)));
 
         return s;
     }
@@ -102,6 +80,20 @@ public class CaisseService {
     @Transactional(readOnly = true)
     public Page<MouvementCaisse> findAll(Pageable pageable) {
         return mouvementCaisseRepository.findAllWithType(pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<MouvementCaisse> search(MouvementCaisseSearchCriteria criteria, Pageable pageable) {
+        if (criteria.getDateDebut() != null && criteria.getDateFin() != null
+                && criteria.getDateDebut().isAfter(criteria.getDateFin())) {
+            throw new BusinessRuleException("La date de début doit être antérieure ou égale à la date de fin.", "/caisse");
+        }
+        return mouvementCaisseRepository.search(criteria.getDateDebut(), criteria.getDateFin(),
+                criteria.getIdTypeMouvement(), pageable);
+    }
+
+    private BigDecimal zeroIfNull(BigDecimal amount) {
+        return amount == null ? BigDecimal.ZERO : amount;
     }
 
     @Transactional(readOnly = true)

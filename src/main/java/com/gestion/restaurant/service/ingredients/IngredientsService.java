@@ -353,6 +353,11 @@ public class IngredientsService {
 
     @Transactional(readOnly = true)
     public StockPageView getGlobalStockState(Pageable pageable) {
+        return getGlobalStockState(null, pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public StockPageView getGlobalStockState(com.gestion.restaurant.dto.ingredients.StockSearchCriteria criteria, Pageable pageable) {
         Map<Long, Double> stocks = etatStockRepo.findLatestQuantiteByIngredient().stream()
                 .collect(Collectors.toMap(
                         row -> ((Number) row[0]).longValue(),
@@ -366,7 +371,14 @@ public class IngredientsService {
         long nombreAlerte = total - stockOk;
         long nombreOk = stockOk;
 
-        Page<IngredientStockDTO> page = ingredientsRepository.findAllWithRelations(pageable)
+        org.springframework.data.jpa.domain.Specification<Ingredients> filter = (root, query, cb) -> {
+            java.util.List<jakarta.persistence.criteria.Predicate> predicates = new java.util.ArrayList<>();
+            if (criteria != null && criteria.getNom() != null && !criteria.getNom().isBlank()) predicates.add(cb.like(cb.lower(root.get("nom")), "%" + criteria.getNom().trim().toLowerCase() + "%"));
+            if (criteria != null && criteria.getIdCategorie() != null) predicates.add(cb.equal(root.get("categorieIngredients").get("id"), criteria.getIdCategorie()));
+            if (criteria != null && criteria.getIdUnite() != null) predicates.add(cb.equal(root.get("unite").get("id"), criteria.getIdUnite()));
+            return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+        };
+        Page<IngredientStockDTO> page = ingredientsRepository.findAll(filter, pageable)
                 .map(ing -> new IngredientStockDTO(ing, stocks.getOrDefault(ing.getId(), 0.0)));
 
         return new StockPageView(page, nombreAlerte, nombreOk, SEUIL_STOCK_FAIBLE);

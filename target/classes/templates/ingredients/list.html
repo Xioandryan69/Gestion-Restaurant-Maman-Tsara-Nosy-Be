@@ -48,7 +48,8 @@
                     <div class="card-body">
                         <form th:action="@{/ingredients}" method="get" th:object="${criteria}" class="row g-3">
                             <div class="col-md-4">
-                                <input type="text" th:field="*{nom}" class="form-control" placeholder="Nom de l'ingrédient...">
+                                <input type="text" th:field="*{nom}" list="ingredientSuggestions" autocomplete="off" class="form-control" placeholder="Nom de l'ingrédient...">
+                                <datalist id="ingredientSuggestions"><option th:each="ing : ${page.content}" th:value="${ing.nom}"></option></datalist>
                             </div>
                             <div class="col-md-3">
                                 <select th:field="*{idCategorie}" class="form-select">
@@ -62,8 +63,11 @@
                                     <option th:each="st : ${statuts}" th:value="${st.id}" th:text="${st.libelle}"></option>
                                 </select>
                             </div>
-                            <div class="col-md-2 d-grid">
+                            <div class="col-md-3"><select th:field="*{idFournisseur}" class="form-select"><option value="">Tous les fournisseurs</option><option th:each="f : ${fournisseurs}" th:value="${f.id}" th:text="${f.nom}"></option></select></div>
+                            <div class="col-md-3"><select th:field="*{idUnite}" class="form-select"><option value="">Toutes les unités</option><option th:each="u : ${unites}" th:value="${u.id}" th:text="${u.nom}"></option></select></div>
+                            <div class="col-md-2 d-flex gap-2">
                                 <button type="submit" class="btn btn-secondary">Filtrer</button>
+                                <a th:href="@{/ingredients}" class="btn btn-outline-secondary">Tout</a>
                             </div>
                         </form>
                     </div>
@@ -74,12 +78,12 @@
                     <table class="table table-hover align-middle mb-0">
                         <thead class="table-dark">
                             <tr>
-                                <th>ID</th>
-                                <th>Nom</th>
-                                <th>Catégorie</th>
-                                <th>Fournisseur</th>
-                                <th>Unité</th>
-                                <th>Statut</th>
+                                <th><a th:href="${@pageLinks.sortUrl(request, 'id')}">ID ↕</a></th>
+                                <th><a th:href="${@pageLinks.sortUrl(request, 'nom')}">Nom ↕</a></th>
+                                <th><a th:href="${@pageLinks.sortUrl(request, 'categorieIngredients.libelle')}">Catégorie ↕</a></th>
+                                <th><a th:href="${@pageLinks.sortUrl(request, 'fournisseur.nom')}">Fournisseur ↕</a></th>
+                                <th><a th:href="${@pageLinks.sortUrl(request, 'unite.nom')}">Unité ↕</a></th>
+                                <th><a th:href="${@pageLinks.sortUrl(request, 'statutIngredient.libelle')}">Statut ↕</a></th>
                                 <th class="text-end">Actions</th>
                             </tr>
                         </thead>

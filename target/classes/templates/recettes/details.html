@@ -97,12 +97,13 @@
             </h3>
           </div>
           
-          <table class="data-table">
+          <div class="p-3 border-bottom"><input id="recetteTableFilter" class="form-control" placeholder="Filtrer les ingrédients de la recette…"></div>
+          <table class="data-table" data-sortable-table>
             <thead>
               <tr>
-                <th>Ingrédient</th>
-                <th>Quantité Requise</th>
-                <th>Unité</th>
+                <th><button type="button" data-sort-column="0">Ingrédient ↕</button></th>
+                <th><button type="button" data-sort-column="1">Quantité Requise ↕</button></th>
+                <th><button type="button" data-sort-column="2">Unité ↕</button></th>
                 <th class="text-center">Action</th>
               </tr>
             </thead>
@@ -145,13 +146,21 @@
               
               <div class="field-group mb-3">
                 <label class="field-label">Ingrédient <span class="required">*</span></label>
-                <select th:field="*{idIngredient}" class="form-control" required>
+                <input type="search" class="form-control mb-2" data-filter-select="#recetteIngredientSelect" placeholder="Rechercher un ingrédient…" autocomplete="off">
+                <select id="recetteIngredientSelect" th:field="*{idIngredient}" class="form-control" required>
                   <option value="">-- Choisir un Ingrédient --</option>
                   <option th:each="ing : ${ingredients}" 
                           th:value="${ing.id}" 
+                          th:attr="data-unite=${ing.unite != null ? (ing.unite.nom + (ing.unite.symbole != null ? ' (' + ing.unite.symbole + ')' : '')) : ''}"
                           th:text="${ing.nom + (ing.unite != null ? ' (' + ing.unite.symbole + ')' : '')}">
                   </option>
                 </select>
+              </div>
+
+              <div class="field-group mb-3">
+                <label class="field-label" for="recetteIngredientUnite">Unité</label>
+                <input id="recetteIngredientUnite" type="text" class="form-control" value="" placeholder="Sélectionnez un ingrédient" readonly>
+                <small class="text-muted">L'unité est définie par l'ingrédient sélectionné.</small>
               </div>
 
               <div class="field-group mb-4">

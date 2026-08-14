@@ -58,6 +58,8 @@ public class PlatsService {
                 if (criteria.getIdCategorie() != null) {
                     predicates.add(cb.equal(root.get("categoriePlats").get("id"), criteria.getIdCategorie()));
                 }
+                if (criteria.getPrixVenteMin() != null) predicates.add(cb.greaterThanOrEqualTo(root.get("prixVente"), criteria.getPrixVenteMin()));
+                if (criteria.getPrixVenteMax() != null) predicates.add(cb.lessThanOrEqualTo(root.get("prixVente"), criteria.getPrixVenteMax()));
             }
             return cb.and(predicates.toArray(new Predicate[0]));
         };

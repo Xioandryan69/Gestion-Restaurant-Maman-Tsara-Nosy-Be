@@ -2,6 +2,7 @@ package com.gestion.restaurant.service.commandes;
 
 import com.gestion.restaurant.dto.commandes.CommandeCreateRequestDto;
 import com.gestion.restaurant.dto.commandes.CommandeLigneRequestDto;
+import com.gestion.restaurant.dto.commandes.CommandeSearchCriteria;
 import com.gestion.restaurant.entity.clients.Clients;
 import com.gestion.restaurant.entity.commandes.Commandes;
 import com.gestion.restaurant.entity.commandes.DetailsCommandes;
@@ -29,6 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Locale;
 import java.util.stream.Collectors;
 
 @Service
@@ -70,6 +72,24 @@ public class CommandesService {
     @Transactional(readOnly = true)
     public Page<Commandes> findAll(Pageable pageable) {
         return commandesRepository.findAllWithRelations(pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<Commandes> search(CommandeSearchCriteria criteria, Pageable pageable) {
+        if (criteria.getDateDebut() != null && criteria.getDateFin() != null
+                && criteria.getDateDebut().isAfter(criteria.getDateFin())) {
+            throw new BusinessRuleException("La date de début doit être antérieure ou égale à la date de fin.", "/commandes");
+        }
+        if (criteria.getMontantMin() != null && criteria.getMontantMax() != null
+                && criteria.getMontantMin().compareTo(criteria.getMontantMax()) > 0) {
+            throw new BusinessRuleException("Le montant minimum doit être inférieur ou égal au montant maximum.", "/commandes");
+        }
+        // Une chaîne vide, plutôt que null, évite que PostgreSQL déduise un type bytea
+        // pour le paramètre utilisé dans LOWER/LIKE lorsque aucun filtre client n'est saisi.
+        String client = criteria.getClient() == null ? "" : criteria.getClient().trim().toLowerCase(Locale.ROOT);
+        return commandesRepository.search(criteria.getId(), client, criteria.getIdZoneLivraison(),
+                criteria.getMontantMin(), criteria.getMontantMax(),
+                criteria.getDateDebut(), criteria.getDateFin(), pageable);
     }
 
     @Transactional(readOnly = true)
