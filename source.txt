@@ -1,5 +1,5 @@
 ===== EXPORT COMPLET SPRING =====
-Date : jeu. 13 août 2026 17:50:56 EAT
+Date : sam. 15 août 2026 14:38:23 EAT
 
 
 ======================================
@@ -573,9 +573,8 @@ FILE : src/main/java/com/gestion/restaurant/controller/caisse/CaisseController.j
 ======================================
 package com.gestion.restaurant.controller.caisse;
 
-import jakarta.servlet.http.HttpServletRequest;
-
 import com.gestion.restaurant.dto.caisse.MouvementCaisseRequestDto;
+import com.gestion.restaurant.dto.caisse.MouvementCaisseSearchCriteria;
 import com.gestion.restaurant.service.caisse.CaisseService;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Pageable;
@@ -598,9 +597,11 @@ public class CaisseController {
     }
 
     @GetMapping
-    public String list(@PageableDefault(size = 10, sort = "id", direction = Sort.Direction.DESC) Pageable pageable,
+    public String list(@ModelAttribute("criteria") MouvementCaisseSearchCriteria criteria,
+                       @PageableDefault(size = 10, sort = "dateMouvement", direction = Sort.Direction.DESC) Pageable pageable,
                        Model model) {
-        model.addAttribute("page", caisseService.findAll(pageable));
+        model.addAttribute("page", caisseService.search(criteria, pageable));
+        model.addAttribute("typesMouvement", caisseService.findAllTypes());
         return "caisse/list";
     }
 
@@ -722,6 +723,7 @@ FILE : src/main/java/com/gestion/restaurant/controller/commandes/CommandesContro
 package com.gestion.restaurant.controller.commandes;
 
 import com.gestion.restaurant.dto.commandes.CommandeCreateRequestDto;
+import com.gestion.restaurant.dto.commandes.CommandeSearchCriteria;
 import com.gestion.restaurant.service.commandes.CommandesService;
 import com.gestion.restaurant.service.plats.PlatsService;
 
@@ -748,10 +750,13 @@ public class CommandesController {
     }
 
     @GetMapping
-    public String list(@PageableDefault(size = 10, sort = "id", direction = Sort.Direction.DESC) Pageable pageable,
+    public String list(@ModelAttribute("criteria") CommandeSearchCriteria criteria,
+                       @PageableDefault(size = 10, sort = "dateCommande", direction = Sort.Direction.DESC) Pageable pageable,
                        Model model) {
-        var page = commandesService.findAll(pageable);
+        var page = commandesService.search(criteria, pageable);
         model.addAttribute("page", page);
+        model.addAttribute("zones", commandesService.findAllZones());
+        model.addAttribute("clients", commandesService.findAllClients());
         // compute profit per commande for server-side display
         var profitMap = new java.util.HashMap<Long, java.math.BigDecimal>();
         for (var c : page.getContent()) {
@@ -1289,6 +1294,8 @@ public class IngredientsController {
         model.addAttribute("page", ingredientsService.search(criteria, pageable));
         model.addAttribute("categories", ingredientsService.findAllCategories());
         model.addAttribute("statuts", ingredientsService.findAllStatuts());
+        model.addAttribute("fournisseurs", ingredientsService.findAllFournisseurs());
+        model.addAttribute("unites", ingredientsService.findAllUnites());
         return "ingredients/list";
     }
 
@@ -1377,13 +1384,16 @@ public class IngredientsController {
 
     @GetMapping("/stock")
     public String viewStockGlobal(
+            @ModelAttribute("criteria") com.gestion.restaurant.dto.ingredients.StockSearchCriteria criteria,
             @PageableDefault(size = 10, sort = "nom", direction = Sort.Direction.ASC) Pageable pageable,
             Model model) {
-        StockPageView stock = ingredientsService.getGlobalStockState(pageable);
+        StockPageView stock = ingredientsService.getGlobalStockState(criteria, pageable);
         model.addAttribute("page", stock.page());
         model.addAttribute("nombreAlerteStock", stock.nombreAlerteStock());
         model.addAttribute("nombreStockOk", stock.nombreStockOk());
         model.addAttribute("seuilStockFaible", stock.seuilStockFaible());
+        model.addAttribute("categories", ingredientsService.findAllCategories());
+        model.addAttribute("unites", ingredientsService.findAllUnites());
         return "ingredients/stock";
     }
 
@@ -1781,10 +1791,10 @@ public class PlatsController {
     public String list(@ModelAttribute("criteria") PlatSearchCriteria criteria,
                        @PageableDefault(size = 10, sort = "nom", direction = Sort.Direction.ASC) Pageable pageable,
                        Model model) {
-        model.addAttribute("page", platsService.search(criteria, pageable));
         model.addAttribute("categories", platsService.findAllCategories());
         // compute prixAchat and benef per plat to provide server-side fallback for the list view
         var page = platsService.search(criteria, pageable);
+        model.addAttribute("page", page);
         var prixAchatMap = new java.util.HashMap<Long, java.math.BigDecimal>();
         var benefMap = new java.util.HashMap<Long, java.math.BigDecimal>();
         for (var p : page.getContent()) {
@@ -1982,6 +1992,26 @@ public class MouvementCaisseRequestDto {
 
 
 ======================================
+FILE : src/main/java/com/gestion/restaurant/dto/caisse/MouvementCaisseSearchCriteria.java
+======================================
+package com.gestion.restaurant.dto.caisse;
+
+import lombok.Data;
+import org.springframework.format.annotation.DateTimeFormat;
+import java.time.LocalDate;
+
+/** Critères conservés dans l'URL pour filtrer les mouvements de caisse. */
+@Data
+public class MouvementCaisseSearchCriteria {
+    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+    private LocalDate dateDebut;
+    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+    private LocalDate dateFin;
+    private Long idTypeMouvement;
+}
+
+
+======================================
 FILE : src/main/java/com/gestion/restaurant/dto/clients/ClientMapper.java
 ======================================
 package com.gestion.restaurant.dto.clients;
@@ -2064,7 +2094,9 @@ public class ClientSearchCriteria {
     private String nom;
     private String prenom;
     private Long idTypeClient;
+    private String contact;
 }
+
 
 ======================================
 FILE : src/main/java/com/gestion/restaurant/dto/commandes/CommandeCreateRequestDto.java
@@ -2121,6 +2153,31 @@ public class CommandeLigneRequestDto {
     @NotNull(message = "La quantité est obligatoire")
     @DecimalMin(value = "0.001", message = "La quantité doit être strictement positive")
     private BigDecimal quantite;
+}
+
+
+======================================
+FILE : src/main/java/com/gestion/restaurant/dto/commandes/CommandeSearchCriteria.java
+======================================
+package com.gestion.restaurant.dto.commandes;
+
+import lombok.Data;
+import org.springframework.format.annotation.DateTimeFormat;
+import java.time.LocalDate;
+import java.math.BigDecimal;
+
+/** Critères de recherche multicritère pour la liste des commandes. */
+@Data
+public class CommandeSearchCriteria {
+    private Long id;
+    private String client;
+    private Long idZoneLivraison;
+    private BigDecimal montantMin;
+    private BigDecimal montantMax;
+    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+    private LocalDate dateDebut;
+    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+    private LocalDate dateFin;
 }
 
 
@@ -2307,7 +2364,10 @@ public class IngredientSearchCriteria {
     private String nom;
     private Long idCategorie;
     private Long idStatut;
+    private Long idFournisseur;
+    private Long idUnite;
 }
+
 
 ======================================
 FILE : src/main/java/com/gestion/restaurant/dto/ingredients/IngredientStockDTO.java
@@ -2344,6 +2404,21 @@ public record StockPageView(
         long nombreStockOk,
         double seuilStockFaible
 ) {
+}
+
+
+======================================
+FILE : src/main/java/com/gestion/restaurant/dto/ingredients/StockSearchCriteria.java
+======================================
+package com.gestion.restaurant.dto.ingredients;
+
+import lombok.Data;
+
+@Data
+public class StockSearchCriteria {
+    private String nom;
+    private Long idCategorie;
+    private Long idUnite;
 }
 
 
@@ -2628,13 +2703,21 @@ FILE : src/main/java/com/gestion/restaurant/dto/personnels/PersonnelSearchCriter
 package com.gestion.restaurant.dto.personnels;
 
 import lombok.Data;
+import org.springframework.format.annotation.DateTimeFormat;
+import java.time.LocalDate;
 
 @Data
 public class PersonnelSearchCriteria {
     private String nom;
     private String prenom;
     private Long idRole;
+    private String contact;
+    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+    private LocalDate dateEmbaucheDebut;
+    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+    private LocalDate dateEmbaucheFin;
 }
+
 
 ======================================
 FILE : src/main/java/com/gestion/restaurant/dto/plats/PlatDashboardDto.java
@@ -2697,12 +2780,16 @@ FILE : src/main/java/com/gestion/restaurant/dto/plats/PlatSearchCriteria.java
 package com.gestion.restaurant.dto.plats;
 
 import lombok.Data;
+import java.math.BigDecimal;
 
 @Data
 public class PlatSearchCriteria {
     private String nom;
     private Long idCategorie;
+    private BigDecimal prixVenteMin;
+    private BigDecimal prixVenteMax;
 }
+
 
 ======================================
 FILE : src/main/java/com/gestion/restaurant/dto/plats/PlatUpdateRequestDto.java
@@ -3975,6 +4062,18 @@ public interface MouvementCaisseRepository extends JpaRepository<MouvementCaisse
     @Query("SELECT m FROM MouvementCaisse m")
     Page<MouvementCaisse> findAllWithType(Pageable pageable);
 
+    @EntityGraph(attributePaths = {"typeMouvement"})
+    @Query("SELECT m FROM MouvementCaisse m WHERE (:dateDebut IS NULL OR m.dateMouvement >= :dateDebut) "
+            + "AND (:dateFin IS NULL OR m.dateMouvement <= :dateFin) "
+            + "AND (:idType IS NULL OR m.typeMouvement.id = :idType)")
+    Page<MouvementCaisse> search(@Param("dateDebut") LocalDate dateDebut, @Param("dateFin") LocalDate dateFin,
+                                 @Param("idType") Long idType, Pageable pageable);
+
+    @Query("SELECT COALESCE(SUM(m.montant), 0) FROM MouvementCaisse m WHERE m.dateMouvement BETWEEN :debut AND :fin "
+            + "AND LOWER(m.typeMouvement.libelle) = LOWER(:type)")
+    java.math.BigDecimal sumMontantByTypeBetween(@Param("debut") LocalDate debut, @Param("fin") LocalDate fin,
+                                                  @Param("type") String type);
+
     @Query("SELECT m FROM MouvementCaisse m LEFT JOIN FETCH m.typeMouvement WHERE m.id = :id")
     Optional<MouvementCaisse> findByIdWithType(@Param("id") Long id);
     List<MouvementCaisse> findByDateMouvementBetween(LocalDate start, LocalDate end);
@@ -4061,6 +4160,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate;
 import java.util.Optional;
 
 @Repository
@@ -4069,6 +4169,22 @@ public interface CommandesRepository extends JpaRepository<Commandes, Long> {
     @EntityGraph(attributePaths = {"client", "zoneLivraison"})
     @Query("SELECT c FROM Commandes c")
     Page<Commandes> findAllWithRelations(Pageable pageable);
+
+    @EntityGraph(attributePaths = {"client", "zoneLivraison"})
+    @Query("SELECT c FROM Commandes c WHERE (:id IS NULL OR c.id = :id) "
+            + "AND (:client = '' OR LOWER(c.client.nom) LIKE CONCAT('%', :client, '%') "
+            + "OR LOWER(c.client.prenom) LIKE CONCAT('%', :client, '%')) "
+            + "AND (:idZone IS NULL OR c.zoneLivraison.id = :idZone) "
+            + "AND (:montantMin IS NULL OR c.montantTotal >= :montantMin) "
+            + "AND (:montantMax IS NULL OR c.montantTotal <= :montantMax) "
+            + "AND (:dateDebut IS NULL OR c.dateCommande >= :dateDebut) AND (:dateFin IS NULL OR c.dateCommande <= :dateFin)")
+    Page<Commandes> search(@Param("id") Long id, @Param("client") String client, @Param("idZone") Long idZone,
+                           @Param("montantMin") java.math.BigDecimal montantMin,
+                           @Param("montantMax") java.math.BigDecimal montantMax,
+                           @Param("dateDebut") LocalDate dateDebut, @Param("dateFin") LocalDate dateFin, Pageable pageable);
+
+    @Query("SELECT COALESCE(SUM(c.montantTotal), 0) FROM Commandes c WHERE c.dateCommande BETWEEN :debut AND :fin")
+    java.math.BigDecimal sumMontantTotalBetween(@Param("debut") LocalDate debut, @Param("fin") LocalDate fin);
 
     @Query("SELECT c FROM Commandes c "
             + "LEFT JOIN FETCH c.client "
@@ -4228,6 +4344,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
+import java.math.BigDecimal;
 import java.util.List;
 
 @Repository
@@ -4237,7 +4354,11 @@ public interface HistoriqueIngredientsRepository extends JpaRepository<Historiqu
     @Query("SELECT h FROM HistoriqueIngredients h WHERE h.datePeremption IS NOT NULL AND h.datePeremption <= :date")
     List<HistoriqueIngredients> findLotsPerimes(@Param("date") LocalDate date);
     List<HistoriqueIngredients> findByIngredientId(Long idIngredient);
+
+    @Query("SELECT COALESCE(SUM(h.prixAchat * h.quantite), 0) FROM HistoriqueIngredients h WHERE h.dateEntree BETWEEN :debut AND :fin")
+    BigDecimal sumAchatsBetween(@Param("debut") LocalDate debut, @Param("fin") LocalDate fin);
 }
+
 
 ======================================
 FILE : src/main/java/com/gestion/restaurant/repository/ingredients/IngredientsRepository.java
@@ -4422,6 +4543,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
+import java.math.BigDecimal;
 import java.util.List;
 
 @Repository
@@ -4429,7 +4551,12 @@ public interface HistoriqueMateriellesRepository extends JpaRepository<Historiqu
     List<HistoriqueMaterielles> findByMateriel_IdOrderByDateEntreeDesc(Long idMateriel);
     List<HistoriqueMaterielles> findByMaterielId(Long idMateriel);
     List<HistoriqueMaterielles> findByDateEntreeBetween(LocalDate start, LocalDate end);
+
+    @org.springframework.data.jpa.repository.Query("SELECT COALESCE(SUM(h.prixAchat * h.quantite), 0) FROM HistoriqueMaterielles h WHERE h.dateEntree BETWEEN :debut AND :fin")
+    BigDecimal sumAchatsBetween(@org.springframework.data.repository.query.Param("debut") LocalDate debut,
+                                @org.springframework.data.repository.query.Param("fin") LocalDate fin);
 }
+
 
 ======================================
 FILE : src/main/java/com/gestion/restaurant/repository/materielles/InventairesMateriellesRepository.java
@@ -4458,6 +4585,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
+import java.math.BigDecimal;
 import java.util.List;
 
 @Repository
@@ -4465,7 +4593,12 @@ public interface MaintenanceMateriellesRepository extends JpaRepository<Maintena
     List<MaintenanceMaterielles> findByMateriel_IdOrderByDateMaintenanceDesc(Long idMateriel);
     List<MaintenanceMaterielles> findByMaterielId(Long idMateriel);
     List<MaintenanceMaterielles> findByDateMaintenanceBetween(LocalDate start, LocalDate end);
+
+    @org.springframework.data.jpa.repository.Query("SELECT COALESCE(SUM(m.cout), 0) FROM MaintenanceMaterielles m WHERE m.dateMaintenance BETWEEN :debut AND :fin")
+    BigDecimal sumCoutBetween(@org.springframework.data.repository.query.Param("debut") LocalDate debut,
+                              @org.springframework.data.repository.query.Param("fin") LocalDate fin);
 }
+
 
 ======================================
 FILE : src/main/java/com/gestion/restaurant/repository/materielles/MateriellesRepository.java
@@ -4843,6 +4976,7 @@ import com.gestion.restaurant.repository.ingredients.HistoriqueIngredientsReposi
 import com.gestion.restaurant.repository.materielles.HistoriqueMateriellesRepository;
 import com.gestion.restaurant.repository.materielles.MaintenanceMateriellesRepository;
 import com.gestion.restaurant.dto.caisse.CaisseSummaryDTO;
+import com.gestion.restaurant.dto.caisse.MouvementCaisseSearchCriteria;
 
 /**
  * Service central pour la caisse. Utilisé par les autres modules
@@ -4880,35 +5014,12 @@ public class CaisseService {
         CaisseSummaryDTO s = new CaisseSummaryDTO();
         if (debut == null || fin == null) return s;
 
-        List<com.gestion.restaurant.entity.caisse.MouvementCaisse> mvts = mouvementCaisseRepository.findAll();
-        mvts.stream().filter(m -> m.getDateMouvement() != null && !m.getDateMouvement().isBefore(debut) && !m.getDateMouvement().isAfter(fin))
-                .forEach(m -> {
-                    if (m.getTypeMouvement() != null && "Entree".equalsIgnoreCase(m.getTypeMouvement().getLibelle())) {
-                        s.setTotalEntrees(s.getTotalEntrees().add(m.getMontant()));
-                    } else {
-                        s.setTotalSorties(s.getTotalSorties().add(m.getMontant()));
-                    }
-                });
-
-        // Achats ingrédients
-        historiqueIngredientsRepository.findAll().stream()
-                .filter(h -> h.getDateEntree() != null && !h.getDateEntree().isBefore(debut) && !h.getDateEntree().isAfter(fin))
-                .forEach(h -> s.setAchatsIngredients(s.getAchatsIngredients().add(h.getPrixAchat().multiply(h.getQuantite()))));
-
-        // Achats matérielles
-        historiqueMateriellesRepository.findAll().stream()
-                .filter(h -> h.getDateEntree() != null && !h.getDateEntree().isBefore(debut) && !h.getDateEntree().isAfter(fin))
-                .forEach(h -> s.setAchatsMaterielles(s.getAchatsMaterielles().add(h.getPrixAchat().multiply(h.getQuantite()))));
-
-        // Maintenances
-        maintenanceMateriellesRepository.findAll().stream()
-                .filter(m -> m.getDateMaintenance() != null && !m.getDateMaintenance().isBefore(debut) && !m.getDateMaintenance().isAfter(fin))
-                .forEach(m -> s.setMaintenance(s.getMaintenance().add(m.getCout())));
-
-        // Ventes (commandes)
-        commandesRepository.findAll().stream()
-                .filter(c -> c.getDateCommande() != null && !c.getDateCommande().isBefore(debut) && !c.getDateCommande().isAfter(fin))
-                .forEach(c -> s.setVentes(s.getVentes().add(c.getMontantTotal() != null ? c.getMontantTotal() : BigDecimal.ZERO)));
+        s.setTotalEntrees(zeroIfNull(mouvementCaisseRepository.sumMontantByTypeBetween(debut, fin, TYPE_ENTREE)));
+        s.setTotalSorties(zeroIfNull(mouvementCaisseRepository.sumMontantByTypeBetween(debut, fin, TYPE_SORTIE)));
+        s.setAchatsIngredients(zeroIfNull(historiqueIngredientsRepository.sumAchatsBetween(debut, fin)));
+        s.setAchatsMaterielles(zeroIfNull(historiqueMateriellesRepository.sumAchatsBetween(debut, fin)));
+        s.setMaintenance(zeroIfNull(maintenanceMateriellesRepository.sumCoutBetween(debut, fin)));
+        s.setVentes(zeroIfNull(commandesRepository.sumMontantTotalBetween(debut, fin)));
 
         return s;
     }
@@ -4923,6 +5034,20 @@ public class CaisseService {
     @Transactional(readOnly = true)
     public Page<MouvementCaisse> findAll(Pageable pageable) {
         return mouvementCaisseRepository.findAllWithType(pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<MouvementCaisse> search(MouvementCaisseSearchCriteria criteria, Pageable pageable) {
+        if (criteria.getDateDebut() != null && criteria.getDateFin() != null
+                && criteria.getDateDebut().isAfter(criteria.getDateFin())) {
+            throw new BusinessRuleException("La date de début doit être antérieure ou égale à la date de fin.", "/caisse");
+        }
+        return mouvementCaisseRepository.search(criteria.getDateDebut(), criteria.getDateFin(),
+                criteria.getIdTypeMouvement(), pageable);
+    }
+
+    private BigDecimal zeroIfNull(BigDecimal amount) {
+        return amount == null ? BigDecimal.ZERO : amount;
     }
 
     @Transactional(readOnly = true)
@@ -5103,6 +5228,7 @@ package com.gestion.restaurant.service.commandes;
 
 import com.gestion.restaurant.dto.commandes.CommandeCreateRequestDto;
 import com.gestion.restaurant.dto.commandes.CommandeLigneRequestDto;
+import com.gestion.restaurant.dto.commandes.CommandeSearchCriteria;
 import com.gestion.restaurant.entity.clients.Clients;
 import com.gestion.restaurant.entity.commandes.Commandes;
 import com.gestion.restaurant.entity.commandes.DetailsCommandes;
@@ -5130,6 +5256,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Locale;
 import java.util.stream.Collectors;
 
 @Service
@@ -5171,6 +5298,24 @@ public class CommandesService {
     @Transactional(readOnly = true)
     public Page<Commandes> findAll(Pageable pageable) {
         return commandesRepository.findAllWithRelations(pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<Commandes> search(CommandeSearchCriteria criteria, Pageable pageable) {
+        if (criteria.getDateDebut() != null && criteria.getDateFin() != null
+                && criteria.getDateDebut().isAfter(criteria.getDateFin())) {
+            throw new BusinessRuleException("La date de début doit être antérieure ou égale à la date de fin.", "/commandes");
+        }
+        if (criteria.getMontantMin() != null && criteria.getMontantMax() != null
+                && criteria.getMontantMin().compareTo(criteria.getMontantMax()) > 0) {
+            throw new BusinessRuleException("Le montant minimum doit être inférieur ou égal au montant maximum.", "/commandes");
+        }
+        // Une chaîne vide, plutôt que null, évite que PostgreSQL déduise un type bytea
+        // pour le paramètre utilisé dans LOWER/LIKE lorsque aucun filtre client n'est saisi.
+        String client = criteria.getClient() == null ? "" : criteria.getClient().trim().toLowerCase(Locale.ROOT);
+        return commandesRepository.search(criteria.getId(), client, criteria.getIdZoneLivraison(),
+                criteria.getMontantMin(), criteria.getMontantMax(),
+                criteria.getDateDebut(), criteria.getDateFin(), pageable);
     }
 
     @Transactional(readOnly = true)
@@ -7750,6 +7895,11 @@ public class IngredientsService {
 
     @Transactional(readOnly = true)
     public StockPageView getGlobalStockState(Pageable pageable) {
+        return getGlobalStockState(null, pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public StockPageView getGlobalStockState(com.gestion.restaurant.dto.ingredients.StockSearchCriteria criteria, Pageable pageable) {
         Map<Long, Double> stocks = etatStockRepo.findLatestQuantiteByIngredient().stream()
                 .collect(Collectors.toMap(
                         row -> ((Number) row[0]).longValue(),
@@ -7763,7 +7913,14 @@ public class IngredientsService {
         long nombreAlerte = total - stockOk;
         long nombreOk = stockOk;
 
-        Page<IngredientStockDTO> page = ingredientsRepository.findAllWithRelations(pageable)
+        org.springframework.data.jpa.domain.Specification<Ingredients> filter = (root, query, cb) -> {
+            java.util.List<jakarta.persistence.criteria.Predicate> predicates = new java.util.ArrayList<>();
+            if (criteria != null && criteria.getNom() != null && !criteria.getNom().isBlank()) predicates.add(cb.like(cb.lower(root.get("nom")), "%" + criteria.getNom().trim().toLowerCase() + "%"));
+            if (criteria != null && criteria.getIdCategorie() != null) predicates.add(cb.equal(root.get("categorieIngredients").get("id"), criteria.getIdCategorie()));
+            if (criteria != null && criteria.getIdUnite() != null) predicates.add(cb.equal(root.get("unite").get("id"), criteria.getIdUnite()));
+            return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+        };
+        Page<IngredientStockDTO> page = ingredientsRepository.findAll(filter, pageable)
                 .map(ing -> new IngredientStockDTO(ing, stocks.getOrDefault(ing.getId(), 0.0)));
 
         return new StockPageView(page, nombreAlerte, nombreOk, SEUIL_STOCK_FAIBLE);
@@ -7790,6 +7947,7 @@ public class IngredientsService {
         return ingredientsRepository.findAllWithRelationsList();
     }
 }
+
 
 ======================================
 FILE : src/main/java/com/gestion/restaurant/service/livraisons/ZoneLivraisonService.java
@@ -8412,6 +8570,8 @@ public class PlatsService {
                 if (criteria.getIdCategorie() != null) {
                     predicates.add(cb.equal(root.get("categoriePlats").get("id"), criteria.getIdCategorie()));
                 }
+                if (criteria.getPrixVenteMin() != null) predicates.add(cb.greaterThanOrEqualTo(root.get("prixVente"), criteria.getPrixVenteMin()));
+                if (criteria.getPrixVenteMax() != null) predicates.add(cb.lessThanOrEqualTo(root.get("prixVente"), criteria.getPrixVenteMax()));
             }
             return cb.and(predicates.toArray(new Predicate[0]));
         };
@@ -8739,6 +8899,9 @@ public class ClientsSpecification {
             if (criteria.getIdTypeClient() != null) {
                 predicates.add(cb.equal(root.get("typeClient").get("id"), criteria.getIdTypeClient()));
             }
+            if (criteria.getContact() != null && !criteria.getContact().isBlank()) {
+                predicates.add(cb.like(root.get("contact"), "%" + criteria.getContact().trim() + "%"));
+            }
 
             return cb.and(predicates.toArray(new Predicate[0]));
         };
@@ -8780,6 +8943,8 @@ public class IngredientsSpecification {
             if (criteria.getIdStatut() != null) {
                 predicates.add(cb.equal(root.get("statutIngredient").get("id"), criteria.getIdStatut()));
             }
+            if (criteria.getIdFournisseur() != null) predicates.add(cb.equal(root.get("fournisseur").get("id"), criteria.getIdFournisseur()));
+            if (criteria.getIdUnite() != null) predicates.add(cb.equal(root.get("unite").get("id"), criteria.getIdUnite()));
 
             return cb.and(predicates.toArray(new Predicate[0]));
         };
@@ -8904,6 +9069,9 @@ public class PersonnelsSpecification {
             if (criteria.getIdRole() != null) {
                 predicates.add(cb.equal(root.get("rolePersonnels").get("id"), criteria.getIdRole()));
             }
+            if (criteria.getContact() != null && !criteria.getContact().isBlank()) predicates.add(cb.like(root.get("contact"), "%" + criteria.getContact().trim() + "%"));
+            if (criteria.getDateEmbaucheDebut() != null) predicates.add(cb.greaterThanOrEqualTo(root.get("dateEmbauche"), criteria.getDateEmbaucheDebut()));
+            if (criteria.getDateEmbaucheFin() != null) predicates.add(cb.lessThanOrEqualTo(root.get("dateEmbauche"), criteria.getDateEmbaucheFin()));
 
             return cb.and(predicates.toArray(new Predicate[0]));
         };
@@ -8929,11 +9097,26 @@ import java.util.Map;
 public class PageLinks {
 
     public String url(HttpServletRequest request, int page, int size) {
+        return url(request, page, size, null);
+    }
+
+    public String sortUrl(HttpServletRequest request, String property) {
+        String currentSort = request.getParameter("sort");
+        String direction = currentSort != null && currentSort.equalsIgnoreCase(property + ",asc")
+                ? "desc" : "asc";
+        int size;
+        try { size = Integer.parseInt(request.getParameter("size")); }
+        catch (Exception ignored) { size = 10; }
+        return url(request, 0, size, Map.of("sort", property + "," + direction));
+    }
+
+    private String url(HttpServletRequest request, int page, int size, Map<String, String> replacements) {
         UriComponentsBuilder builder = UriComponentsBuilder.fromPath(request.getRequestURI());
         Map<String, String[]> params = request.getParameterMap();
         for (Map.Entry<String, String[]> entry : params.entrySet()) {
             String key = entry.getKey();
-            if ("page".equals(key) || "size".equals(key)) {
+            if ("page".equals(key) || "size".equals(key)
+                    || (replacements != null && replacements.containsKey(key))) {
                 continue;
             }
             String[] values = entry.getValue();
@@ -8948,6 +9131,9 @@ public class PageLinks {
         }
         builder.queryParam("page", Math.max(page, 0));
         builder.queryParam("size", Math.max(size, 1));
+        if (replacements != null) {
+            replacements.forEach(builder::queryParam);
+        }
         return builder.build().encode().toUriString();
     }
 }
@@ -9789,6 +9975,8 @@ spring.datasource.driver-class-name=org.postgresql.Driver
 spring.jpa.open-in-view=false
 # Filet de sécurité N+1 si une association EAGER reste hors JOIN FETCH
 spring.jpa.properties.hibernate.default_batch_fetch_size=16
+spring.servlet.multipart.max-file-size=10MB
+spring.servlet.multipart.max-request-size=20MB
 server.error.include-message=never
 server.error.include-stacktrace=never
 
@@ -10198,6 +10386,15 @@ RESOURCE : src/main/resources/templates/caisse/list.html
 
       <div th:replace="~{fragments/alerts :: flash}"></div>
 
+      <div class="card mb-4 shadow-sm"><div class="card-body">
+        <form th:action="@{/caisse}" th:object="${criteria}" method="get" class="row g-3 align-items-end">
+          <div class="col-md-3"><label class="form-label">Du</label><input th:field="*{dateDebut}" type="date" class="form-control"></div>
+          <div class="col-md-3"><label class="form-label">Au</label><input th:field="*{dateFin}" type="date" class="form-control"></div>
+          <div class="col-md-3"><label class="form-label">Type</label><select th:field="*{idTypeMouvement}" class="form-select"><option value="">Tous les types</option><option th:each="type : ${typesMouvement}" th:value="${type.id}" th:text="${type.libelle}"></option></select></div>
+          <div class="col-md-3 d-flex gap-2"><button class="btn btn-secondary" type="submit">Filtrer</button><a class="btn btn-outline-secondary" th:href="@{/caisse}">Réinitialiser</a></div>
+        </form>
+      </div></div>
+
       <div class="card mb-4" style="padding:16px; border-radius:12px; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,0.06);">
         <h4 style="margin-top:0;">Synthèse annuelle de la caisse</h4>
         <canvas id="caisseYearChart" height="220"></canvas>
@@ -10214,10 +10411,10 @@ RESOURCE : src/main/resources/templates/caisse/list.html
         <table class="data-table">
           <thead>
             <tr>
-              <th>ID</th>
-              <th>Date</th>
-              <th>Type Mouvement</th>
-              <th>Montant (Ar)</th>
+              <th><a th:href="${@pageLinks.sortUrl(request, 'id')}">ID ↕</a></th>
+              <th><a th:href="${@pageLinks.sortUrl(request, 'dateMouvement')}">Date ↕</a></th>
+              <th><a th:href="${@pageLinks.sortUrl(request, 'typeMouvement.libelle')}">Type Mouvement ↕</a></th>
+              <th><a th:href="${@pageLinks.sortUrl(request, 'montant')}">Montant (Ar) ↕</a></th>
               <th class="text-center">Actions</th>
             </tr>
           </thead>
@@ -10408,16 +10605,26 @@ RESOURCE : src/main/resources/templates/clients/list.html
 
       <div th:replace="~{fragments/alerts :: flash}"></div>
 
+      <div class="card mb-4 shadow-sm"><div class="card-body">
+        <form th:action="@{/clients}" th:object="${criteria}" method="get" class="row g-3 align-items-end">
+          <div class="col-md-3"><label class="form-label">Nom</label><input th:field="*{nom}" list="clientNomSuggestions" autocomplete="off" class="form-control" placeholder="Nom"><datalist id="clientNomSuggestions"><option th:each="client : ${page.content}" th:value="${client.nom}"></option></datalist></div>
+          <div class="col-md-3"><label class="form-label">Prénom</label><input th:field="*{prenom}" class="form-control" placeholder="Prénom"></div>
+          <div class="col-md-3"><label class="form-label">Contact</label><input th:field="*{contact}" class="form-control" placeholder="Téléphone"></div>
+          <div class="col-md-3"><label class="form-label">Type</label><select th:field="*{idTypeClient}" class="form-select"><option value="">Tous les types</option><option th:each="type : ${typesClient}" th:value="${type.id}" th:text="${type.libelle}"></option></select></div>
+          <div class="col-md-3 d-flex gap-2"><button class="btn btn-secondary">Filtrer</button><a th:href="@{/clients}" class="btn btn-outline-secondary">Tout</a></div>
+        </form>
+      </div></div>
+
       <!-- Tableau des résultats -->
       <div class="table-card mb-4">
         <table class="data-table">
           <thead>
             <tr>
-              <th>ID</th>
-              <th>Nom</th>
-              <th>Prénom</th>
-              <th>Contact</th>
-              <th>Type</th>
+              <th><a th:href="${@pageLinks.sortUrl(request, 'id')}">ID ↕</a></th>
+              <th><a th:href="${@pageLinks.sortUrl(request, 'nom')}">Nom ↕</a></th>
+              <th><a th:href="${@pageLinks.sortUrl(request, 'prenom')}">Prénom ↕</a></th>
+              <th><a th:href="${@pageLinks.sortUrl(request, 'contact')}">Contact ↕</a></th>
+              <th><a th:href="${@pageLinks.sortUrl(request, 'typeClient.libelle')}">Type ↕</a></th>
               <th class="text-center">Actions</th>
             </tr>
           </thead>
@@ -10463,6 +10670,7 @@ RESOURCE : src/main/resources/templates/clients/list.html
 
 </body>
 </html>
+
 
 ======================================
 RESOURCE : src/main/resources/templates/commandes/detail.html
@@ -10990,6 +11198,19 @@ RESOURCE : src/main/resources/templates/commandes/list.html
 
       <div th:replace="~{fragments/alerts :: flash}"></div>
 
+      <div class="card mb-4 shadow-sm"><div class="card-body">
+        <form th:action="@{/commandes}" th:object="${criteria}" method="get" class="row g-3 align-items-end">
+          <div class="col-md-2"><label class="form-label">ID</label><input th:field="*{id}" type="number" min="1" class="form-control" placeholder="Ex. 110"></div>
+          <div class="col-md-3"><label class="form-label">Client</label><input th:field="*{client}" list="clientsSuggestions" class="form-control" placeholder="Nom ou prénom"><datalist id="clientsSuggestions"><option th:each="client : ${clients}" th:value="${client.nom + ' ' + client.prenom}"></option></datalist></div>
+          <div class="col-md-3"><label class="form-label">Zone</label><select th:field="*{idZoneLivraison}" class="form-select"><option value="">Toutes les zones</option><option th:each="zone : ${zones}" th:value="${zone.id}" th:text="${zone.libelle}"></option></select></div>
+          <div class="col-md-2"><label class="form-label">Du</label><input th:field="*{dateDebut}" type="date" class="form-control"></div>
+          <div class="col-md-2"><label class="form-label">Au</label><input th:field="*{dateFin}" type="date" class="form-control"></div>
+          <div class="col-md-3"><label class="form-label">Montant min. (Ar)</label><input th:field="*{montantMin}" type="number" min="0" step="0.001" class="form-control"></div>
+          <div class="col-md-3"><label class="form-label">Montant max. (Ar)</label><input th:field="*{montantMax}" type="number" min="0" step="0.001" class="form-control"></div>
+          <div class="col-md-3 d-flex gap-2 align-items-end"><button class="btn btn-secondary" type="submit">Filtrer</button><a class="btn btn-outline-secondary" th:href="@{/commandes}">Réinit.</a></div>
+        </form>
+      </div></div>
+
       <!-- Tableau des résultats -->
       <div class="card mb-4" style="padding:16px; border-radius:12px; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,0.06);">
         <h4 style="margin-top:0;">Évolution des ventes</h4>
@@ -11007,11 +11228,11 @@ RESOURCE : src/main/resources/templates/commandes/list.html
         <table class="data-table">
           <thead>
             <tr>
-              <th>ID</th>
-              <th>Client</th>
-              <th>Date</th>
-              <th>Zone Livraison</th>
-              <th class="text-end">Montant Total</th>
+              <th><a th:href="${@pageLinks.sortUrl(request, 'id')}">ID ↕</a></th>
+              <th><a th:href="${@pageLinks.sortUrl(request, 'client.nom')}">Client ↕</a></th>
+              <th><a th:href="${@pageLinks.sortUrl(request, 'dateCommande')}">Date ↕</a></th>
+              <th><a th:href="${@pageLinks.sortUrl(request, 'zoneLivraison.libelle')}">Zone Livraison ↕</a></th>
+              <th class="text-end"><a th:href="${@pageLinks.sortUrl(request, 'montantTotal')}">Montant Total ↕</a></th>
               <th class="text-end">Bénéfice</th>
               <th class="text-center">Actions</th>
             </tr>
@@ -11067,6 +11288,7 @@ RESOURCE : src/main/resources/templates/commandes/list.html
 
 </body>
 </html>
+
 
 ======================================
 RESOURCE : src/main/resources/templates/dashboard/index.html
@@ -11359,7 +11581,7 @@ RESOURCE : src/main/resources/templates/fournisseurs/list.html
       <div class="table-card">
         <table>
           <thead>
-            <tr><th>ID</th><th>Nom</th><th>Prénom</th><th>Contact</th><th>Type</th><th>Actions</th></tr>
+            <tr><th><a th:href="${@pageLinks.sortUrl(request, 'id')}">ID ↕</a></th><th><a th:href="${@pageLinks.sortUrl(request, 'nom')}">Nom ↕</a></th><th><a th:href="${@pageLinks.sortUrl(request, 'prenom')}">Prénom ↕</a></th><th><a th:href="${@pageLinks.sortUrl(request, 'contact')}">Contact ↕</a></th><th><a th:href="${@pageLinks.sortUrl(request, 'typeFournisseurs.libelle')}">Type ↕</a></th><th>Actions</th></tr>
           </thead>
           <tbody>
             <tr th:each="f : ${page.content}">
@@ -11396,6 +11618,7 @@ RESOURCE : src/main/resources/templates/fournisseurs/list.html
 
 </body>
 </html>
+
 
 ======================================
 RESOURCE : src/main/resources/templates/fragments/alerts.html
@@ -12128,7 +12351,8 @@ RESOURCE : src/main/resources/templates/ingredients/list.html
                     <div class="card-body">
                         <form th:action="@{/ingredients}" method="get" th:object="${criteria}" class="row g-3">
                             <div class="col-md-4">
-                                <input type="text" th:field="*{nom}" class="form-control" placeholder="Nom de l'ingrédient...">
+                                <input type="text" th:field="*{nom}" list="ingredientSuggestions" autocomplete="off" class="form-control" placeholder="Nom de l'ingrédient...">
+                                <datalist id="ingredientSuggestions"><option th:each="ing : ${page.content}" th:value="${ing.nom}"></option></datalist>
                             </div>
                             <div class="col-md-3">
                                 <select th:field="*{idCategorie}" class="form-select">
@@ -12142,8 +12366,11 @@ RESOURCE : src/main/resources/templates/ingredients/list.html
                                     <option th:each="st : ${statuts}" th:value="${st.id}" th:text="${st.libelle}"></option>
                                 </select>
                             </div>
-                            <div class="col-md-2 d-grid">
+                            <div class="col-md-3"><select th:field="*{idFournisseur}" class="form-select"><option value="">Tous les fournisseurs</option><option th:each="f : ${fournisseurs}" th:value="${f.id}" th:text="${f.nom}"></option></select></div>
+                            <div class="col-md-3"><select th:field="*{idUnite}" class="form-select"><option value="">Toutes les unités</option><option th:each="u : ${unites}" th:value="${u.id}" th:text="${u.nom}"></option></select></div>
+                            <div class="col-md-2 d-flex gap-2">
                                 <button type="submit" class="btn btn-secondary">Filtrer</button>
+                                <a th:href="@{/ingredients}" class="btn btn-outline-secondary">Tout</a>
                             </div>
                         </form>
                     </div>
@@ -12154,12 +12381,12 @@ RESOURCE : src/main/resources/templates/ingredients/list.html
                     <table class="table table-hover align-middle mb-0">
                         <thead class="table-dark">
                             <tr>
-                                <th>ID</th>
-                                <th>Nom</th>
-                                <th>Catégorie</th>
-                                <th>Fournisseur</th>
-                                <th>Unité</th>
-                                <th>Statut</th>
+                                <th><a th:href="${@pageLinks.sortUrl(request, 'id')}">ID ↕</a></th>
+                                <th><a th:href="${@pageLinks.sortUrl(request, 'nom')}">Nom ↕</a></th>
+                                <th><a th:href="${@pageLinks.sortUrl(request, 'categorieIngredients.libelle')}">Catégorie ↕</a></th>
+                                <th><a th:href="${@pageLinks.sortUrl(request, 'fournisseur.nom')}">Fournisseur ↕</a></th>
+                                <th><a th:href="${@pageLinks.sortUrl(request, 'unite.nom')}">Unité ↕</a></th>
+                                <th><a th:href="${@pageLinks.sortUrl(request, 'statutIngredient.libelle')}">Statut ↕</a></th>
                                 <th class="text-end">Actions</th>
                             </tr>
                         </thead>
@@ -12199,6 +12426,7 @@ RESOURCE : src/main/resources/templates/ingredients/list.html
 </body>
 </html>
 
+
 ======================================
 RESOURCE : src/main/resources/templates/ingredients/stock.html
 ======================================
@@ -12224,6 +12452,15 @@ RESOURCE : src/main/resources/templates/ingredients/stock.html
       </div>
 
       <div th:replace="~{fragments/alerts :: flash}"></div>
+
+      <div class="card mb-4 shadow-sm"><div class="card-body">
+        <form th:action="@{/ingredients/stock}" th:object="${criteria}" method="get" class="row g-3 align-items-end">
+          <div class="col-md-4"><label class="form-label">Ingrédient</label><input th:field="*{nom}" class="form-control" placeholder="Nom de l'ingrédient"></div>
+          <div class="col-md-3"><label class="form-label">Catégorie</label><select th:field="*{idCategorie}" class="form-select"><option value="">Toutes les catégories</option><option th:each="c : ${categories}" th:value="${c.id}" th:text="${c.libelle}"></option></select></div>
+          <div class="col-md-3"><label class="form-label">Unité</label><select th:field="*{idUnite}" class="form-select"><option value="">Toutes les unités</option><option th:each="u : ${unites}" th:value="${u.id}" th:text="${u.nom}"></option></select></div>
+          <div class="col-md-2 d-flex gap-2"><button class="btn btn-secondary">Appliquer</button><a th:href="@{/ingredients/stock}" class="btn btn-outline-secondary">Tout</a></div>
+        </form>
+      </div></div>
 
       <div class="kpi-grid">
         <div class="kpi-card">
@@ -12253,10 +12490,10 @@ RESOURCE : src/main/resources/templates/ingredients/stock.html
         <table class="data-table">
           <thead>
             <tr>
-              <th>Ingrédient</th>
-              <th>Catégorie</th>
+              <th><a th:href="${@pageLinks.sortUrl(request, 'nom')}">Ingrédient ↕</a></th>
+              <th><a th:href="${@pageLinks.sortUrl(request, 'categorieIngredients.libelle')}">Catégorie ↕</a></th>
               <th>Quantité</th>
-              <th>Unité</th>
+              <th><a th:href="${@pageLinks.sortUrl(request, 'unite.nom')}">Unité ↕</a></th>
               <th>Statut</th>
               <th class="text-center">Action</th>
             </tr>
@@ -12375,9 +12612,52 @@ RESOURCE : src/main/resources/templates/layout/scripts.html
     <script th:src="@{/js/charts/plats-charts.js}"></script>
     <script th:src="@{/js/dashboard/plat-list.js}"></script>
     <script th:src="@{/js/dashboard/caisse-summary.js}"></script>
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('[data-filter-select]').forEach(input => {
+          const select = document.querySelector(input.dataset.filterSelect);
+          if (!select) return;
+          input.addEventListener('input', () => {
+            const term = input.value.toLocaleLowerCase();
+            Array.from(select.options).forEach((option, index) => {
+              option.hidden = index > 0 && !option.text.toLocaleLowerCase().includes(term);
+            });
+          });
+        });
+        document.querySelectorAll('[data-sortable-table]').forEach(table => {
+          table.querySelectorAll('[data-sort-column]').forEach(button => button.addEventListener('click', () => {
+            const column = Number(button.dataset.sortColumn);
+            const ascending = button.dataset.direction !== 'asc';
+            table.querySelectorAll('[data-sort-column]').forEach(b => delete b.dataset.direction);
+            button.dataset.direction = ascending ? 'asc' : 'desc';
+            const rows = Array.from(table.tBodies[0].rows).filter(row => row.cells.length > column);
+            rows.sort((a, b) => a.cells[column].textContent.trim().localeCompare(
+              b.cells[column].textContent.trim(), 'fr', {numeric: true}) * (ascending ? 1 : -1));
+            rows.forEach(row => table.tBodies[0].appendChild(row));
+          }));
+        });
+        const recetteFilter = document.getElementById('recetteTableFilter');
+        if (recetteFilter) recetteFilter.addEventListener('input', () => {
+          const term = recetteFilter.value.toLocaleLowerCase();
+          recetteFilter.closest('.table-card').querySelectorAll('tbody tr').forEach(row => {
+            row.hidden = !row.textContent.toLocaleLowerCase().includes(term);
+          });
+        });
+        const ingredientSelect = document.getElementById('recetteIngredientSelect');
+        const ingredientUnite = document.getElementById('recetteIngredientUnite');
+        if (ingredientSelect && ingredientUnite) {
+          const updateUnite = () => {
+            ingredientUnite.value = ingredientSelect.selectedOptions[0]?.dataset.unite || '';
+          };
+          ingredientSelect.addEventListener('change', updateUnite);
+          updateUnite();
+        }
+      });
+    </script>
 </th:block>
 </body>
 </html>
+
 
 ======================================
 RESOURCE : src/main/resources/templates/layout/sidebar.html
@@ -12906,25 +13186,31 @@ RESOURCE : src/main/resources/templates/materielles/list.html
 
       <div th:replace="~{fragments/alerts :: flash}"></div>
 
-      <form th:action="@{/materielles}" method="get" class="toolbar">
+      <form th:action="@{/materielles}" method="get" th:object="${criteria}" class="toolbar">
         <div class="toolbar-left">
-          <select name="categorie" class="filter-select" onchange="this.form.submit()">
+          <input th:field="*{nom}" list="materielSuggestions" autocomplete="off" class="filter-select" placeholder="Rechercher un matériel">
+          <datalist id="materielSuggestions"><option th:each="m : ${page.content}" th:value="${m.nom}"></option></datalist>
+          <select th:field="*{idCategorie}" class="filter-select">
             <option value="">Toutes les catégories</option>
             <option th:each="c : ${categories}" th:value="${c.id}" th:text="${c.libelle}"
-                    th:selected="${selectedCategorie != null and selectedCategorie == c.id}"></option>
+                    ></option>
           </select>
-          <select name="statut" class="filter-select" onchange="this.form.submit()">
+          <select th:field="*{idStatut}" class="filter-select">
             <option value="">Tous les statuts</option>
             <option th:each="s : ${statuts}" th:value="${s.id}" th:text="${s.libelle}"
-                    th:selected="${selectedStatut != null and selectedStatut == s.id}"></option>
+                    ></option>
           </select>
+          <input th:field="*{dateEntreeDebut}" type="date" class="filter-select" title="Date de début">
+          <input th:field="*{dateEntreeFin}" type="date" class="filter-select" title="Date de fin">
+          <button type="submit" class="btn btn-secondary btn-sm">Filtrer</button>
+          <a th:href="@{/materielles}" class="btn btn-outline-secondary btn-sm">Tout</a>
         </div>
       </form>
 
       <div class="table-card">
         <table>
           <thead>
-            <tr><th>ID</th><th>Nom</th><th>Catégorie</th><th>Statut</th><th>Date d'entrée</th><th>Actions</th></tr>
+            <tr><th><a th:href="${@pageLinks.sortUrl(request, 'id')}">ID ↕</a></th><th><a th:href="${@pageLinks.sortUrl(request, 'nom')}">Nom ↕</a></th><th><a th:href="${@pageLinks.sortUrl(request, 'categorieMaterielles.libelle')}">Catégorie ↕</a></th><th><a th:href="${@pageLinks.sortUrl(request, 'statutMaterielles.libelle')}">Statut ↕</a></th><th><a th:href="${@pageLinks.sortUrl(request, 'dateEntree')}">Date d'entrée ↕</a></th><th>Actions</th></tr>
           </thead>
           <tbody>
             <tr th:each="m : ${page.content}">
@@ -12968,6 +13254,7 @@ RESOURCE : src/main/resources/templates/materielles/list.html
 
 </body>
 </html>
+
 
 ======================================
 RESOURCE : src/main/resources/templates/personnels/detail.html
@@ -13347,17 +13634,29 @@ RESOURCE : src/main/resources/templates/personnels/list.html
 
       <div th:replace="~{fragments/alerts :: flash}"></div>
 
+      <div class="card mb-4 shadow-sm"><div class="card-body">
+        <form th:action="@{/personnels}" th:object="${criteria}" method="get" class="row g-3 align-items-end">
+          <div class="col-md-3"><label class="form-label">Nom</label><input th:field="*{nom}" list="personnelNomSuggestions" autocomplete="off" class="form-control" placeholder="Nom"><datalist id="personnelNomSuggestions"><option th:each="p : ${page.content}" th:value="${p.nom}"></option></datalist></div>
+          <div class="col-md-3"><label class="form-label">Prénom</label><input th:field="*{prenom}" class="form-control" placeholder="Prénom"></div>
+          <div class="col-md-3"><label class="form-label">Contact</label><input th:field="*{contact}" class="form-control" placeholder="Téléphone"></div>
+          <div class="col-md-3"><label class="form-label">Rôle</label><select th:field="*{idRole}" class="form-select"><option value="">Tous les rôles</option><option th:each="role : ${roles}" th:value="${role.id}" th:text="${role.libelle}"></option></select></div>
+          <div class="col-md-3"><label class="form-label">Embauché du</label><input th:field="*{dateEmbaucheDebut}" type="date" class="form-control"></div>
+          <div class="col-md-3"><label class="form-label">Embauché au</label><input th:field="*{dateEmbaucheFin}" type="date" class="form-control"></div>
+          <div class="col-md-3 d-flex gap-2"><button class="btn btn-secondary">Filtrer</button><a th:href="@{/personnels}" class="btn btn-outline-secondary">Tout</a></div>
+        </form>
+      </div></div>
+
       <!-- Tableau des résultats -->
       <div class="table-card mb-4">
         <table class="data-table">
           <thead>
             <tr>
-              <th>ID</th>
-              <th>Nom</th>
-              <th>Prénom</th>
-              <th>Contact</th>
-              <th>Rôle</th>
-              <th>Date d'embauche</th>
+              <th><a th:href="${@pageLinks.sortUrl(request, 'id')}">ID ↕</a></th>
+              <th><a th:href="${@pageLinks.sortUrl(request, 'nom')}">Nom ↕</a></th>
+              <th><a th:href="${@pageLinks.sortUrl(request, 'prenom')}">Prénom ↕</a></th>
+              <th><a th:href="${@pageLinks.sortUrl(request, 'contact')}">Contact ↕</a></th>
+              <th><a th:href="${@pageLinks.sortUrl(request, 'rolePersonnels.libelle')}">Rôle ↕</a></th>
+              <th><a th:href="${@pageLinks.sortUrl(request, 'dateEmbauche')}">Date d'embauche ↕</a></th>
               <th class="text-center">Actions</th>
             </tr>
           </thead>
@@ -13409,6 +13708,7 @@ RESOURCE : src/main/resources/templates/personnels/list.html
 
 </body>
 </html>
+
 
 ======================================
 RESOURCE : src/main/resources/templates/plats/dashboard.html
@@ -13491,6 +13791,190 @@ RESOURCE : src/main/resources/templates/plats/dashboard.html
 </body>
 </html>
 
+
+======================================
+RESOURCE : src/main/resources/templates/plats/edit.html
+======================================
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="fr"
+      th:with="pageTitle='Plat à Modifier'">
+
+<head th:replace="~{layout/head :: head(pageTitle=${pageTitle})}"></head>
+
+<body>
+
+<div class="app">
+
+  <!-- Sidebar globale -->
+  <aside th:replace="~{layout/sidebar :: sidebar(activeMenu='plats')}"></aside>
+
+  <!-- Conteneur principal -->
+  <div class="main">
+
+    <!-- Topbar globale -->
+    <div th:replace="~{layout/navbar :: topbar(pageTitle=${pageTitle})}"></div>
+
+    <!-- Contenu de la page -->
+    <div class="content">
+
+      <!-- En-tête de la page -->
+      <div class="page-header">
+
+        <div>
+          <h2>Modifier le Plat</h2>
+
+          <div class="breadcrumb">
+            Accueil /
+            <a th:href="@{/plats}">Plats</a> /
+            <span>Modification</span>
+          </div>
+        </div>
+
+        <a th:href="@{/recettes/plat/{id}(id=${plat.id})}"
+           class="btn btn-secondary">
+          &larr; Retour à la recette
+        </a>
+
+      </div>
+
+
+      <!-- Formulaire de modification -->
+      <form th:action="@{/plats/edit/{id}(id=${plat.id})}"
+            th:object="${plat}"
+            method="post">
+
+        <div class="form-card mb-4">
+
+          <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+            <h3 class="m-0 text-primary">
+              <i class="bi bi-pencil-square"></i>
+              Informations du Plat
+            </h3>
+          </div>
+
+
+          <!-- Informations générales -->
+          <div class="form-grid">
+
+            <!-- Nom -->
+            <div class="field-group">
+
+              <label class="field-label">
+                Nom du Plat
+                <span class="required">*</span>
+              </label>
+
+              <input type="text"
+                     th:field="*{nom}"
+                     class="form-control"
+                     placeholder="ex: Pizza Margherita"
+                     required />
+
+              <div class="text-danger"
+                   th:if="${#fields.hasErrors('nom')}"
+                   th:errors="*{nom}">
+              </div>
+
+            </div>
+
+
+            <!-- Catégorie -->
+            <div class="field-group">
+
+              <label class="field-label">
+                Catégorie
+                <span class="required">*</span>
+              </label>
+
+              <select th:field="*{idCategorie}"
+                      class="form-control"
+                      required>
+
+                <option value="">
+                  -- Sélectionner --
+                </option>
+
+                <option th:each="c : ${categories}"
+                        th:value="${c.id}"
+                        th:text="${c.libelle}">
+                </option>
+
+              </select>
+
+              <div class="text-danger"
+                   th:if="${#fields.hasErrors('idCategorie')}"
+                   th:errors="*{idCategorie}">
+              </div>
+
+            </div>
+
+
+            <!-- Prix de vente -->
+            <div class="field-group">
+
+              <label class="field-label">
+                Prix de Vente (Ar)
+                <span class="required">*</span>
+              </label>
+
+              <input type="number"
+                     th:field="*{prixVente}"
+                     class="form-control"
+                     step="0.01"
+                     min="0"
+                     placeholder="0.00"
+                     required />
+
+              <div class="text-danger"
+                   th:if="${#fields.hasErrors('prixVente')}"
+                   th:errors="*{prixVente}">
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+
+        <!-- Barre des boutons -->
+        <div class="toolbar d-flex justify-content-between align-items-center mt-4">
+
+          <a th:href="@{/recettes/plat/{id}(id=${plat.id})}"
+             class="btn btn-secondary">
+
+            <i class="bi bi-arrow-left"></i>
+            Annuler
+
+          </a>
+
+
+          <button type="submit"
+                  class="btn btn-primary">
+
+            <i class="bi bi-check-circle"></i>
+            Enregistrer les modifications
+
+          </button>
+
+        </div>
+
+      </form>
+
+    </div>
+  </div>
+
+</div>
+
+
+<!-- Footer -->
+<div th:replace="~{layout/footer :: footer}"></div>
+
+<!-- Scripts -->
+<th:block th:replace="~{layout/scripts :: scripts}"></th:block>
+
+</body>
+</html>
 
 ======================================
 RESOURCE : src/main/resources/templates/plats/form.html
@@ -13841,8 +14325,11 @@ RESOURCE : src/main/resources/templates/plats/list.html
             
             <div class="field-group">
               <label class="field-label">Nom du plat</label>
-              <input type="text" th:field="*{nom}" class="form-control" placeholder="Rechercher par nom..." />
+              <input type="text" th:field="*{nom}" list="platSuggestions" autocomplete="off" class="form-control" placeholder="Rechercher par nom..." />
+              <datalist id="platSuggestions"><option th:each="plat : ${page.content}" th:value="${plat.nom}"></option></datalist>
             </div>
+            <div class="field-group"><label class="field-label">Prix minimum</label><input th:field="*{prixVenteMin}" type="number" min="0" step="0.001" class="form-control" /></div>
+            <div class="field-group"><label class="field-label">Prix maximum</label><input th:field="*{prixVenteMax}" type="number" min="0" step="0.001" class="form-control" /></div>
 
             <div class="field-group">
               <label class="field-label">Catégorie</label>
@@ -13861,6 +14348,7 @@ RESOURCE : src/main/resources/templates/plats/list.html
             <button type="submit" class="btn btn-secondary">
               <i class="bi bi-filter"></i> Filtrer
             </button>
+            <a th:href="@{/plats}" class="btn btn-outline-secondary">Tout afficher</a>
           </div>
         </form>
       </div>
@@ -13870,10 +14358,10 @@ RESOURCE : src/main/resources/templates/plats/list.html
         <table class="data-table">
           <thead>
             <tr>
-              <th>ID</th>
-              <th>Nom du Plat</th>
-              <th>Catégorie</th>
-              <th>Prix de Vente</th>
+              <th><a th:href="${@pageLinks.sortUrl(request, 'id')}">ID ↕</a></th>
+              <th><a th:href="${@pageLinks.sortUrl(request, 'nom')}">Nom du Plat ↕</a></th>
+              <th><a th:href="${@pageLinks.sortUrl(request, 'categoriePlats.libelle')}">Catégorie ↕</a></th>
+              <th><a th:href="${@pageLinks.sortUrl(request, 'prixVente')}">Prix de Vente ↕</a></th>
               <th>Prix Achat</th>
               <th>Bénéfice</th>
               <th class="text-center">Actions</th>
@@ -13923,6 +14411,7 @@ RESOURCE : src/main/resources/templates/plats/list.html
 
 </body>
 </html>
+
 
 ======================================
 RESOURCE : src/main/resources/templates/recettes/details.html
@@ -14026,12 +14515,13 @@ RESOURCE : src/main/resources/templates/recettes/details.html
             </h3>
           </div>
           
-          <table class="data-table">
+          <div class="p-3 border-bottom"><input id="recetteTableFilter" class="form-control" placeholder="Filtrer les ingrédients de la recette…"></div>
+          <table class="data-table" data-sortable-table>
             <thead>
               <tr>
-                <th>Ingrédient</th>
-                <th>Quantité Requise</th>
-                <th>Unité</th>
+                <th><button type="button" data-sort-column="0">Ingrédient ↕</button></th>
+                <th><button type="button" data-sort-column="1">Quantité Requise ↕</button></th>
+                <th><button type="button" data-sort-column="2">Unité ↕</button></th>
                 <th class="text-center">Action</th>
               </tr>
             </thead>
@@ -14074,13 +14564,21 @@ RESOURCE : src/main/resources/templates/recettes/details.html
               
               <div class="field-group mb-3">
                 <label class="field-label">Ingrédient <span class="required">*</span></label>
-                <select th:field="*{idIngredient}" class="form-control" required>
+                <input type="search" class="form-control mb-2" data-filter-select="#recetteIngredientSelect" placeholder="Rechercher un ingrédient…" autocomplete="off">
+                <select id="recetteIngredientSelect" th:field="*{idIngredient}" class="form-control" required>
                   <option value="">-- Choisir un Ingrédient --</option>
                   <option th:each="ing : ${ingredients}" 
                           th:value="${ing.id}" 
+                          th:attr="data-unite=${ing.unite != null ? (ing.unite.nom + (ing.unite.symbole != null ? ' (' + ing.unite.symbole + ')' : '')) : ''}"
                           th:text="${ing.nom + (ing.unite != null ? ' (' + ing.unite.symbole + ')' : '')}">
                   </option>
                 </select>
+              </div>
+
+              <div class="field-group mb-3">
+                <label class="field-label" for="recetteIngredientUnite">Unité</label>
+                <input id="recetteIngredientUnite" type="text" class="form-control" value="" placeholder="Sélectionnez un ingrédient" readonly>
+                <small class="text-muted">L'unité est définie par l'ingrédient sélectionné.</small>
               </div>
 
               <div class="field-group mb-4">
@@ -14108,6 +14606,7 @@ RESOURCE : src/main/resources/templates/recettes/details.html
 
 </body>
 </html>
+
 
 ======================================
 RESOURCE : src/main/resources/templates/recettes/form.html
@@ -14825,9 +15324,10 @@ RESOURCE : src/main/resources/templates/zones-livraison/index.html
         <div class="toolbar-left">
           <div class="search-box">
             <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <input type="text" th:field="*{search}" placeholder="Rechercher par libellé…"/>
+            <input type="text" th:field="*{search}" autocomplete="off" placeholder="Rechercher par libellé…"/>
           </div>
           <button type="submit" class="btn btn-secondary btn-sm">Filtrer</button>
+          <a th:href="@{/zones-livraison}" class="btn btn-outline-secondary btn-sm">Tout</a>
         </div>
       </form>
 
@@ -14835,11 +15335,11 @@ RESOURCE : src/main/resources/templates/zones-livraison/index.html
         <table class="data-table">
           <thead>
             <tr>
-              <th>ID</th>
-              <th>Libellé</th>
-              <th>Distance Min (km)</th>
-              <th>Distance Max (km)</th>
-              <th>Prix (Ar)</th>
+              <th><a th:href="${@pageLinks.sortUrl(request, 'id')}">ID ↕</a></th>
+              <th><a th:href="${@pageLinks.sortUrl(request, 'libelle')}">Libellé ↕</a></th>
+              <th><a th:href="${@pageLinks.sortUrl(request, 'min')}">Distance Min (km) ↕</a></th>
+              <th><a th:href="${@pageLinks.sortUrl(request, 'max')}">Distance Max (km) ↕</a></th>
+              <th><a th:href="${@pageLinks.sortUrl(request, 'prix')}">Prix (Ar) ↕</a></th>
               <th class="text-center">Actions</th>
             </tr>
           </thead>

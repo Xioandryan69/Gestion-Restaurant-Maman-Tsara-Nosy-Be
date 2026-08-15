@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="fr" th:with="pageTitle='Ingrédients manquants'">
+<head th:replace="~{layout/head :: head(pageTitle=${pageTitle})}"></head>
+<body><div class="app">
+  <aside th:replace="~{layout/sidebar :: sidebar(activeMenu='ingredients-manquants')}"></aside>
+  <div class="main"><div th:replace="~{layout/navbar :: topbar(pageTitle=${pageTitle})}"></div><main class="content">
+    <div class="page-header"><div><h2>Ingrédients à réapprovisionner</h2><div class="breadcrumb">Accueil / Ingrédients manquants</div></div><a th:href="@{/ingredients/stock}" class="btn btn-secondary">État des stocks</a></div>
+    <div th:replace="~{fragments/alerts :: flash}"></div>
+    <div class="alert alert-info">Seuls les ingrédients sous le seuil de <strong th:text="${seuilStockFaible}">5</strong> sont affichés.</div>
+    <div class="card mb-4 shadow-sm"><div class="card-body"><form th:action="@{/ingredients/manquants}" method="get" class="row g-3 align-items-end">
+      <div class="col-md-3"><label class="form-label">Ingrédient</label><input class="form-control" name="nom" th:value="${nom}" placeholder="Nom"></div>
+      <div class="col-md-2"><label class="form-label">Unité</label><select class="form-select" name="unite"><option value="">Toutes</option><option th:each="u : ${unites}" th:value="${u.symbole}" th:selected="${u.symbole == unite}" th:text="${u.symbole}">kg</option></select></div>
+      <div class="col-md-2"><label class="form-label">Stock maximum</label><input type="number" min="0" step="0.001" class="form-control" name="stockMax" th:value="${stockMax}"></div>
+      <div class="col-md-2"><label class="form-label">Ajout minimum</label><input type="number" min="0" step="0.001" class="form-control" name="ajoutMin" th:value="${ajoutMin}"></div>
+      <div class="col-md-2"><label class="form-label">Trier par</label><select class="form-select" name="sort"><option value="nom" th:selected="${sort == 'nom'}">Ingrédient</option><option value="stock" th:selected="${sort == 'stock'}">Stock actuel</option><option value="ajout" th:selected="${sort == 'ajout'}">À ajouter</option><option value="unite" th:selected="${sort == 'unite'}">Unité</option></select></div>
+      <div class="col-md-1"><label class="form-label">Ordre</label><select class="form-select" name="direction"><option value="asc" th:selected="${direction == 'asc'}">↑</option><option value="desc" th:selected="${direction == 'desc'}">↓</option></select></div>
+      <div class="col-12 d-flex gap-2"><button class="btn btn-primary" type="submit">Filtrer</button><a th:href="@{/ingredients/manquants}" class="btn btn-outline-secondary">Réinitialiser</a></div>
+    </form></div></div>
+    <div class="table-card"><div class="table-responsive"><table class="data-table"><thead><tr><th>Ingrédient</th><th>Stock actuel</th><th>À ajouter pour le seuil</th><th>Unité</th><th>Quantité à ajouter</th><th>Action</th></tr></thead><tbody>
+      <tr th:each="item : ${ingredientsManquants}"><td class="fw-bold" th:text="${item.nom}">Riz</td><td th:text="${item.quantiteActuelle}">0</td><td class="text-danger fw-bold" th:text="${item.quantiteManquante}">5</td><td th:text="${item.unite}">kg</td><td th:text="${item.quantiteManquante + ' ' + item.unite}">5 kg</td><td><a class="btn btn-primary btn-sm" th:href="@{/ingredients/{id}/detail(id=${item.id},quantite=${item.quantiteManquante},retour='manquants')}">Ajouter le stock</a></td></tr>
+      <tr th:if="${#lists.isEmpty(ingredientsManquants)}"><td colspan="6" class="text-center text-muted py-4">Aucun ingrédient ne correspond aux filtres.</td></tr>
+    </tbody></table></div></div>
+  </main></div></div><div th:replace="~{layout/footer :: footer}"></div><th:block th:replace="~{layout/scripts :: scripts}"></th:block></body></html>

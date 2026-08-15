@@ -42,6 +42,24 @@ body {
   flex-direction: column;
 }
 
+.notification-link { position: relative; text-decoration: none; color: inherit; }
+.notif-count { position: absolute; right: -6px; top: -6px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 99px; background: var(--c-danger); color: #fff; font-size: 10px; font-weight: 700; display: grid; place-items: center; }
+.table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* Les tableaux et les formulaires restent utilisables sur téléphone dans tous les modules. */
+@media (max-width: 767px) {
+  .content { padding: 16px !important; }
+  .page-header { gap: 12px; align-items: flex-start; flex-direction: column; }
+  .page-header > .btn, .page-header > a.btn { width: 100%; }
+  .card-body .row > [class*="col-"] { width: 100%; }
+  .card-body .d-flex.gap-2 { flex-wrap: wrap; }
+  .card-body .d-flex.gap-2 .btn { flex: 1 1 130px; }
+  .data-table { min-width: 650px; }
+  .table-card { overflow: hidden; }
+  .form-grid { grid-template-columns: 1fr !important; }
+  .kpi-grid { grid-template-columns: 1fr !important; }
+}
+
 /* ─── Buttons ────────────────────────────────────────────────────────────── */
 .btn {
   display: inline-flex;
@@ -863,4 +881,3 @@ input[type="color"] {
     padding-bottom: max(16px, env(safe-area-inset-bottom));
   }
 }
-

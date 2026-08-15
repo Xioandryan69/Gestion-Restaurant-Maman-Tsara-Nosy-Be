@@ -384,6 +384,19 @@ public class IngredientsService {
         return new StockPageView(page, nombreAlerte, nombreOk, SEUIL_STOCK_FAIBLE);
     }
 
+    @Transactional(readOnly = true)
+    public List<IngredientManquantDto> findIngredientsEnAlerte() {
+        BigDecimal seuil = BigDecimal.valueOf(SEUIL_STOCK_FAIBLE);
+        return ingredientsRepository.findAllWithRelationsList().stream().map(ingredient -> {
+            BigDecimal actuel = getStockActuel(ingredient.getId());
+            return actuel.compareTo(seuil) < 0
+                    ? new IngredientManquantDto(ingredient.getId(), ingredient.getNom(),
+                    ingredient.getUnite() != null ? ingredient.getUnite().getSymbole() : "",
+                    seuil, actuel, seuil.subtract(actuel))
+                    : null;
+        }).filter(java.util.Objects::nonNull).toList();
+    }
+
     /**
      * Réintégration de stock (ex. annulation de commande) sans mouvement de caisse.
      */

@@ -19,6 +19,7 @@ com/gestion/restaurant/service/personnels/PersonnelsService.class
 com/gestion/restaurant/dto/plats/PlatDashboardDto.class
 com/gestion/restaurant/dto/ingredients/IngredientMapper.class
 com/gestion/restaurant/service/excel/RestaurantExcelExchangeService$WorkbookWriter.class
+com/gestion/restaurant/dto/ingredients/IngredientManquantDto.class
 com/gestion/restaurant/dto/plats/PlatMultipleRequestDto.class
 com/gestion/restaurant/dto/ingredients/IngredientRequestDto.class
 com/gestion/restaurant/config/ProdSecurityGuard.class
@@ -96,6 +97,7 @@ com/gestion/restaurant/dto/personnels/PersonnelResponseDto.class
 com/gestion/restaurant/service/excel/RestaurantExcelExchangeService$Saver.class
 com/gestion/restaurant/service/excel/RestaurantExcelExchangeService.class
 com/gestion/restaurant/dto/materielles/MaterielRequestDto.class
+com/gestion/restaurant/exception/StockInsuffisantException.class
 com/gestion/restaurant/service/dashboard/DashboardService$DashboardStats.class
 com/gestion/restaurant/specification/livraisons/ZoneLivraisonSpecification.class
 com/gestion/restaurant/repository/personnels/RaisonAbsenceRepository.class

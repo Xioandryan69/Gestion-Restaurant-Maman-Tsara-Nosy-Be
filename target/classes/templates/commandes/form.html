@@ -32,6 +32,15 @@
         <a th:href="@{/commandes}" class="btn btn-secondary">&larr; Annuler</a>
       </div>
 
+      <div th:if="${errorMessage}" class="alert alert-danger" role="alert" th:text="${errorMessage}"></div>
+      <div th:if="${ingredientsManquants}" class="table-card mb-4">
+        <div class="p-3"><h4 class="text-danger mb-3">Ingrédients insuffisants</h4>
+          <div class="table-responsive"><table class="data-table"><thead><tr><th>Ingrédient</th><th>Quantité requise</th><th>Stock actuel</th><th>Quantité manquante</th><th></th></tr></thead><tbody>
+            <tr th:each="item : ${ingredientsManquants}"><td class="fw-bold" th:text="${item.nom + ' (' + item.unite + ')'}">Riz</td><td th:text="${item.quantiteRequise}">10</td><td th:text="${item.quantiteActuelle}">2</td><td class="text-danger fw-bold" th:text="${item.quantiteManquante}">8</td><td><a class="btn btn-primary btn-sm" th:href="@{/ingredients/{id}/detail(id=${item.id},quantite=${item.quantiteManquante},retour='commande')}">Ajouter</a></td></tr>
+          </tbody></table></div>
+        </div>
+      </div>
+
       <form th:action="@{/commandes/save}" th:object="${commandeDto}" method="post" id="commandeForm">
         <input type="hidden" th:field="*{id}" />
 

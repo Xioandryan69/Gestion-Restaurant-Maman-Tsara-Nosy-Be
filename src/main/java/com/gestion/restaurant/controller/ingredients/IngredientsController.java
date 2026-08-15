@@ -21,6 +21,9 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Locale;
 
 @Controller
 @RequestMapping("/ingredients")
@@ -99,11 +102,16 @@ public class IngredientsController {
     }
 
     @GetMapping("/{id}/detail")
-    public String detail(@PathVariable("id") Long id, Model model) {
+    public String detail(@PathVariable("id") Long id,
+                         @RequestParam(value = "quantite", required = false) BigDecimal quantite,
+                         @RequestParam(value = "retour", required = false) String retour,
+                         Model model) {
         model.addAttribute("ingredient", ingredientsService.findById(id));
         model.addAttribute("historiqueList", ingredientsService.findHistorique(id));
         model.addAttribute("inventaireList", ingredientsService.findInventaire(id));
         model.addAttribute("stockActuel", ingredientsService.getStockActuel(id));
+        model.addAttribute("quantiteAAjouter", quantite);
+        model.addAttribute("retour", ("manquants".equals(retour) || "commande".equals(retour)) ? retour : "");
         return "ingredients/detail";
     }
 
@@ -115,9 +123,12 @@ public class IngredientsController {
                             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateEntree,
                             @RequestParam(value = "datePeremption", required = false)
                             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate datePeremption,
+                            @RequestParam(value = "retour", required = false) String retour,
                             RedirectAttributes redirectAttributes) {
         ingredientsService.enregistrerAchatEntree(id, dateEntree, datePeremption, quantite, prixAchat);
         redirectAttributes.addFlashAttribute("successMessage", "Achat enregistré (stock + caisse).");
+        if ("manquants".equals(retour)) return "redirect:/ingredients/manquants";
+        if ("commande".equals(retour)) return "redirect:/commandes/new?resume=true";
         return "redirect:/ingredients/" + id + "/detail";
     }
 
@@ -146,6 +157,39 @@ public class IngredientsController {
         model.addAttribute("categories", ingredientsService.findAllCategories());
         model.addAttribute("unites", ingredientsService.findAllUnites());
         return "ingredients/stock";
+    }
+
+    @GetMapping("/manquants")
+    public String viewIngredientsManquants(@RequestParam(value = "nom", required = false) String nom,
+                                           @RequestParam(value = "unite", required = false) String unite,
+                                           @RequestParam(value = "stockMax", required = false) BigDecimal stockMax,
+                                           @RequestParam(value = "ajoutMin", required = false) BigDecimal ajoutMin,
+                                           @RequestParam(value = "sort", defaultValue = "nom") String sort,
+                                           @RequestParam(value = "direction", defaultValue = "asc") String direction,
+                                           Model model) {
+        List<com.gestion.restaurant.dto.ingredients.IngredientManquantDto> resultat = ingredientsService.findIngredientsEnAlerte().stream()
+                .filter(item -> nom == null || nom.isBlank() || item.nom().toLowerCase(Locale.ROOT).contains(nom.trim().toLowerCase(Locale.ROOT)))
+                .filter(item -> unite == null || unite.isBlank() || item.unite().equalsIgnoreCase(unite.trim()))
+                .filter(item -> stockMax == null || item.quantiteActuelle().compareTo(stockMax) <= 0)
+                .filter(item -> ajoutMin == null || item.quantiteManquante().compareTo(ajoutMin) >= 0)
+                .toList();
+        Comparator<com.gestion.restaurant.dto.ingredients.IngredientManquantDto> comparator = switch (sort) {
+            case "stock" -> Comparator.comparing(com.gestion.restaurant.dto.ingredients.IngredientManquantDto::quantiteActuelle);
+            case "ajout" -> Comparator.comparing(com.gestion.restaurant.dto.ingredients.IngredientManquantDto::quantiteManquante);
+            case "unite" -> Comparator.comparing(com.gestion.restaurant.dto.ingredients.IngredientManquantDto::unite, String.CASE_INSENSITIVE_ORDER);
+            default -> Comparator.comparing(com.gestion.restaurant.dto.ingredients.IngredientManquantDto::nom, String.CASE_INSENSITIVE_ORDER);
+        };
+        if ("desc".equalsIgnoreCase(direction)) comparator = comparator.reversed();
+        model.addAttribute("ingredientsManquants", resultat.stream().sorted(comparator).toList());
+        model.addAttribute("nom", nom);
+        model.addAttribute("unite", unite);
+        model.addAttribute("stockMax", stockMax);
+        model.addAttribute("ajoutMin", ajoutMin);
+        model.addAttribute("sort", sort);
+        model.addAttribute("direction", "desc".equalsIgnoreCase(direction) ? "desc" : "asc");
+        model.addAttribute("unites", ingredientsService.findAllUnites());
+        model.addAttribute("seuilStockFaible", IngredientsService.SEUIL_STOCK_FAIBLE);
+        return "ingredients/manquants";
     }
 
     private void populateFormLookups(Model model) {

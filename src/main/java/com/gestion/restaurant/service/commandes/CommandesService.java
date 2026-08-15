@@ -13,6 +13,8 @@ import com.gestion.restaurant.entity.plats.Plats;
 import com.gestion.restaurant.entity.plats.RecettePlats;
 import com.gestion.restaurant.exception.BusinessRuleException;
 import com.gestion.restaurant.exception.ResourceNotFoundException;
+import com.gestion.restaurant.exception.StockInsuffisantException;
+import com.gestion.restaurant.dto.ingredients.IngredientManquantDto;
 import com.gestion.restaurant.repository.clients.ClientsRepository;
 import com.gestion.restaurant.repository.commandes.CommandesRepository;
 import com.gestion.restaurant.repository.commandes.DetailsCommandesRepository;
@@ -30,6 +32,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Locale;
 import java.util.stream.Collectors;
 
@@ -166,6 +170,9 @@ public class CommandesService {
 
         LocalDate dateMvt = dto.getDateCommande() != null ? dto.getDateCommande() : LocalDate.now();
 
+        // Validation atomique : rien n'est créé si un seul ingrédient manque.
+        verifierStockDisponible(dto);
+
         Commandes commande = new Commandes();
         commande.setClient(client);
         commande.setZoneLivraison(zone);
@@ -223,6 +230,34 @@ public class CommandesService {
         }
 
         return commandeFinale;
+    }
+
+    private void verifierStockDisponible(CommandeCreateRequestDto dto) {
+        List<IngredientManquantDto> manquants = getIngredientsManquants(dto);
+        if (!manquants.isEmpty()) throw new StockInsuffisantException(manquants);
+    }
+
+    @Transactional(readOnly = true)
+    public List<IngredientManquantDto> getIngredientsManquants(CommandeCreateRequestDto dto) {
+        Map<Long, BigDecimal> besoins = new LinkedHashMap<>();
+        Map<Long, Ingredients> ingredients = new LinkedHashMap<>();
+        for (CommandeLigneRequestDto ligne : dto.getLignes()) {
+            if (ligne.getIdPlat() == null || ligne.getQuantite() == null || ligne.getQuantite().compareTo(BigDecimal.ZERO) <= 0) continue;
+            Plats plat = platsRepository.findById(ligne.getIdPlat()).orElseThrow(() -> new ResourceNotFoundException("Plat introuvable : " + ligne.getIdPlat()));
+            for (RecettePlats recette : recettePlatsRepository.findByPlatId(plat.getId())) {
+                if (recette.getIngredient() == null || recette.getQuantiteRequise() == null) continue;
+                Long id = recette.getIngredient().getId();
+                besoins.merge(id, recette.getQuantiteRequise().multiply(ligne.getQuantite()), BigDecimal::add);
+                ingredients.put(id, recette.getIngredient());
+            }
+        }
+        List<IngredientManquantDto> manquants = besoins.entrySet().stream().map(entry -> {
+            Ingredients ingredient = ingredients.get(entry.getKey());
+            BigDecimal actuel = ingredientsService.getStockActuel(entry.getKey());
+            BigDecimal manque = entry.getValue().subtract(actuel);
+            return manque.compareTo(BigDecimal.ZERO) > 0 ? new IngredientManquantDto(ingredient.getId(), ingredient.getNom(), ingredient.getUnite() != null ? ingredient.getUnite().getSymbole() : "", entry.getValue(), actuel, manque) : null;
+        }).filter(java.util.Objects::nonNull).toList();
+        return manquants;
     }
 
     /** @deprecated utiliser {@link #creerCommande(CommandeCreateRequestDto)} */

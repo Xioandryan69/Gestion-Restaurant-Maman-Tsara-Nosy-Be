@@ -4,6 +4,7 @@ import com.gestion.restaurant.dto.commandes.CommandeCreateRequestDto;
 import com.gestion.restaurant.dto.commandes.CommandeSearchCriteria;
 import com.gestion.restaurant.service.commandes.CommandesService;
 import com.gestion.restaurant.service.plats.PlatsService;
+import com.gestion.restaurant.exception.StockInsuffisantException;
 
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Pageable;
@@ -14,9 +15,11 @@ import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import org.springframework.web.bind.support.SessionStatus;
 
 @Controller
 @RequestMapping("/commandes")
+@SessionAttributes("commandeDto")
 public class CommandesController {
 
     private final CommandesService commandesService;
@@ -51,9 +54,25 @@ public class CommandesController {
         return "commandes/list";
     }
 
+    @ModelAttribute("commandeDto")
+    public CommandeCreateRequestDto commandeDto() {
+        return new CommandeCreateRequestDto();
+    }
+
     @GetMapping("/new")
-    public String showCreate(Model model) {
-        model.addAttribute("commandeDto", new CommandeCreateRequestDto());
+    public String showCreate(@RequestParam(value = "resume", defaultValue = "false") boolean resume,
+                             @ModelAttribute("commandeDto") CommandeCreateRequestDto dto,
+                             Model model) {
+        if (!resume) {
+            dto = new CommandeCreateRequestDto();
+            model.addAttribute("commandeDto", dto);
+        } else {
+            var manquants = commandesService.getIngredientsManquants(dto);
+            if (!manquants.isEmpty()) {
+                model.addAttribute("errorMessage", "Complétez les ingrédients manquants puis validez à nouveau la commande.");
+                model.addAttribute("ingredientsManquants", manquants);
+            }
+        }
         model.addAttribute("clients", commandesService.findAllClients());
         model.addAttribute("zones", commandesService.findAllZones());
         model.addAttribute("plats", commandesService.findAllPlats());
@@ -64,14 +83,25 @@ public class CommandesController {
     public String save(@Valid @ModelAttribute("commandeDto") CommandeCreateRequestDto dto,
                        BindingResult result,
                        Model model,
-                       RedirectAttributes redirectAttributes) {
+                       RedirectAttributes redirectAttributes,
+                       SessionStatus sessionStatus) {
         if (result.hasErrors()) {
             model.addAttribute("clients", commandesService.findAllClients());
             model.addAttribute("zones", commandesService.findAllZones());
             model.addAttribute("plats", commandesService.findAllPlats());
             return "commandes/form";
         }
-        commandesService.creerCommande(dto);
+        try {
+            commandesService.creerCommande(dto);
+        } catch (StockInsuffisantException ex) {
+            model.addAttribute("errorMessage", ex.getMessage());
+            model.addAttribute("ingredientsManquants", ex.getIngredientsManquants());
+            model.addAttribute("clients", commandesService.findAllClients());
+            model.addAttribute("zones", commandesService.findAllZones());
+            model.addAttribute("plats", commandesService.findAllPlats());
+            return "commandes/form";
+        }
+        sessionStatus.setComplete();
         redirectAttributes.addFlashAttribute("successMessage", "Commande enregistrée avec succès.");
         return "redirect:/commandes";
     }
