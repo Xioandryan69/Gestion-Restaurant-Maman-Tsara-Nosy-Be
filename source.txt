@@ -1,5 +1,5 @@
 ===== EXPORT COMPLET SPRING =====
-Date : sam. 15 août 2026 14:38:23 EAT
+Date : sam. 15 août 2026 15:14:01 EAT
 
 
 ======================================
@@ -366,13 +366,24 @@ package com.gestion.restaurant.config;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ModelAttribute;
+import com.gestion.restaurant.service.ingredients.IngredientsService;
 
 @ControllerAdvice
 public class ThymeleafModelAttributes {
+    private final IngredientsService ingredientsService;
+
+    public ThymeleafModelAttributes(IngredientsService ingredientsService) {
+        this.ingredientsService = ingredientsService;
+    }
 
     @ModelAttribute("request")
     public HttpServletRequest httpServletRequest(HttpServletRequest request) {
         return request;
+    }
+
+    @ModelAttribute("nombreAlertesStock")
+    public int nombreAlertesStock() {
+        return ingredientsService.findIngredientsEnAlerte().size();
     }
 }
 
@@ -726,6 +737,7 @@ import com.gestion.restaurant.dto.commandes.CommandeCreateRequestDto;
 import com.gestion.restaurant.dto.commandes.CommandeSearchCriteria;
 import com.gestion.restaurant.service.commandes.CommandesService;
 import com.gestion.restaurant.service.plats.PlatsService;
+import com.gestion.restaurant.exception.StockInsuffisantException;
 
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Pageable;
@@ -736,9 +748,11 @@ import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import org.springframework.web.bind.support.SessionStatus;
 
 @Controller
 @RequestMapping("/commandes")
+@SessionAttributes("commandeDto")
 public class CommandesController {
 
     private final CommandesService commandesService;
@@ -773,9 +787,25 @@ public class CommandesController {
         return "commandes/list";
     }
 
+    @ModelAttribute("commandeDto")
+    public CommandeCreateRequestDto commandeDto() {
+        return new CommandeCreateRequestDto();
+    }
+
     @GetMapping("/new")
-    public String showCreate(Model model) {
-        model.addAttribute("commandeDto", new CommandeCreateRequestDto());
+    public String showCreate(@RequestParam(value = "resume", defaultValue = "false") boolean resume,
+                             @ModelAttribute("commandeDto") CommandeCreateRequestDto dto,
+                             Model model) {
+        if (!resume) {
+            dto = new CommandeCreateRequestDto();
+            model.addAttribute("commandeDto", dto);
+        } else {
+            var manquants = commandesService.getIngredientsManquants(dto);
+            if (!manquants.isEmpty()) {
+                model.addAttribute("errorMessage", "Complétez les ingrédients manquants puis validez à nouveau la commande.");
+                model.addAttribute("ingredientsManquants", manquants);
+            }
+        }
         model.addAttribute("clients", commandesService.findAllClients());
         model.addAttribute("zones", commandesService.findAllZones());
         model.addAttribute("plats", commandesService.findAllPlats());
@@ -786,14 +816,25 @@ public class CommandesController {
     public String save(@Valid @ModelAttribute("commandeDto") CommandeCreateRequestDto dto,
                        BindingResult result,
                        Model model,
-                       RedirectAttributes redirectAttributes) {
+                       RedirectAttributes redirectAttributes,
+                       SessionStatus sessionStatus) {
         if (result.hasErrors()) {
             model.addAttribute("clients", commandesService.findAllClients());
             model.addAttribute("zones", commandesService.findAllZones());
             model.addAttribute("plats", commandesService.findAllPlats());
             return "commandes/form";
         }
-        commandesService.creerCommande(dto);
+        try {
+            commandesService.creerCommande(dto);
+        } catch (StockInsuffisantException ex) {
+            model.addAttribute("errorMessage", ex.getMessage());
+            model.addAttribute("ingredientsManquants", ex.getIngredientsManquants());
+            model.addAttribute("clients", commandesService.findAllClients());
+            model.addAttribute("zones", commandesService.findAllZones());
+            model.addAttribute("plats", commandesService.findAllPlats());
+            return "commandes/form";
+        }
+        sessionStatus.setComplete();
         redirectAttributes.addFlashAttribute("successMessage", "Commande enregistrée avec succès.");
         return "redirect:/commandes";
     }
@@ -1270,6 +1311,9 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Locale;
 
 @Controller
 @RequestMapping("/ingredients")
@@ -1348,11 +1392,16 @@ public class IngredientsController {
     }
 
     @GetMapping("/{id}/detail")
-    public String detail(@PathVariable("id") Long id, Model model) {
+    public String detail(@PathVariable("id") Long id,
+                         @RequestParam(value = "quantite", required = false) BigDecimal quantite,
+                         @RequestParam(value = "retour", required = false) String retour,
+                         Model model) {
         model.addAttribute("ingredient", ingredientsService.findById(id));
         model.addAttribute("historiqueList", ingredientsService.findHistorique(id));
         model.addAttribute("inventaireList", ingredientsService.findInventaire(id));
         model.addAttribute("stockActuel", ingredientsService.getStockActuel(id));
+        model.addAttribute("quantiteAAjouter", quantite);
+        model.addAttribute("retour", ("manquants".equals(retour) || "commande".equals(retour)) ? retour : "");
         return "ingredients/detail";
     }
 
@@ -1364,9 +1413,12 @@ public class IngredientsController {
                             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateEntree,
                             @RequestParam(value = "datePeremption", required = false)
                             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate datePeremption,
+                            @RequestParam(value = "retour", required = false) String retour,
                             RedirectAttributes redirectAttributes) {
         ingredientsService.enregistrerAchatEntree(id, dateEntree, datePeremption, quantite, prixAchat);
         redirectAttributes.addFlashAttribute("successMessage", "Achat enregistré (stock + caisse).");
+        if ("manquants".equals(retour)) return "redirect:/ingredients/manquants";
+        if ("commande".equals(retour)) return "redirect:/commandes/new?resume=true";
         return "redirect:/ingredients/" + id + "/detail";
     }
 
@@ -1395,6 +1447,39 @@ public class IngredientsController {
         model.addAttribute("categories", ingredientsService.findAllCategories());
         model.addAttribute("unites", ingredientsService.findAllUnites());
         return "ingredients/stock";
+    }
+
+    @GetMapping("/manquants")
+    public String viewIngredientsManquants(@RequestParam(value = "nom", required = false) String nom,
+                                           @RequestParam(value = "unite", required = false) String unite,
+                                           @RequestParam(value = "stockMax", required = false) BigDecimal stockMax,
+                                           @RequestParam(value = "ajoutMin", required = false) BigDecimal ajoutMin,
+                                           @RequestParam(value = "sort", defaultValue = "nom") String sort,
+                                           @RequestParam(value = "direction", defaultValue = "asc") String direction,
+                                           Model model) {
+        List<com.gestion.restaurant.dto.ingredients.IngredientManquantDto> resultat = ingredientsService.findIngredientsEnAlerte().stream()
+                .filter(item -> nom == null || nom.isBlank() || item.nom().toLowerCase(Locale.ROOT).contains(nom.trim().toLowerCase(Locale.ROOT)))
+                .filter(item -> unite == null || unite.isBlank() || item.unite().equalsIgnoreCase(unite.trim()))
+                .filter(item -> stockMax == null || item.quantiteActuelle().compareTo(stockMax) <= 0)
+                .filter(item -> ajoutMin == null || item.quantiteManquante().compareTo(ajoutMin) >= 0)
+                .toList();
+        Comparator<com.gestion.restaurant.dto.ingredients.IngredientManquantDto> comparator = switch (sort) {
+            case "stock" -> Comparator.comparing(com.gestion.restaurant.dto.ingredients.IngredientManquantDto::quantiteActuelle);
+            case "ajout" -> Comparator.comparing(com.gestion.restaurant.dto.ingredients.IngredientManquantDto::quantiteManquante);
+            case "unite" -> Comparator.comparing(com.gestion.restaurant.dto.ingredients.IngredientManquantDto::unite, String.CASE_INSENSITIVE_ORDER);
+            default -> Comparator.comparing(com.gestion.restaurant.dto.ingredients.IngredientManquantDto::nom, String.CASE_INSENSITIVE_ORDER);
+        };
+        if ("desc".equalsIgnoreCase(direction)) comparator = comparator.reversed();
+        model.addAttribute("ingredientsManquants", resultat.stream().sorted(comparator).toList());
+        model.addAttribute("nom", nom);
+        model.addAttribute("unite", unite);
+        model.addAttribute("stockMax", stockMax);
+        model.addAttribute("ajoutMin", ajoutMin);
+        model.addAttribute("sort", sort);
+        model.addAttribute("direction", "desc".equalsIgnoreCase(direction) ? "desc" : "asc");
+        model.addAttribute("unites", ingredientsService.findAllUnites());
+        model.addAttribute("seuilStockFaible", IngredientsService.SEUIL_STOCK_FAIBLE);
+        return "ingredients/manquants";
     }
 
     private void populateFormLookups(Model model) {
@@ -2237,6 +2322,20 @@ public class IngredientDashboardDto {
     private List<String> movements = new ArrayList<>();
     private List<String> quickActions = new ArrayList<>();
 }
+
+
+======================================
+FILE : src/main/java/com/gestion/restaurant/dto/ingredients/IngredientManquantDto.java
+======================================
+package com.gestion.restaurant.dto.ingredients;
+
+import java.math.BigDecimal;
+
+/** Quantités nécessaires, disponibles et manquantes pour un ingrédient. */
+public record IngredientManquantDto(Long id, String nom, String unite,
+                                    BigDecimal quantiteRequise,
+                                    BigDecimal quantiteActuelle,
+                                    BigDecimal quantiteManquante) { }
 
 
 ======================================
@@ -4038,6 +4137,24 @@ public class ResourceNotFoundException extends RuntimeException {
 }
 
 ======================================
+FILE : src/main/java/com/gestion/restaurant/exception/StockInsuffisantException.java
+======================================
+package com.gestion.restaurant.exception;
+
+import com.gestion.restaurant.dto.ingredients.IngredientManquantDto;
+import java.util.List;
+
+public class StockInsuffisantException extends BusinessRuleException {
+    private final List<IngredientManquantDto> ingredientsManquants;
+    public StockInsuffisantException(List<IngredientManquantDto> ingredientsManquants) {
+        super("Stock insuffisant : ajoutez les ingrédients manquants avant de créer la commande.", "/commandes/new");
+        this.ingredientsManquants = List.copyOf(ingredientsManquants);
+    }
+    public List<IngredientManquantDto> getIngredientsManquants() { return ingredientsManquants; }
+}
+
+
+======================================
 FILE : src/main/java/com/gestion/restaurant/repository/caisse/MouvementCaisseRepository.java
 ======================================
 package com.gestion.restaurant.repository.caisse;
@@ -5239,6 +5356,8 @@ import com.gestion.restaurant.entity.plats.Plats;
 import com.gestion.restaurant.entity.plats.RecettePlats;
 import com.gestion.restaurant.exception.BusinessRuleException;
 import com.gestion.restaurant.exception.ResourceNotFoundException;
+import com.gestion.restaurant.exception.StockInsuffisantException;
+import com.gestion.restaurant.dto.ingredients.IngredientManquantDto;
 import com.gestion.restaurant.repository.clients.ClientsRepository;
 import com.gestion.restaurant.repository.commandes.CommandesRepository;
 import com.gestion.restaurant.repository.commandes.DetailsCommandesRepository;
@@ -5256,6 +5375,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Locale;
 import java.util.stream.Collectors;
 
@@ -5392,6 +5513,9 @@ public class CommandesService {
 
         LocalDate dateMvt = dto.getDateCommande() != null ? dto.getDateCommande() : LocalDate.now();
 
+        // Validation atomique : rien n'est créé si un seul ingrédient manque.
+        verifierStockDisponible(dto);
+
         Commandes commande = new Commandes();
         commande.setClient(client);
         commande.setZoneLivraison(zone);
@@ -5449,6 +5573,34 @@ public class CommandesService {
         }
 
         return commandeFinale;
+    }
+
+    private void verifierStockDisponible(CommandeCreateRequestDto dto) {
+        List<IngredientManquantDto> manquants = getIngredientsManquants(dto);
+        if (!manquants.isEmpty()) throw new StockInsuffisantException(manquants);
+    }
+
+    @Transactional(readOnly = true)
+    public List<IngredientManquantDto> getIngredientsManquants(CommandeCreateRequestDto dto) {
+        Map<Long, BigDecimal> besoins = new LinkedHashMap<>();
+        Map<Long, Ingredients> ingredients = new LinkedHashMap<>();
+        for (CommandeLigneRequestDto ligne : dto.getLignes()) {
+            if (ligne.getIdPlat() == null || ligne.getQuantite() == null || ligne.getQuantite().compareTo(BigDecimal.ZERO) <= 0) continue;
+            Plats plat = platsRepository.findById(ligne.getIdPlat()).orElseThrow(() -> new ResourceNotFoundException("Plat introuvable : " + ligne.getIdPlat()));
+            for (RecettePlats recette : recettePlatsRepository.findByPlatId(plat.getId())) {
+                if (recette.getIngredient() == null || recette.getQuantiteRequise() == null) continue;
+                Long id = recette.getIngredient().getId();
+                besoins.merge(id, recette.getQuantiteRequise().multiply(ligne.getQuantite()), BigDecimal::add);
+                ingredients.put(id, recette.getIngredient());
+            }
+        }
+        List<IngredientManquantDto> manquants = besoins.entrySet().stream().map(entry -> {
+            Ingredients ingredient = ingredients.get(entry.getKey());
+            BigDecimal actuel = ingredientsService.getStockActuel(entry.getKey());
+            BigDecimal manque = entry.getValue().subtract(actuel);
+            return manque.compareTo(BigDecimal.ZERO) > 0 ? new IngredientManquantDto(ingredient.getId(), ingredient.getNom(), ingredient.getUnite() != null ? ingredient.getUnite().getSymbole() : "", entry.getValue(), actuel, manque) : null;
+        }).filter(java.util.Objects::nonNull).toList();
+        return manquants;
     }
 
     /** @deprecated utiliser {@link #creerCommande(CommandeCreateRequestDto)} */
@@ -7924,6 +8076,19 @@ public class IngredientsService {
                 .map(ing -> new IngredientStockDTO(ing, stocks.getOrDefault(ing.getId(), 0.0)));
 
         return new StockPageView(page, nombreAlerte, nombreOk, SEUIL_STOCK_FAIBLE);
+    }
+
+    @Transactional(readOnly = true)
+    public List<IngredientManquantDto> findIngredientsEnAlerte() {
+        BigDecimal seuil = BigDecimal.valueOf(SEUIL_STOCK_FAIBLE);
+        return ingredientsRepository.findAllWithRelationsList().stream().map(ingredient -> {
+            BigDecimal actuel = getStockActuel(ingredient.getId());
+            return actuel.compareTo(seuil) < 0
+                    ? new IngredientManquantDto(ingredient.getId(), ingredient.getNom(),
+                    ingredient.getUnite() != null ? ingredient.getUnite().getSymbole() : "",
+                    seuil, actuel, seuil.subtract(actuel))
+                    : null;
+        }).filter(java.util.Objects::nonNull).toList();
     }
 
     /**
@@ -10846,6 +11011,15 @@ RESOURCE : src/main/resources/templates/commandes/form.html
         <a th:href="@{/commandes}" class="btn btn-secondary">&larr; Annuler</a>
       </div>
 
+      <div th:if="${errorMessage}" class="alert alert-danger" role="alert" th:text="${errorMessage}"></div>
+      <div th:if="${ingredientsManquants}" class="table-card mb-4">
+        <div class="p-3"><h4 class="text-danger mb-3">Ingrédients insuffisants</h4>
+          <div class="table-responsive"><table class="data-table"><thead><tr><th>Ingrédient</th><th>Quantité requise</th><th>Stock actuel</th><th>Quantité manquante</th><th></th></tr></thead><tbody>
+            <tr th:each="item : ${ingredientsManquants}"><td class="fw-bold" th:text="${item.nom + ' (' + item.unite + ')'}">Riz</td><td th:text="${item.quantiteRequise}">10</td><td th:text="${item.quantiteActuelle}">2</td><td class="text-danger fw-bold" th:text="${item.quantiteManquante}">8</td><td><a class="btn btn-primary btn-sm" th:href="@{/ingredients/{id}/detail(id=${item.id},quantite=${item.quantiteManquante},retour='commande')}">Ajouter</a></td></tr>
+          </tbody></table></div>
+        </div>
+      </div>
+
       <form th:action="@{/commandes/save}" th:object="${commandeDto}" method="post" id="commandeForm">
         <input type="hidden" th:field="*{id}" />
 
@@ -11151,6 +11325,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
 </body>
 </html>
+
 
 ======================================
 RESOURCE : src/main/resources/templates/commandes/list.html
@@ -12076,9 +12251,10 @@ RESOURCE : src/main/resources/templates/ingredients/detail.html
         <div class="form-card">
           <h3 class="mb-3 text-success">Enregistrer un Achat / Entrée</h3>
           <form th:action="@{/ingredients/{id}/achat/save(id=${ingredient.id})}" method="post">
+            <input type="hidden" name="retour" th:value="${retour}" />
             <div class="field-group mb-3">
               <label class="field-label">Quantité <span class="required">*</span></label>
-              <input type="number" step="0.001" name="quantite" class="form-control" placeholder="0.000" required />
+              <input type="number" step="0.001" name="quantite" class="form-control" placeholder="0.000" th:value="${quantiteAAjouter}" required />
             </div>
             <div class="field-group mb-3">
               <label class="field-label">Prix d'Achat Total <span class="required">*</span></label>
@@ -12181,6 +12357,7 @@ RESOURCE : src/main/resources/templates/ingredients/detail.html
 
 </body>
 </html>
+
 
 ======================================
 RESOURCE : src/main/resources/templates/ingredients/form.html
@@ -12428,6 +12605,34 @@ RESOURCE : src/main/resources/templates/ingredients/list.html
 
 
 ======================================
+RESOURCE : src/main/resources/templates/ingredients/manquants.html
+======================================
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="fr" th:with="pageTitle='Ingrédients manquants'">
+<head th:replace="~{layout/head :: head(pageTitle=${pageTitle})}"></head>
+<body><div class="app">
+  <aside th:replace="~{layout/sidebar :: sidebar(activeMenu='ingredients-manquants')}"></aside>
+  <div class="main"><div th:replace="~{layout/navbar :: topbar(pageTitle=${pageTitle})}"></div><main class="content">
+    <div class="page-header"><div><h2>Ingrédients à réapprovisionner</h2><div class="breadcrumb">Accueil / Ingrédients manquants</div></div><a th:href="@{/ingredients/stock}" class="btn btn-secondary">État des stocks</a></div>
+    <div th:replace="~{fragments/alerts :: flash}"></div>
+    <div class="alert alert-info">Seuls les ingrédients sous le seuil de <strong th:text="${seuilStockFaible}">5</strong> sont affichés.</div>
+    <div class="card mb-4 shadow-sm"><div class="card-body"><form th:action="@{/ingredients/manquants}" method="get" class="row g-3 align-items-end">
+      <div class="col-md-3"><label class="form-label">Ingrédient</label><input class="form-control" name="nom" th:value="${nom}" placeholder="Nom"></div>
+      <div class="col-md-2"><label class="form-label">Unité</label><select class="form-select" name="unite"><option value="">Toutes</option><option th:each="u : ${unites}" th:value="${u.symbole}" th:selected="${u.symbole == unite}" th:text="${u.symbole}">kg</option></select></div>
+      <div class="col-md-2"><label class="form-label">Stock maximum</label><input type="number" min="0" step="0.001" class="form-control" name="stockMax" th:value="${stockMax}"></div>
+      <div class="col-md-2"><label class="form-label">Ajout minimum</label><input type="number" min="0" step="0.001" class="form-control" name="ajoutMin" th:value="${ajoutMin}"></div>
+      <div class="col-md-2"><label class="form-label">Trier par</label><select class="form-select" name="sort"><option value="nom" th:selected="${sort == 'nom'}">Ingrédient</option><option value="stock" th:selected="${sort == 'stock'}">Stock actuel</option><option value="ajout" th:selected="${sort == 'ajout'}">À ajouter</option><option value="unite" th:selected="${sort == 'unite'}">Unité</option></select></div>
+      <div class="col-md-1"><label class="form-label">Ordre</label><select class="form-select" name="direction"><option value="asc" th:selected="${direction == 'asc'}">↑</option><option value="desc" th:selected="${direction == 'desc'}">↓</option></select></div>
+      <div class="col-12 d-flex gap-2"><button class="btn btn-primary" type="submit">Filtrer</button><a th:href="@{/ingredients/manquants}" class="btn btn-outline-secondary">Réinitialiser</a></div>
+    </form></div></div>
+    <div class="table-card"><div class="table-responsive"><table class="data-table"><thead><tr><th>Ingrédient</th><th>Stock actuel</th><th>À ajouter pour le seuil</th><th>Unité</th><th>Quantité à ajouter</th><th>Action</th></tr></thead><tbody>
+      <tr th:each="item : ${ingredientsManquants}"><td class="fw-bold" th:text="${item.nom}">Riz</td><td th:text="${item.quantiteActuelle}">0</td><td class="text-danger fw-bold" th:text="${item.quantiteManquante}">5</td><td th:text="${item.unite}">kg</td><td th:text="${item.quantiteManquante + ' ' + item.unite}">5 kg</td><td><a class="btn btn-primary btn-sm" th:href="@{/ingredients/{id}/detail(id=${item.id},quantite=${item.quantiteManquante},retour='manquants')}">Ajouter le stock</a></td></tr>
+      <tr th:if="${#lists.isEmpty(ingredientsManquants)}"><td colspan="6" class="text-center text-muted py-4">Aucun ingrédient ne correspond aux filtres.</td></tr>
+    </tbody></table></div></div>
+  </main></div></div><div th:replace="~{layout/footer :: footer}"></div><th:block th:replace="~{layout/scripts :: scripts}"></th:block></body></html>
+
+
+======================================
 RESOURCE : src/main/resources/templates/ingredients/stock.html
 ======================================
 <!DOCTYPE html>
@@ -12580,10 +12785,11 @@ RESOURCE : src/main/resources/templates/layout/navbar.html
     <input type="text" placeholder="Rechercher…" />
   </div>
   <div class="topbar-actions">
-    <button class="icon-btn" type="button" aria-label="Notifications">
+    <a class="icon-btn notification-link" th:href="@{/ingredients/manquants}" aria-label="Voir les alertes de stock" title="Alertes de stock">
       <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-      <span class="notif-dot"></span>
-    </button>
+      <span class="notif-dot" th:if="${nombreAlertesStock > 0}"></span>
+      <span class="notif-count" th:if="${nombreAlertesStock > 0}" th:text="${nombreAlertesStock}">0</span>
+    </a>
   </div>
 </div>
 
@@ -12705,6 +12911,10 @@ RESOURCE : src/main/resources/templates/layout/sidebar.html
     <a th:href="@{/ingredients/stock}" class="nav-item" th:classappend="${activeMenu == 'stocks'} ? 'active'">
       <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
       Stocks
+    </a>
+    <a th:href="@{/ingredients/manquants}" class="nav-item" th:classappend="${activeMenu == 'ingredients-manquants'} ? 'active'">
+      <svg viewBox="0 0 24 24"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+      Ingrédients manquants
     </a>
     <a th:href="@{/materielles}" class="nav-item" th:classappend="${activeMenu == 'materielles'} ? 'active'">
       <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6v6H9z"/></svg>
